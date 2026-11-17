@@ -4,7 +4,9 @@ import {
   buildDayStack,
   checkoutChain,
   nextCheckoutStep,
+  ownerSurname,
   selectCollected,
+  stackConfirmation,
   READY_OVERDUE_MINUTES,
 } from "./dayStack";
 import { buildTakingsByMethod } from "./today";
@@ -183,10 +185,66 @@ describe("buildDayStack timing", () => {
     expect(over.urgent).toBe(true);
   });
 
-  it("counts down to an upcoming appointment", () => {
+  it("counts down to the next dog's appointment", () => {
     const [row] = stack([bk({ id: "x", slot: "11:00", status: BOOKING_STATUS.BOOKED })]);
-    expect(row.timing).toBe("45 min away");
+    expect(row.timing).toBe("in 45 min");
+    expect(row.countdown).toBe(true);
     expect(row.urgent).toBe(false);
+  });
+
+  it("carries exactly one countdown, on the next dog not yet arrived", () => {
+    // 10:15 now. 09:00 is late, 10:00 is in with us, 11:00 is next; 11:30 and
+    // 12:00 are later in the day and say nothing about time at all.
+    const rows = stack([
+      bk({ id: "late", slot: "09:00", status: BOOKING_STATUS.BOOKED }),
+      bk({ id: "in", slot: "10:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(20) }),
+      bk({ id: "next", slot: "11:00", status: BOOKING_STATUS.RECONFIRMED }),
+      bk({ id: "later", slot: "11:30", status: BOOKING_STATUS.BOOKED }),
+      bk({ id: "later-still", slot: "12:00", status: BOOKING_STATUS.BOOKED }),
+    ]);
+    expect(rows.filter((row) => row.countdown).map((row) => row.id)).toEqual(["next"]);
+    expect(rows.find((row) => row.id === "late")!.timing).toBe("1 hr 15 min late");
+    expect(rows.find((row) => row.id === "in")!.timing).toBe("20 min");
+    expect(rows.find((row) => row.id === "later")!.timing).toBeNull();
+    expect(rows.find((row) => row.id === "later-still")!.timing).toBeNull();
+    expect(rows.some((row) => /away/.test(row.timing ?? ""))).toBe(false);
+  });
+
+  it("moves the countdown on once that dog is checked in", () => {
+    const before = stack([
+      bk({ id: "a", slot: "11:00", status: BOOKING_STATUS.BOOKED }),
+      bk({ id: "b", slot: "11:30", status: BOOKING_STATUS.BOOKED }),
+    ]);
+    const after = stack([
+      bk({ id: "a", slot: "11:00", status: BOOKING_STATUS.ARRIVED, checkedInAt: agoIso(1) }),
+      bk({ id: "b", slot: "11:30", status: BOOKING_STATUS.BOOKED }),
+    ]);
+    expect(before.find((row) => row.countdown)!.id).toBe("a");
+    expect(after.find((row) => row.id === "a")!.countdown).toBe(false);
+    expect(after.find((row) => row.countdown)!.id).toBe("b");
+    expect(after.find((row) => row.id === "b")!.timing).toBe("in 1 hr 15 min");
+  });
+
+  it("gives two dogs in the same slot one countdown between them, and both their times", () => {
+    const rows = stack([
+      bk({ id: "first", slot: "11:00", status: BOOKING_STATUS.BOOKED }),
+      bk({ id: "second", slot: "11:00", status: BOOKING_STATUS.BOOKED }),
+    ]);
+    expect(rows.map((row) => row.time)).toEqual(["11:00", "11:00"]);
+    expect(rows.filter((row) => row.countdown)).toHaveLength(1);
+  });
+
+  it("says 'due now' inside the late-arrival grace rather than a negative countdown", () => {
+    // 10:15 now, 10:10 slot: past, but not yet late.
+    const [row] = stack([bk({ id: "x", slot: "10:10", status: BOOKING_STATUS.BOOKED })]);
+    expect(row.timing).toBe("due now");
+    expect(row.countdown).toBe(true);
+  });
+
+  it("shows no countdown on another day", () => {
+    const rows = stack([bk({ id: "x", slot: "11:00", status: BOOKING_STATUS.BOOKED, _bookingDate: OTHER_DAY })], OTHER_DAY);
+    expect(rows[0].countdown).toBe(false);
+    expect(rows[0].timing).toBeNull();
   });
 
   it("states lateness once a dog is overdue", () => {
@@ -423,5 +481,42 @@ describe("buildCollectedRows", () => {
     const takings = buildTakingsByMethod(BOOKINGS_C as never);
     expect(takings.total).toBe(42);
     expect(rowsFor()).toHaveLength(2);
+  });
+});
+
+describe("stackConfirmation", () => {
+  const entry = (booking: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+    booking: { status: BOOKING_STATUS.BOOKED, ...booking },
+    isUnconfirmed: false,
+    ...extra,
+  });
+
+  it("reads a reminder with no answer as unconfirmed", () => {
+    expect(stackConfirmation(entry({ reminderState: "sent" }, { isUnconfirmed: true }))).toBe("unconfirmed");
+  });
+
+  it("reads a recorded confirmation, or a reply found in the inbox, as confirmed", () => {
+    expect(stackConfirmation(entry({ reminderState: "confirmed" }))).toBe("confirmed");
+    expect(stackConfirmation(entry({ reminderState: "sent" }, { chatConfirmation: { text: "yes" } }))).toBe("confirmed");
+  });
+
+  it("says nothing when there is nothing to wait for yet", () => {
+    expect(stackConfirmation(entry({ reminderState: "none" }))).toBeNull();
+  });
+
+  it("leaves every status past Booked to the status itself", () => {
+    for (const status of [BOOKING_STATUS.RECONFIRMED, BOOKING_STATUS.ARRIVED, BOOKING_STATUS.READY_FOR_COLLECTION]) {
+      expect(stackConfirmation(entry({ status, reminderState: "sent" }, { isUnconfirmed: true }))).toBeNull();
+    }
+    expect(stackConfirmation(null)).toBeNull();
+  });
+});
+
+describe("ownerSurname", () => {
+  it("takes the last word of the owner's name", () => {
+    expect(ownerSurname("Sarah Jane Smith")).toBe("Smith");
+    expect(ownerSurname("  Cher ")).toBe("Cher");
+    expect(ownerSurname("")).toBe("");
+    expect(ownerSurname(null)).toBe("");
   });
 });

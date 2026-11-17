@@ -7,7 +7,9 @@
 //
 // These run against the deterministic sample dataset in a real browser, so this
 // is where layout, overflow, touch-target size and the full status journey are
-// actually proven — the things jsdom cannot tell the truth about.
+// actually proven — the things jsdom cannot tell the truth about. The wallet
+// geometry itself (72px strips, the lift and the pile) is in
+// day-stack-wallet.spec.ts.
 //
 // The sample clock is Tuesday 14 July 2026. `/today` therefore shows Tuesday
 // (three dogs, all Booked, live timings); `?date=2026-07-13` shows Monday,
@@ -27,11 +29,18 @@ function head(page: Page, dogName: string) {
   return card(page, dogName).locator("[data-stack-head]");
 }
 
-/** Open a dog's card and return it. */
+/**
+ * Lift a dog's card out of the stack and return it, once it has stopped
+ * moving: a box measured mid-lift is a box in flight, and float32 precision
+ * at those coordinates reads a 44px button as 43.99994px.
+ */
 async function openDog(page: Page, dogName: string) {
   const target = card(page, dogName);
   await target.locator("[data-stack-head]").click();
   await expect(target.locator("[data-stack-head]")).toHaveAttribute("aria-expanded", "true");
+  await target.evaluate((node) => Promise.all(
+    node.getAnimations({ subtree: true }).map((animation) => animation.finished),
+  ));
   return target;
 }
 
@@ -86,22 +95,51 @@ test("a safety note is readable without a tap", async ({ page }) => {
   // reader, and this is welfare information.
   const maxCard = card(page, "Max");
   await expect(maxCard.locator("[data-stack-head]")).toHaveAttribute("aria-expanded", "false");
-  await expect(maxCard).toContainText("Bites / Nips");
-  await expect(maxCard.getByLabel("Safety alert: Bites / Nips")).toBeVisible();
+  const safety = maxCard.locator("[data-stack-head] [data-stack-safety]");
+  await expect(safety).toHaveText("Bites / Nips");
+  await expect(safety).toBeVisible();
 });
 
-test("a card expands in place, one at a time", async ({ page }) => {
+test("a Booked dog's colour says where it stands on confirmation", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today");
+  await settle(page);
+
+  // Poppy's reminder went out with no answer: needs chasing, so not grey.
+  await expect(card(page, "Poppy")).toHaveAttribute("data-status-key", "unconfirmed");
+  await expect(card(page, "Poppy").locator("[data-needs-attention='true']")).toHaveText("Unconfirmed");
+  // Teddy's owner answered the reminder.
+  await expect(card(page, "Teddy")).toHaveAttribute("data-status-key", "confirmed");
+  await expect(card(page, "Teddy")).toContainText("Confirmed");
+  // Coco has had no reminder yet: nothing to wait for.
+  await expect(card(page, "Coco")).toHaveAttribute("data-status-key", "expected");
+});
+
+test("there is one countdown, on the next dog not yet arrived", async ({ page }) => {
+  await page.clock.setFixedTime(SAMPLE_NOW);
+  await page.goto("/today");
+  await settle(page);
+
+  // 09:15: Coco (08:30) and Teddy (09:00) are late; Poppy (09:30) is next.
+  const countdowns = page.locator("[data-countdown='true']");
+  await expect(countdowns).toHaveCount(1);
+  await expect(card(page, "Poppy").locator("[data-countdown='true']")).toHaveText("in 15 min");
+  await expect(page.locator("[data-day-stack]")).not.toContainText(/min away/);
+  await expect(card(page, "Coco").locator("[data-stack-timing]")).toContainText("late");
+});
+
+test("a lifted card piles the rest, and the pile puts the day back", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);
   await settle(page);
 
   await openDog(page, "Bella");
   await expect(card(page, "Bella")).toContainText("Sarah Jones");
-
-  // Opening a second closes the first: two open at once pushes the day off
-  // screen and turns a list you scan into a page you scroll.
-  await openDog(page, "Rex");
+  // Every other dog is in the pile, out of reach, behind one way back.
+  await expect(card(page, "Rex")).toHaveAttribute("data-in-pile", "true");
+  await page.getByRole("button", { name: /^Back to the day — \d+ other dogs$/ }).click();
   await expect(head(page, "Bella")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("[data-in-pile='true']")).toHaveCount(0);
 });
 
 test("a dog can be walked through its whole day by keyboard alone", async ({ page }) => {
@@ -113,15 +151,13 @@ test("a dog can be walked through its whole day by keyboard alone", async ({ pag
   await coco.locator("[data-stack-head]").focus();
   await page.keyboard.press("Enter");
   await expect(coco.locator("[data-stack-head]")).toHaveAttribute("aria-expanded", "true");
+  // Focus moves into the lifted card.
+  await expect(coco.locator("[data-stack-details]")).toBeFocused();
 
-  // Booked → Reconfirmed. Offered, not forced: a dog that simply turns up can
-  // be marked Arrived straight from Booked.
-  await coco.getByRole("button", { name: "Reconfirmed — Coco" }).focus();
-  await page.keyboard.press("Enter");
-  await expect(coco).toContainText("Reconfirmed");
-
-  // Reconfirmed → Arrived.
-  await coco.getByRole("button", { name: "Arrived — Coco" }).focus();
+  // Booked → Arrived. There is no Confirm step on the card: confirmation comes
+  // from the owner answering the reminder.
+  await expect(coco.getByRole("button", { name: /^Reconfirmed|^Confirm booking/ })).toHaveCount(0);
+  await coco.getByRole("button", { name: "Check in — Coco" }).focus();
   await page.keyboard.press("Enter");
   await expect(coco).toContainText("Arrived");
 
@@ -131,18 +167,22 @@ test("a dog can be walked through its whole day by keyboard alone", async ({ pag
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(coco).toContainText("Ready");
+
+  // Escape puts the day back and returns focus to Coco's strip.
+  await coco.locator("[data-stack-details]").focus();
+  await page.keyboard.press("Escape");
+  await expect(coco.locator("[data-stack-head]")).toHaveAttribute("aria-expanded", "false");
+  await expect(coco.locator("[data-stack-head]")).toBeFocused();
 });
 
-test("on a phone, three quick changes leave one toast and Check out uncovered (#1001)", async ({ page }) => {
+test("on a phone, quick changes leave one toast and Check out uncovered (#1001)", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto("/today");
   await settle(page);
 
   const coco = await openDog(page, "Coco");
-  await coco.getByRole("button", { name: "Reconfirmed — Coco" }).click();
-  await expect(coco).toContainText("Reconfirmed");
-  await coco.getByRole("button", { name: "Arrived — Coco" }).click();
+  await coco.getByRole("button", { name: "Check in — Coco" }).click();
   await expect(coco).toContainText("Arrived");
   await coco.getByRole("button", { name: "Mark ready — Coco" }).click();
   await page.getByRole("button", { name: "Not now" }).click();
@@ -269,13 +309,14 @@ test("checking a dog in offers Undo, and Undo puts it back", async ({ page }) =>
   await settle(page);
 
   const poppy = await openDog(page, "Poppy");
-  await poppy.getByRole("button", { name: "Arrived — Poppy" }).click();
+  await poppy.getByRole("button", { name: "Check in — Poppy" }).click();
   await expect(poppy).toContainText("Arrived");
 
   const undo = page.getByRole("button", { name: "Undo" });
   await expect(undo).toBeVisible();
   await undo.click();
-  await expect(card(page, "Poppy")).toContainText("Expected");
+  // Back to Booked, where her reminder still has no answer.
+  await expect(card(page, "Poppy")).toContainText("Unconfirmed");
 });
 
 test("marking ready never claims to have messaged anyone", async ({ page }) => {
@@ -300,7 +341,7 @@ test("a long wait is marked by weight and a clock, not by a new colour", async (
   // Walk Teddy to Ready. Offline, the lifecycle mirror stamps ready_at exactly
   // as the database trigger would, so the wait is a real elapsed figure.
   const teddy = await openDog(page, "Teddy");
-  await teddy.getByRole("button", { name: "Arrived — Teddy" }).click();
+  await teddy.getByRole("button", { name: "Check in — Teddy" }).click();
   await teddy.getByRole("button", { name: "Mark ready — Teddy" }).click();
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(teddy).toContainText("Ready");
@@ -332,7 +373,7 @@ test("elapsed time keeps counting without anybody touching the screen", async ({
   await settle(page);
 
   const coco = await openDog(page, "Coco");
-  await coco.getByRole("button", { name: "Arrived — Coco" }).click();
+  await coco.getByRole("button", { name: "Check in — Coco" }).click();
   await expect(card(page, "Coco")).toContainText("Arrived");
 
   await page.clock.fastForward("40:00");
@@ -447,8 +488,9 @@ test("a browsed date shows no live timing at all", async ({ page }) => {
 
   // Monday is history. A countdown or an elapsed figure on a past day would be
   // a number about now, printed next to work that finished yesterday.
-  await expect(card(page, "Bella")).not.toContainText(/waiting|late|away|No arrival/);
-  await expect(card(page, "Charlie")).not.toContainText(/waiting|late|away|No arrival/);
+  await expect(card(page, "Bella")).not.toContainText(/waiting|late|away|No arrival|in \d+ min/);
+  await expect(card(page, "Charlie")).not.toContainText(/waiting|late|away|No arrival|in \d+ min/);
+  await expect(page.locator("[data-countdown]")).toHaveCount(0);
 });
 
 test("a collected dog leaves the stack for the takings summary", async ({ page }) => {
@@ -505,9 +547,9 @@ test("a reconfirmed dog says so, and is still expected rather than here", async 
     "aria-label",
     /Reconfirmed/,
   );
-  // It has not arrived: no elapsed-in-salon figure, and Arrived is still offered.
+  // It has not arrived: no elapsed-in-salon figure, and Check in is still offered.
   await nala.locator("[data-stack-head]").click();
-  await expect(nala.getByRole("button", { name: "Arrived — Nala" })).toBeVisible();
+  await expect(nala.getByRole("button", { name: "Check in — Nala" })).toBeVisible();
 });
 
 test("a no-show stays visible with a way back into the day", async ({ page }) => {
@@ -520,7 +562,7 @@ test("a no-show stays visible with a way back into the day", async ({ page }) =>
   await pepper.locator("[data-stack-head]").click();
   await pepper.getByRole("button", { name: "They turned up — Pepper" }).click();
   await expect(pepper).toContainText("Expected");
-  await expect(pepper.getByRole("button", { name: "Arrived — Pepper" })).toBeVisible();
+  await expect(pepper.getByRole("button", { name: "Check in — Pepper" })).toBeVisible();
 
   // It is still not quietly counted as money in the collected summary.
   const summary = page.locator("[data-collected-summary]");
@@ -547,22 +589,20 @@ test("marking ready opens the prompt and sends nothing on its own", async ({ pag
   await expect(card(page, "Bella")).toContainText("Ready");
 });
 
-test("a safety note is a 44px target that names the warning and never grows the header", async ({ page }) => {
+test("a safety note is words in the strip, and every card is the same height", async ({ page }) => {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(MONDAY);
   await settle(page);
 
-  const summaries = page.locator("[data-safety-summary]");
-  await expect(summaries.first()).toBeVisible();
-  for (const summary of await summaries.all()) {
-    const box = (await summary.boundingBox())!;
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    // Words, not a bare icon: either the warning itself or the review prompt.
-    await expect(summary).toContainText(/\S{3}/);
+  const notes = page.locator("[data-stack-head] [data-stack-safety]");
+  await expect(notes.first()).toBeVisible();
+  for (const note of await notes.all()) {
+    // Words, not a bare icon.
+    await expect(note).toContainText(/\S{3}/);
   }
-  // The header is the same height with or without a safety note.
+  // Same height with or without a safety note, so no state adds a row.
   const heights = await page
-    .locator("[data-stack-card] .wallet-header")
+    .locator("[data-stack-card]")
     .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().height)));
   expect(new Set(heights).size).toBe(1);
 });

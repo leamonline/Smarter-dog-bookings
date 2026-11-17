@@ -1,13 +1,19 @@
+// The wallet geometry, proven in a real browser: every card the same height,
+// overlapped so exactly a 72px strip shows, the last card in full; a tapped
+// card lifts to the top of what is visible while the rest pile at the bottom;
+// and every way of putting it back restores the scroll position.
 import { expect, test, type Page } from "@playwright/test";
 
 const SAMPLE_NOW = new Date("2026-07-14T09:15:00+01:00");
+const MONDAY = "/today?date=2026-07-13";
+
 async function open(page: Page, path = "/today") {
   await page.clock.setFixedTime(SAMPLE_NOW);
   await page.goto(path);
   await page.locator("[data-day-stack]").waitFor();
 }
 async function geometry(page: Page) {
-  return page.locator("[data-stack-card]").evaluateAll(nodes => nodes.map(node => {
+  return page.locator("[data-stack-card]").evaluateAll((nodes) => nodes.map((node) => {
     const rect = node.getBoundingClientRect();
     return { top: rect.top, bottom: rect.bottom, height: rect.height };
   }));
@@ -18,66 +24,99 @@ async function touch(page: Page, type: string, y = 0) {
     cancelable: true,
   });
 }
+/** Wait for every card to stop moving. */
+async function settled(page: Page) {
+  await page.locator("[data-stack-card]").evaluateAll((nodes) => Promise.all(
+    nodes.flatMap((node) => node.getAnimations().map((animation) => animation.finished)),
+  ));
+}
 
-test("fixed headers and uniform overlap retain real exposed hit targets", async ({ page }) => {
-  await open(page, "/today?date=2026-07-13");
+test("every card is the same height, overlapped by exactly a 72px strip, and the last shows in full", async ({ page }) => {
+  await open(page, MONDAY);
   const cards = await geometry(page);
   // Transformed rectangles can differ by ~0.00002px on high-DPI tablets.
-  for (const card of cards) expect(card.height).toBeCloseTo(144, 3);
-  for (let i = 2; i < cards.length; i++) {
-    expect(cards[i].top - cards[i - 1].top).toBeCloseTo(96, 0);
-    expect(cards[i].top).toBeLessThan(cards[i - 1].bottom);
+  for (const card of cards) expect(card.height).toBeCloseTo(128, 3);
+  for (let i = 1; i < cards.length; i += 1) {
+    expect(cards[i].top - cards[i - 1].top).toBeCloseTo(72, 0);
   }
-  const max = page.locator("[data-stack-card]").filter({ hasText: "Max" }).first();
-  await max.locator("[data-stack-head]").scrollIntoViewIfNeeded();
-  const warning = max.getByLabel("Safety alert: Bites / Nips");
-  await warning.scrollIntoViewIfNeeded();
-  const warningBox = await warning.boundingBox();
-  expect(warningBox!.height).toBeGreaterThanOrEqual(44);
-  expect(await warning.evaluate(node => {
+  // The last card is not covered by anything: its bottom edge is its own.
+  const last = page.locator("[data-stack-card]").last();
+  await last.scrollIntoViewIfNeeded();
+  expect(await last.evaluate((node) => {
     const r = node.getBoundingClientRect();
-    return node.contains(document.elementFromPoint(r.left + 12, r.top + 22));
+    return node.contains(document.elementFromPoint(r.left + 24, r.bottom - 6));
   })).toBe(true);
-  const before = await max.locator("[data-stack-header]").boundingBox();
-  await warning.click();
-  await expect(max.locator("[data-stack-head]")).toHaveAttribute("aria-expanded", "true");
-  await expect(max.locator("[data-stack-details]")).toContainText("Safety note: Bites / Nips");
-  expect((await max.locator("[data-stack-header]").boundingBox())!.height).toBeCloseTo(before!.height, 3);
 });
 
-test("short and tall viewports bottom-align fitting stacks and keep overflow reachable", async ({ page }) => {
-  for (const height of [740, 1024]) {
-    await page.setViewportSize({ width: 390, height });
-    await open(page);
-    // Production sample mode adds a demo banner to the app chrome. Measure
-    // the actual remaining space rather than assuming a fixed nav height.
-    const rows = await geometry(page);
-    if (rows[0].top + 396 <= height - 16) {
-      await expect.poll(async () => (await geometry(page)).at(-1)!.bottom).toBeCloseTo(height - 16, 0);
-    }
-    await page.locator("[data-stack-card]").last().scrollIntoViewIfNeeded();
-    const last = (await geometry(page)).at(-1)!;
-    const main = await page.locator("main").boundingBox();
-    expect(last.top).toBeGreaterThanOrEqual(main!.y);
-    expect(last.bottom).toBeLessThanOrEqual(height);
-    expect(await page.locator("main").evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-  }
-});
-
-test("selection brings a card forward, keeps its header fixed and leaves all future cards reachable", async ({ page }) => {
+test("nothing in any strip is covered by the card on top of it", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await open(page);
-  const heads = page.locator("[data-stack-head]");
-  await heads.nth(1).click();
-  await expect(heads.nth(1)).toHaveAttribute("aria-expanded", "true");
-  const selected = page.locator('[data-stack-card][data-focused="true"]');
-  await expect(selected).toContainText("Teddy");
-  const scrollport = await page.locator("main").boundingBox();
-  await expect.poll(async () => (await heads.nth(1).boundingBox())!.y).toBeCloseTo(scrollport!.y + 12, 0);
-  expect((await selected.locator("[data-stack-header]").boundingBox())!.height).toBeCloseTo(144, 3);
-  await heads.nth(2).click();
-  await expect(heads.nth(1)).toHaveAttribute("aria-expanded", "false");
-  await expect(heads.nth(2)).toHaveAttribute("aria-expanded", "true");
+  await open(page, MONDAY);
+  // Hit-test the end of each strip's second line — the breed line used to sit
+  // on the first pixel the next card covered.
+  const covered = await page.locator("[data-stack-head] .wallet-line-2").evaluateAll((nodes) => nodes
+    .filter((node) => {
+      node.scrollIntoView({ block: "center" });
+      const card = node.closest("[data-stack-card]");
+      const r = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + 4, r.top + r.height / 2);
+      return !card!.contains(hit);
+    })
+    .map((node) => node.closest("[data-stack-card]")!.getAttribute("data-booking-id")));
+  expect(covered).toEqual([]);
+});
+
+test("a lifted card goes to the top of the screen, the rest pile at the bottom, and closing restores the scroll", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, MONDAY);
+  const main = page.locator("main");
+  const last = page.locator("[data-stack-card]").last();
+  await last.locator("[data-stack-head]").scrollIntoViewIfNeeded();
+  const before = await main.evaluate((node) => node.scrollTop);
+
+  await last.locator("[data-stack-head]").click();
+  await settled(page);
+  const scrollport = (await main.boundingBox())!;
+  const lifted = (await last.boundingBox())!;
+  expect(lifted.y).toBeGreaterThanOrEqual(scrollport.y);
+  expect(lifted.y).toBeLessThan(scrollport.y + 40);
+
+  // The pile shows edges only, and sits at the bottom of the visible area.
+  const pile = page.getByRole("button", { name: /^Back to the day/ });
+  const pileBox = (await pile.boundingBox())!;
+  expect(pileBox.y + pileBox.height).toBeLessThanOrEqual(scrollport.y + scrollport.height + 30);
+  for (const card of await page.locator("[data-in-pile='true']").all()) {
+    expect(await card.evaluate((node) => getComputedStyle(node).clipPath)).toMatch(/inset/);
+  }
+
+  await pile.click();
+  await settled(page);
+  await expect(page.locator("[data-in-pile='true']")).toHaveCount(0);
+  expect(await main.evaluate((node) => node.scrollTop)).toBeCloseTo(before, 0);
+  await expect(last.locator("[data-stack-head]")).toBeFocused();
+});
+
+test("the browser's Back button puts the card back and leaves the page where it was", async ({ page }) => {
+  await open(page, MONDAY);
+  const url = page.url();
+  const card = page.locator("[data-stack-card]").nth(1);
+  await card.locator("[data-stack-head]").click();
+  await expect(card).toHaveAttribute("data-lifted", "true");
+  await page.goBack();
+  await expect(card).toHaveAttribute("data-lifted", "false");
+  expect(page.url()).toBe(url);
+  await expect(page.locator("[data-day-stack]")).toBeVisible();
+});
+
+test("closing with the Close button steps back over the history entry the lift made", async ({ page }) => {
+  await open(page, MONDAY);
+  const length = await page.evaluate(() => window.history.length);
+  const card = page.locator("[data-stack-card]").nth(1);
+  await card.locator("[data-stack-head]").click();
+  await card.getByRole("button", { name: /^Close / }).click();
+  await expect(card).toHaveAttribute("data-lifted", "false");
+  // A Back press now leaves /today rather than reopening a card.
+  expect(await page.evaluate(() => window.history.state?.dayStackLifted)).toBeFalsy();
+  expect(await page.evaluate(() => window.history.length)).toBe(length + 1);
 });
 
 test("pull distance separates actual cards and cancellation restores the stack", async ({ page }) => {
@@ -95,19 +134,22 @@ test("pull distance separates actual cards and cancellation restores the stack",
   await touch(page, "touchcancel");
   await expect.poll(async () => {
     const rows = await geometry(page); return rows[2].top - rows[1].top;
-  }).toBeCloseTo(96, 0);
+  }).toBeCloseTo(72, 0);
   await expect(page.locator("[data-refresh-indicator]")).toHaveCount(0);
 });
 
-test("scrolling down the day does not start refresh and reduced motion has no spring", async ({ page }) => {
+test("scrolling down the day does not start refresh, and reduced motion switches state with no lift animation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await open(page, "/today?date=2026-07-13");
-  await page.locator("main").evaluate(node => { node.scrollTop = 160; });
+  await open(page, MONDAY);
+  await page.locator("main").evaluate((node) => { node.scrollTop = 160; });
   await touch(page, "touchstart"); await touch(page, "touchmove", 180); await touch(page, "touchend");
   await expect(page.locator("[data-refresh-indicator]")).toHaveCount(0);
-  expect(await page.locator("[data-stack-card]").first().evaluate(node => getComputedStyle(node).transitionDuration)).toBe("0s");
+  await expect(page.locator("[data-day-stack]")).toHaveAttribute("data-motion", "reduced");
+  const first = page.locator("[data-stack-card]").first();
+  expect(await first.evaluate((node) => getComputedStyle(node).transitionDuration)).toBe("0s");
   await page.locator("[data-stack-head]").last().click();
   await expect(page.locator("[data-stack-head]").last()).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("[data-in-pile='true']").first()).toBeAttached();
 });
 
 test("a covered card still shows how late, how long or how soon", async ({ page }) => {
@@ -115,9 +157,8 @@ test("a covered card still shows how late, how long or how soon", async ({ page 
   await open(page);
   const timings = page.locator("[data-stack-card] [data-stack-timing]");
   expect(await timings.count()).toBeGreaterThan(1);
-  // Hit-test each timing line: the point must land inside its own card, not on
-  // the card stacked over it. Before the timing moved into the heading row it
-  // sat at 96px, exactly where the next card begins.
+  // Hit-test each timing: the point must land inside its own card, not on the
+  // card stacked over it.
   const covered = await timings.evaluateAll((nodes) => nodes.filter((node) => {
     const card = node.closest("[data-stack-card]");
     const r = node.getBoundingClientRect();

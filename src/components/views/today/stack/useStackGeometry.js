@@ -1,39 +1,51 @@
 import { useLayoutEffect, useState } from "react";
+import { STACK_STRIP_HEIGHT } from "./stackLayout";
 
-/** Measure the actual app scrollport, never an assumed phone/nav height. */
-export function useStackGeometry(ref, openId, rowKey) {
-  const [geometry, setGeometry] = useState({ availableHeight: 0, detailHeight: 0 });
+/**
+ * The lifted card's real height, measured: its strip plus whatever its full
+ * view holds. Nothing else in the stack is measured — every resting card is
+ * the same height by construction — and nothing assumes a phone or a nav bar.
+ */
+export function useLiftedHeight(listRef, liftedId) {
+  const [height, setHeight] = useState(0);
   useLayoutEffect(() => {
-    const list = ref.current;
-    if (!list) return;
-    const main = list.closest("main") || document.documentElement;
+    const list = listRef.current;
+    if (!list || !liftedId) {
+      setHeight(0);
+      return undefined;
+    }
+    const card = [...list.children].find((el) => el.dataset.bookingId === liftedId);
+    const details = card?.querySelector("[data-stack-details]");
     const measure = () => {
-      const bounds = main.getBoundingClientRect();
-      const viewportBottom = window.visualViewport
-        ? window.visualViewport.height + window.visualViewport.offsetTop
-        : window.innerHeight;
-      // Add scrollTop to obtain the list's stable position in the scrollport;
-      // scrolling must not continuously push the stack further down the page.
-      const listTop = list.getBoundingClientRect().top + main.scrollTop;
-      const availableHeight = Math.max(0, Math.min(bounds.bottom, viewportBottom) - listTop - 16);
-      const openCard = [...list.children].find((el) => el.dataset.bookingId === openId);
-      const detailHeight = openCard?.querySelector("[data-stack-details]")?.getBoundingClientRect().height || 0;
-      setGeometry((old) => old.availableHeight === availableHeight && old.detailHeight === detailHeight
-        ? old : { availableHeight, detailHeight });
+      const next = STACK_STRIP_HEIGHT + (details?.getBoundingClientRect().height || 0);
+      setHeight((old) => (old === next ? old : next));
     };
     measure();
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
-    observer?.observe(main);
-    // Ancestor sizes catch header/notice changes before the stack as well.
-    for (let node = list.parentElement; node && node !== main; node = node.parentElement) observer?.observe(node);
-    list.querySelectorAll("[data-stack-details]").forEach((node) => observer?.observe(node));
-    window.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("resize", measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
-    };
-  }, [ref, openId, rowKey]);
-  return geometry;
+    const observer = typeof ResizeObserver !== "undefined" && details ? new ResizeObserver(measure) : null;
+    observer?.observe(details);
+    return () => observer?.disconnect();
+  }, [listRef, liftedId]);
+  return height;
+}
+
+/**
+ * Where a lifted card goes: the top of what is visible now, and the bottom of
+ * the visible area for the pile — both in the list's own coordinates, taken
+ * once at the moment of lifting so scrolling the open card moves nothing.
+ */
+export function measureLiftFrame(list, { topMargin = 8, bottomMargin = 16 } = {}) {
+  const main = list.closest("main") || document.documentElement;
+  const mainRect = main.getBoundingClientRect();
+  const listRect = list.getBoundingClientRect();
+  const viewportBottom = window.visualViewport
+    ? window.visualViewport.height + window.visualViewport.offsetTop
+    : window.innerHeight;
+  const visibleTop = Math.max(mainRect.top, 0);
+  const visibleBottom = Math.min(mainRect.bottom || viewportBottom, viewportBottom);
+  // Whole pixels: a fractional transform blurs text and shaves a 44px button
+  // to 43.9999px.
+  return {
+    top: Math.round(visibleTop + topMargin - listRect.top),
+    bottom: Math.round(visibleBottom - bottomMargin - listRect.top),
+  };
 }

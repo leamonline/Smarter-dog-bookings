@@ -1,19 +1,23 @@
-/* The day card's own layout: a fixed-height header in three zones. Where the
-   card sits in the stack (position, transform, dimming) stays in
+/* The day card's own layout: a fixed 72px strip and a fixed face, so every
+   card is the same height and the stack can overlap them by exactly the strip.
+   Where the card sits in the stack (position, clip, dimming) stays in
    views/today/stack/dayStack.css. */
-.wallet-header { position: relative; height: var(--stack-header-height, 144px); }
-.wallet-heading {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(64px, auto);
-  grid-template-rows: 48px;
-  column-gap: 10px;
-  height: 48px;
+.wallet-strip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: var(--stack-strip-height, 72px);
   padding: 0 12px;
-  align-items: center;
 }
-.wallet-time, .wallet-name, .wallet-status { grid-row: 1; }
-.wallet-metadata { position: absolute; top: 96px; left: 12px; right: 12px; }
-.wallet-safety { position: absolute; top: 48px; left: 12px; right: 12px; height: 44px; pointer-events: none; }
-.wallet-safety button { pointer-events: auto; }
+.wallet-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wallet-line-1 { height: 28px; }
+.wallet-line-2 { height: 18px; }
+.wallet-time, .wallet-name { line-height: 1.2; }
+.wallet-name { flex: 1 1 auto; }
+.wallet-face { height: var(--stack-face-height, 56px); padding: 0 12px 12px; overflow: hidden; }
+.wallet-drawer { transition: grid-template-rows 300ms ease-out; }
 .wallet-appointment:has(:focus-visible) { outline: 2px solid var(--card-ink); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .wallet-drawer { transition: none; }
+}

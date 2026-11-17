@@ -47,7 +47,8 @@ test("Daily Brief keeps recovery ahead of unchanged cards and groups quieter tot
   // The selected Monday is yesterday relative to the frozen Tuesday clock.
   await expect(page.getByRole("group", { name: "Day totals" })).toContainText("No online slots on this day");
   await expect(page.getByRole("group", { name: "Needs attention" })).toBeVisible();
-  await expect(first.locator("[data-stack-header]")).toHaveCSS("height", "144px");
+  // The wallet strip: every card shows the same fixed 72px, whatever it holds.
+  await expect(first.locator("[data-stack-head]")).toHaveCSS("height", "72px");
   if (isMobile) {
     const header = await page.getByTestId("page-header").boundingBox();
     // Exclude the sample-data banner: header-to-first-dog was 319px, now 271px.

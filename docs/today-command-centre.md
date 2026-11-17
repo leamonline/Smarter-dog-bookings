@@ -76,103 +76,135 @@ so the database gates, the optimistic rollback, the realtime subscription and th
 spoken announcement when a colleague moves a dog on another till all behave
 exactly as they did.
 
-### The stack (`views/today/stack/`)
+### The stack (`views/today/stack/`) — a wallet
 
-One card per dog, in appointment order. No grouping, and no re-sorting by status.
+One card per dog, in appointment order. No grouping, and no re-sorting by
+status. Two dogs in the same slot are two cards, each showing its time.
 
-**Collapsed**, a card carries the time in tabular figures, the dog's name, its
-breed and service, the status **as a word**, the safety note if there is one, and
-one timing line. The timing line sits **under the dog's name, in the heading
-row**: the overlap only ever exposes a card's top 96px (heading and safety row),
-and in the metadata line below it was covered by the next card, so a dog 1 hr 50
-min late read only as "Expected" until someone opened it. **Expanded**, it adds
-owner, phone, last visit, price, notes and that dog's actions. One card is open at a time: the cards are tinted by status
-and an open one is tall, so two at once pushes the day off screen.
+**At rest (November 2026).** Every card is the same height (128px). Each one
+overlaps the one before it so exactly a 72px strip shows, later cards sit on
+top (DOM order), and the last card shows in full. No gaps and no dividers —
+cards only. The geometry is pure arithmetic in `stackLayout.ts`.
 
-**Overlapping appointment cards (#891).** The first appointment is initially
-in focus, with its details closed. Selecting another card opens its existing
-information and brings it into view. Earlier cards stay in chronological order;
-future cards gather at the bottom of the available app scrollport. These are
-opaque, full-height cards positioned with transforms, not shortened rows or a
-list with negative margins. Within the future stack later cards cover the lower
-part of earlier cards, exposing consistent 96px strips. The focused card has the
-highest layer. Long days retain these reachable strips and scroll normally.
+The stack this replaced exposed 96px of a 144px card, put the breed line at
+exactly 96px — the first pixel the next card covered — and reserved an empty
+44px warning row on most strips. That is why every covered card hid its bottom
+line, and why the timing had already been moved up into the heading row.
 
-Every collapsed card and expanded header is 144px tall. A reserved 44px warning
-row keeps optional warnings from changing dimensions. Time, name, status/balance
-and warnings sit in the exposed portion; breed/service and timing remain in the
-full header. Pressing a warning reveals its complete text in the details area,
-including long or multiple alerts, without resizing the header.
+**The strip carries everything essential, in two lines:**
 
-Pulling down at the top of the app progressively separates future cards in
-proportion to finger movement. Crossing the threshold and releasing calls the
-existing refresh callback once; short/cancelled pulls settle without a refresh.
-Scrolling away from the top, horizontal gestures, multi-touch and gestures
-inside detail controls retain their normal behaviour. A keyboard-accessible
-Refresh appointments button provides the same action without a gesture.
-Reduced motion disables settling transitions. Navigation/visual viewport size
-and expanded content are measured; no phone-specific bottom position is used.
+    09:30  Nell ·························· £42 due  [Ready]
+    ⚠ Bites / Nips · Cocker spaniel · Full Groom · Raman ···· waiting 50 min
 
-The disclosure animates `grid-template-rows` from `0fr` to `1fr` rather than a
-height, so the drawer fits its own content without anybody measuring it, and
-`prefers-reduced-motion` is honoured.
+- Line 1: time, dog name, the balance from Ready onward, and the status pill.
+- Line 2 (small): the safety note in words (the most important warning, "+N"
+  for the rest), an undelivered-message chip, then breed · service · owner
+  surname, truncating with an ellipsis from the end — so the surname gives way
+  before the warning does — and the timing at the right-hand end.
+- The face below the strip, which only the last card shows, is a read-only
+  preview of the visit notes. It is hidden from assistive technology because
+  the lifted view repeats it.
 
-When the customer has added a photo of the dog, it opens in the drawer, after
-the safety note and before the customer details: that is where the dog is
-checked in and handed back. It is never in the header, which must keep the
-exposed portion for time, name, status and warnings. A dog without a photo gets
-no empty frame.
+**Tap = lift out, like a wallet.** The strip is the card's only tap target: a
+`<button aria-expanded>`. Tapping it lifts the card to the top of what is
+visible and opens its full view; every other card collapses into a shallow pile
+at the bottom of the visible area, showing only its top edge (8px each, the
+front card 10px — above its text — at most four edges). Pile cards are `inert`, and one
+`StackPile` button over them — "Back to the day — N other dogs" — puts the day
+back. This replaced the in-place expand; the full view still opens by
+animating `grid-template-rows` from `0fr` to `1fr`, so it fits its own content.
 
-**Colour is never the only signal.** Every card states its status as a word, and
-every tone is dark ink on a light tint — checked against the WCAG AA ratio in
-`BookingStatusBadge`'s test, so white ink on the gold fails the build rather than
-reaching a till. The palette:
+Four ways back, one close: the card's **Close** button (or its strip again), a
+tap on the **pile**, **Escape** (left to a dialog opened from the card, such as
+the invoice), and the browser's **Back** button — lifting pushes one history
+entry, and closing any other way steps back over it. Closing restores the
+page's scroll position and returns focus to the strip that opened the card.
+Lifting moves focus into the card's full view, a labelled region ("Nell —
+details"). Under `prefers-reduced-motion` the state simply switches: no lift
+animation, no pile animation and no smooth scroll. A lifted dog that leaves the
+stack (collected on another till) puts the day back with it.
 
-| Status | Word | Tint | Edge |
-|---|---|---|---|
-| Booked | Expected | `#E8ECF0` | `#97A6B5` |
-| Checked in | Checked in | `#D3EAE4` | `#2E8B76` |
-| In bath | In the bath | `#D9EAC6` | `#5C9A33` |
-| Ready for pick-up | Ready | `#F7E6BE` | `#B8860B` |
-| No-show | No-show | `#F2D9D9` | `#B33A3A` |
+The full view holds the safety note in full, any delivery problem, the visit
+notes and the dog's usual-groom notes, the photo (never in the strip), the
+owner, phone, last visit and price, then three actions:
 
-Completed leaves the stack. The olive is deliberately not mint: it sits directly
-below the teal in the progression and therefore directly beside it on screen, so
-the two have to separate cleanly.
+| Action | Comes from |
+|---|---|
+| Call / WhatsApp the owner | `call` (a `tel:` link) and `message` — the owner's thread in the in-app WhatsApp inbox, never a `wa.me` link, so STOP and opt-out still apply |
+| Check in → Mark ready → Check out | `checkIn`, then `ready`, then the check-out chain below: one slot that moves with the dog. A no-show shows **They turned up** here |
+| Take payment | `payment` → `MiniInvoiceModal` ("Take £42 payment", or "View payment" once paid). From Ready the chain takes the money instead |
 
-**The timing line** is the only place a number about *now* appears, and it is
-computed on the London clock:
+Everything else the engine allows sits underneath in a quiet **More** row:
+Booking details, the dog's and the owner's files, Didn't show, and Open full
+invoice. There is **no Confirm button**: confirmation comes from reminder
+replies. The engine still lists `reconfirm`, `confirm` and `unconfirm` as
+legal; the card does not present them (`NOT_ON_CARD` in `StackCard.jsx`).
+
+Pulling down at the top of the app still spreads the resting stack in
+proportion to finger movement and refreshes once on release; a
+keyboard-accessible Refresh appointments button does the same.
+
+There is no feature flag for the wallet: the board's rollback flag went with
+the board (#995). Roll back with Vercel's Instant Rollback or by reverting the
+change ([rollback](rollback.md)).
+
+**Colour is never the only signal.** Every card states its status as a word in
+a pill, and every tone is dark ink on a light tint — checked against the WCAG AA
+ratio in `BookingStatusBadge`'s test, pills included. A Booked dog takes its
+colour from where it stands on confirmation (`stackConfirmation` in
+`engine/dayStack.ts`, read from the board token so it agrees with the
+attention strip):
+
+| State | Word | Tint | Edge | When |
+|---|---|---|---|---|
+| Booked, nothing to wait for | Expected | `#E8ECF0` | `#97A6B5` | no reminder sent yet, or booked with confirmation off |
+| Booked, asked, no answer | **Unconfirmed** | `#FFD9BF` | `#C2500A` | reminder sent with no reply, **or the reminder failed to send** |
+| Booked, answered | Confirmed | `#DBEAFE` | `#3B82F6` | a recorded confirmation, or a typed reply found in the inbox |
+| Reconfirmed | Reconfirmed | `#DBEAFE` | `#3B82F6` | staff set the status |
+| Arrived | Arrived | `#D3EAE4` | `#2E8B76` | |
+| Ready for collection | Ready | `#F7E6BE` | `#B8860B` | |
+| No-show | No-show | `#F2D9D9` | `#B33A3A` | |
+
+Unconfirmed needs chasing, so it is not grey: apricot, apart from Ready's gold
+and No-show's red, which share the list, and its pill inverts (ink fill, tint
+text). Completed leaves the stack.
+
+**The timing** is the only place a number about *now* appears, computed on the
+London clock, at the right-hand end of line 2:
 
 | State | Reads | From |
 |---|---|---|
-| Expected | `20 min away`, `15 min late`, or `No arrival` past 2 h | the slot |
-| Checked in / In the bath | `2 hrs 15 min` | `checked_in_at` |
+| The next dog not yet arrived | `in 27 min`, or `due now` inside the late grace | the slot — **one card only** |
+| Any other dog not yet arrived | nothing; `15 min late`, or `No arrival` past 2 h | the slot |
+| Arrived | `2 hrs 15 min` | `checked_in_at` |
 | Ready | `waiting 50 min` | `ready_at` |
-| No-show | `Did not arrive` | — |
+| No-show | nothing | — |
 
-It **degrades quietly**. A booking from before July 2026 has no lifecycle stamps
-and never will — the migration could not backfill — so its row simply does not
-mention time rather than saying "n/a". A browsed date shows no live timing at
-all: a countdown next to work that finished last week is a number about the wrong
-moment.
+There is exactly one countdown, on the next dog not yet arrived and not late;
+it moves on once that dog is checked in, and the minute tick in `TodayView`
+refreshes it. "X min away" is gone from every other card: the list is already
+in time order. `nextArrivalId` in `engine/dayStack.ts` picks the dog and counts
+Reconfirmed as not yet arrived. The feed's own `isNext` does not, because its
+rank-to-stage table files Reconfirmed (rank 1) under the in-salon stage — a
+leftover from before Reconfirmed was added at that rank.
+
+It **degrades quietly**. A booking from before July 2026 has no lifecycle
+stamps and never will, so its row does not mention time rather than saying
+"n/a". A browsed date shows no live timing at all: a countdown next to work
+that finished last week is a number about the wrong moment.
 
 **Urgency is weight and words, never a new hue.** The left rule thickens (7px →
 10px, and 14px for a collection past `READY_OVERDUE_MINUTES` = 45, which also
-adds a clock icon), and the timing line goes bold. The hue stays whatever the
-status says it is.
+adds a clock icon), and the timing goes bold. The hue stays whatever the status
+says it is.
 
-**The three facts the token carried all survived**, each with its own channel:
-
-- **The safety note is now words, not an icon.** It has its own always-visible
-  reserved row on the card. Pressing it reveals complete warning text in the
-  details area while the header stays fixed. The board showed a
-  coral triangle with the text in a `title` tooltip, which reaches neither a
-  touch user nor a screen reader — the June 2026 review said so, and this is
-  welfare information. The chip is a real button, so it sits beside the
-  disclosure button rather than inside it, which also keeps both tappable.
-- **The balance** sits in the header from Ready onward, where it blocks the
-  handover, as bold tabular figures and the word "due".
-- **Urgency** as above.
+**The safety note is words, not an icon**, at the start of line 2 so the
+overlap can never hide it, and in full in the lifted view and in the strip's
+accessible name. It used to be a separate 44px button (`SafetySummary`) in a
+reserved header row; the strip is now the only tap target, so it became words
+inside it and `SafetySummary` was removed. The board before that showed a
+coral triangle with the text in a `title` tooltip, which reaches neither a
+touch user nor a screen reader — and this is welfare information.
 
 ### Check out
 
@@ -338,11 +370,11 @@ is exactly the existing `needsAction` union — the segments name reasons, they 
 not invent a second definition. The `£` segment carries the **due-now** amount
 (dogs from Ready onward, where taking it unblocks the door); the whole-day
 total lives in the end-of-day facts, and the header's money says only what is
-in the till — one financial voice per surface. Selecting a segment also
-**brings its first dog forward in the stack**, as a tap on that card would but
-with the drawer still closed (`DayStack`'s `focusRequest`), so the named dog is
-not left half-covered; it scrolls to that dog **only if it is off screen**, and
-that press is the one place the viewport is allowed to move.
+in the till — one financial voice per surface. Selecting a segment also puts
+any lifted card back and scrolls the first dog it names into view **only if its
+strip is off screen** (`DayStack`'s `focusRequest`); that press is the one
+place the viewport is allowed to move. Every strip shows at rest, so nothing
+needs bringing forward.
 
 ### Everything neither redesign replaced
 
@@ -385,8 +417,25 @@ imported (not mirrored) by both sides. Any cancel / reschedule / "can't make it"
 wording vetoes the whole signal, so "yes, but can we move it?" still reaches a
 human unconfirmed.
 
-**Staff confirmation (customer wins).** An unconfirmed Arriving dog also offers
-a quiet **Confirm booking** action for the owner reached off-channel (phone, in
+**A reminder that never arrived counts as unconfirmed (November 2026).**
+`needsConfirmation` waits on a reminder that was *sent*, so a send that failed
+left the dog a calm Expected while the owner had not been told at all.
+`applyReminderFailures` (`engine/reminderFailure.ts`) folds a live failed
+reminder — exactly what the delivery-failure store calls live
+(`useLiveFailuresByBooking`), resends and Meta's later verdicts included — into
+the same `confirmation` reason, before the chat fold. The card turns
+Unconfirmed, the attention strip counts it under "to confirm", and a typed
+"yes" still clears it. A failed booking confirmation, ready message or
+cancellation is not folded: it is a delivery problem the card already names.
+Display-level only; it writes nothing.
+
+**Staff confirmation (customer wins).** Since November 2026 the day stack does
+not offer this: confirmation comes from reminder replies. The mechanism below is
+unchanged and still pinned by `useBookingActions.component.test.tsx` and the
+database tests, but no `/today` control reaches it, so a confirmation taken by
+phone or in person cannot be recorded from `/today`; that dog stays Unconfirmed
+until the owner answers. It used to be a quiet **Confirm booking** action on an
+unconfirmed Arriving dog, for the owner reached off-channel (phone, in
 person). It writes `reminder_confirmed_at` + `reminder_confirmed_source =
 'staff'` through the ordinary staff update path (the `_confirmArrival` marker in
 `useBookings.updateBooking`), and the panel then reads "Confirmed by staff". If
@@ -398,9 +447,9 @@ correctly attributed `reconfirmed` booking event. Authority: migration
 `20260825100000_staff_booking_confirmation.sql`; DB contract test
 `supabase/tests/181_staff_reminder_confirmation.test.sql`.
 
-A mis-tapped staff Confirm is reversible two ways: the success toast carries
-**Undo** for its 10-second life, and the dog's panel keeps an **Unconfirm
-booking** item. Both clear the pair through the `_unconfirmArrival` marker,
+A mis-tapped staff Confirm was reversible two ways: the success toast carries
+**Undo** for its 10-second life, and the `unconfirm` action (once an
+**Unconfirm booking** item on the card). Both clear the pair through the `_unconfirmArrival` marker,
 whose update is filtered on `reminder_confirmed_source = 'staff'` — so a
 customer confirmation that raced in matches nothing and stands (the UI then says
 so in an info toast). A customer's confirmation is never removable from the UI.
@@ -417,28 +466,30 @@ The stack shows **one toast at a time**: each new action's toast replaces the
 last, so three quick state changes never pile up over Check out or the owner's
 phone link, and the Undo on screen is always the Undo for the newest action
 (#1001). On phones the toast spans the width less the gutters so it stays one
-short line. Card actions sit in a two-column grid with the primary action
-first; when the count is odd it takes the whole first row, so no action is ever
-left alone on a row.
+short line. Each group of card actions sits in a two-column grid with the
+primary action first; when the count is odd it takes the whole first row, so no
+action is ever left alone on a row.
 
 ## Accessibility contract
 
-Every card header is a focusable button carrying `aria-expanded` and an
-accessible name that is a whole sentence ("09:00. Bramble. Cockapoo · Full
-Groom. Ready. waiting 50 min. £42 due. owner Sarah Wilson. Safety note: Hates
-the dryer."). The status is included in that sentence, and the separate safety control has
-its own complete accessible label. Hidden drawer controls remain inert.
+Every card's strip is a focusable `<button>` carrying `aria-expanded` and an
+accessible name that is a whole sentence, starting with the strip's visible
+words in order (label in name): "09:30. Nell. Arrived. Safety note: Bites /
+Nips. Cocker spaniel · Full Groom · Raman. 1 hr 35 min. owner Priya Raman". It
+is the card's only control until the card is lifted: the full view is `inert`
+until then, the face is `aria-hidden`, and while one card is lifted every other
+card is `inert` behind the single pile button. Lifting moves focus into the
+full view; closing returns it to the strip.
 
-Touch targets are ≥ 44px everywhere, including the quiet action tier — the
-prototype drops those to 40px and this does not, because the hands using it are
-wet and one of them is usually holding a dog. Urgency is never colour alone, and
-there is no hover-only information: the safety note in particular is words on the
-card, not a tooltip.
+Touch targets are ≥ 44px everywhere, including the quiet action tier and the
+pile — the prototype drops quiet buttons to 40px and this does not, because the
+hands using it are wet and one of them is usually holding a dog. Urgency is
+never colour alone, and there is no hover-only information: the safety note in
+particular is words on the card, not a tooltip.
 
-Status changes do not re-sort appointments. Selection changes only presentation:
-stable booking keys and DOM order preserve focus, and keyboard focus brings a
-header out of the future stack. Browser scroll anchoring is disabled within this
-view so it cannot counteract intentional card transitions.
+Status changes do not re-sort appointments. Stable booking keys and DOM order
+preserve focus. Browser scroll anchoring is disabled within this view so it
+cannot counteract intentional card transitions.
 
 ## The reports (`views/ReportsView.jsx`, bands 7–10)
 

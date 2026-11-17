@@ -526,7 +526,9 @@ export function tokenActions(token: TokenActionSubject, context: TokenActionCont
     if (booking.status === BOOKING_STATUS.BOOKED) {
       actions.push({ id: "reconfirm", label: "Reconfirmed", kind: "default" });
     }
-    actions.push({ id: "checkIn", label: "Arrived", kind: "primary" });
+    // "Check in", the step's name on the card: the first of the
+    // check in → mark ready → check out sequence the lifted card presents.
+    actions.push({ id: "checkIn", label: "Check in", kind: "primary" });
   } else if (token.zone === "withUs") {
     // One step out of "with us" now that "Arrived" is gone: Arrived -> Ready.
     //
@@ -568,7 +570,9 @@ export function tokenActions(token: TokenActionSubject, context: TokenActionCont
     }
   }
 
-  if (hasOwner) actions.push({ id: "message", label: `Message ${contactName}`, kind: "default" });
+  // Opens the owner's thread in the in-app WhatsApp inbox — never a wa.me
+  // link, which would go round every send-time check (STOP, opt-out).
+  if (hasOwner) actions.push({ id: "message", label: `WhatsApp ${contactName}`, kind: "default" });
   if (telHref) actions.push({ id: "call", label: `Call ${contactName}`, kind: "default", href: telHref });
 
   actions.push({ id: "booking", label: "Booking details", kind: "quiet" });

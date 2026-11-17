@@ -376,6 +376,57 @@ describe("staff confirmation", () => {
     expect(row.reminderConfirmedBy).toBe("staff");
     expect(row.reminderState).toBe("confirmed");
   });
+
+  // The day stack no longer offers Confirm or Unconfirm (confirmation comes
+  // from reminder replies), so these were last covered through the page. The
+  // engine still lists the actions as legal, so the hook's handling of them is
+  // pinned here, against the row written.
+  it("unconfirms a staff confirmation back to the reminder state it replaced", async () => {
+    const { result, onUpdateBooking, toast } = setup();
+    await act(async () => {
+      await result.current.runTokenAction(
+        {
+          booking: {
+            ...PAID_IN_ADVANCE,
+            status: BOOKING_STATUS.BOOKED,
+            reminderState: "confirmed",
+            reminderConfirmedBy: "staff",
+            reminderSentAt: "2026-07-12T18:00:00Z",
+          },
+        } as never,
+        { id: "unconfirm" } as never,
+      );
+    });
+    const row = writtenRow(onUpdateBooking);
+    expect(row._unconfirmArrival).toBe(true);
+    expect(row.reminderConfirmedAt).toBeNull();
+    expect(row.reminderConfirmedBy).toBeNull();
+    expect(row.reminderState).toBe("sent");
+    expect(toast.show.mock.calls[0].slice(0, 2)).toEqual(["Luna's booking is unconfirmed again", "success"]);
+  });
+
+  it("says plainly that a refused unconfirm leaves the customer's own confirmation standing", async () => {
+    const onUpdateBooking = vi.fn(async () => null);
+    const toast = { show: vi.fn() };
+    const { result } = renderHook(() => useBookingActions({
+      dateStr: DATE,
+      toast: toast as never,
+      onUpdateBooking: onUpdateBooking as never,
+      onSendCollection: vi.fn(),
+      onMessageOwner: vi.fn(),
+      amountDueFor: () => 0,
+    }));
+    await act(async () => {
+      await result.current.runTokenAction(
+        { booking: { ...PAID_IN_ADVANCE, status: BOOKING_STATUS.BOOKED, reminderState: "confirmed" } } as never,
+        { id: "unconfirm" } as never,
+      );
+    });
+    expect(toast.show.mock.calls.map((call) => call.slice(0, 2))).toContainEqual([
+      "Couldn't undo — if the customer has just confirmed themselves, their confirmation stands.",
+      "info",
+    ]);
+  });
 });
 
 // The four-zone board flashed a ring on a token for 900 ms after it changed

@@ -13,13 +13,15 @@
 // looking identical. Strict time order plus one elapsed figure per row makes
 // that difference the most visible thing on the screen, which is what the
 // people running the salon actually need from it.
-import { DOG_SIZE, SERVICES, isStackVisibleStatus } from "../constants/index";
+import { BOOKING_STATUS, DOG_SIZE, SERVICES, isStackVisibleStatus } from "../constants/index";
+import { LATE_ARRIVAL_GRACE_MINUTES } from "../constants/salon";
 import { computeBookingPricing } from "./bookingRules";
 import { buildDailyBriefFeed } from "./dailyBrief";
 import {
   collectionWaitMinutes,
   formatDuration,
   londonDateStr,
+  minutesPastSlotStart,
   minutesUntilSlot,
   timeInSalonMinutes,
 } from "./today";
@@ -67,6 +69,11 @@ export interface DayStackRow {
   urgent: boolean;
   /** Ready past READY_OVERDUE_MINUTES — thicker rule plus a clock icon. */
   readyOverdue: boolean;
+  /**
+   * This row carries the day's one countdown ("in 27 min"). True on at most
+   * one row: the next dog not yet arrived and not late (`entry.isNext`).
+   */
+  countdown: boolean;
 }
 
 function serviceLabel(serviceId: string | null | undefined): string {
@@ -82,9 +89,19 @@ interface TimingResult {
   timing: string | null;
   urgent: boolean;
   readyOverdue: boolean;
+  countdown: boolean;
 }
 
-const QUIET: TimingResult = { timing: null, urgent: false, readyOverdue: false };
+const QUIET: TimingResult = { timing: null, urgent: false, readyOverdue: false, countdown: false };
+
+/**
+ * The last word of the owner's name, for the strip. A strip has room for one
+ * word of owner, and the surname is the one that tells two Bellas apart.
+ */
+export function ownerSurname(name: string | null | undefined): string {
+  const words = String(name || "").trim().split(/\s+/).filter(Boolean);
+  return words.length ? words[words.length - 1] : "";
+}
 
 /**
  * What this row says about time, by stage.
@@ -93,8 +110,22 @@ const QUIET: TimingResult = { timing: null, urgent: false, readyOverdue: false }
  * no live elapsed time, and computing one from a stamp would produce "3 days"
  * on a row a member of staff is reading as history.
  */
-function timingFor(entry: TodayFeedEntry, now: Date): TimingResult {
+function timingFor(entry: TodayFeedEntry, now: Date, isNextArrival: boolean): TimingResult {
   const booking = entry.booking;
+
+  if (isNextArrival && booking.slot) {
+    // One countdown for the whole day, on the next dog to come through the
+    // door. Twelve "X min away" lines said the same thing twelve times and
+    // buried the one that mattered; the rest of the day is already in time
+    // order, which is the countdown for everyone else.
+    const until = minutesUntilSlot(booking.slot, now);
+    if (Number.isFinite(until)) {
+      // Inside the late-arrival grace the slot has passed but the dog is not
+      // late yet: "in -4 min" is nonsense, and "late" would be untrue.
+      const timing = until <= 0 ? "due now" : `in ${formatDuration(until)}`;
+      return { timing, urgent: false, readyOverdue: false, countdown: true };
+    }
+  }
 
   if (entry.stage === "ready") {
     const wait = entry.waitMinutes ?? collectionWaitMinutes(booking, now);
@@ -103,6 +134,7 @@ function timingFor(entry: TodayFeedEntry, now: Date): TimingResult {
       timing: `waiting ${formatDuration(wait)}`,
       urgent: wait >= READY_OVERDUE_MINUTES,
       readyOverdue: wait >= READY_OVERDUE_MINUTES,
+      countdown: false,
     };
   }
 
@@ -113,6 +145,7 @@ function timingFor(entry: TodayFeedEntry, now: Date): TimingResult {
       timing: formatDuration(elapsed),
       urgent: elapsed >= IN_SALON_LONG_MINUTES,
       readyOverdue: false,
+      countdown: false,
     };
   }
 
@@ -123,15 +156,62 @@ function timingFor(entry: TodayFeedEntry, now: Date): TimingResult {
       const timing = entry.overdueMinutes >= NO_ARRIVAL_MINUTES
         ? "No arrival"
         : `${formatDuration(entry.overdueMinutes)} late`;
-      return { timing, urgent: true, readyOverdue: false };
+      return { timing, urgent: true, readyOverdue: false, countdown: false };
     }
-    if (!booking.slot) return QUIET;
-    const until = minutesUntilSlot(booking.slot, now);
-    if (!Number.isFinite(until) || until < 0) return QUIET;
-    return { timing: `${formatDuration(until)} away`, urgent: false, readyOverdue: false };
+    return QUIET;
   }
 
   return QUIET;
+}
+
+/**
+ * Where a Booked dog stands on confirmation, for the card's colour and word.
+ *
+ *   unconfirmed  we asked and have no answer: the reminder went out with no
+ *                reply, or it never reached the owner (`applyReminderFailures`).
+ *                Needs chasing, so it must not read as calm.
+ *   confirmed    the owner answered: a recorded confirmation, or a typed reply
+ *                found in the inbox (`applyChatConfirmations`).
+ *   null         nothing to wait for yet (no reminder due, or staff booked it
+ *                with confirmation off), or the dog is past Booked and the
+ *                status says everything.
+ *
+ * Read from the board token's entry, which has both folds applied, so the
+ * card and the attention strip's "to confirm" count are one answer.
+ */
+export type StackConfirmation = "unconfirmed" | "confirmed" | null;
+
+export function stackConfirmation(entry: {
+  booking: { status?: string | null; reminderState?: string | null };
+  isUnconfirmed?: boolean;
+  chatConfirmation?: unknown;
+} | null | undefined): StackConfirmation {
+  if (!entry || entry.booking?.status !== BOOKING_STATUS.BOOKED) return null;
+  if (entry.isUnconfirmed) return "unconfirmed";
+  if (entry.booking.reminderState === "confirmed" || entry.chatConfirmation) return "confirmed";
+  return null;
+}
+
+/**
+ * The id of the next dog not yet through the door, or null.
+ *
+ * Not the feed's `isNext`, deliberately. That flag is set only on the
+ * "booked" stage, and the feed's rank-to-stage table files Reconfirmed (rank 1)
+ * under "inSalon" — a leftover from before Reconfirmed was added at rank 1. The
+ * board's zones are right ("Reconfirmed is still coming in"), so a reconfirmed
+ * dog that has not arrived would otherwise pass the countdown to someone later.
+ * Lateness uses the feed's own grace, so a dog this calls next is never one the
+ * feed calls late.
+ */
+function nextArrivalId(entries: TodayFeedEntry[], now: Date): string | null {
+  for (const entry of entries) {
+    const { booking } = entry;
+    if (booking.status !== BOOKING_STATUS.BOOKED && booking.status !== BOOKING_STATUS.RECONFIRMED) continue;
+    if (entry.isLate || !booking.slot) continue;
+    if (minutesPastSlotStart(booking.slot, now) > LATE_ARRIVAL_GRACE_MINUTES) continue;
+    return String(booking.id ?? "");
+  }
+  return null;
 }
 
 export interface DayStackInput {
@@ -165,7 +245,7 @@ export function buildDayStack({
   // into the collected summary.
   const feed = buildDailyBriefFeed(bookings, dateStr, now, { includeNoShows: true });
 
-  return feed
+  const visible = feed
     // An ALLOW-LIST, not a list of exclusions.
     //
     // The stack shows the four active statuses plus a confirmed no-show, which
@@ -176,10 +256,13 @@ export function buildDayStack({
     // Written as an allow-list on purpose: a status added later is invisible
     // until somebody decides it belongs here, which is the safe direction to
     // fail. Excluding by name would have silently admitted it.
-    .filter((entry) => entry.stage === "noShow" || isStackVisibleStatus(entry.booking.status))
+    .filter((entry) => entry.stage === "noShow" || isStackVisibleStatus(entry.booking.status));
+  const nextId = isToday ? nextArrivalId(visible, now) : null;
+
+  return visible
     .map((entry) => {
-      const timing = isToday ? timingFor(entry, now) : QUIET;
       const id = String(entry.booking.id ?? "");
+      const timing = isToday ? timingFor(entry, now, id === nextId) : QUIET;
       return {
         entry,
         booking: entry.booking,

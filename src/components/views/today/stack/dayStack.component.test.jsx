@@ -1,11 +1,13 @@
 // The day stack's rendering contract.
 //
-// Ordering and timing are unit-tested in src/engine/dayStack.test.ts. This file
-// is about what a member of staff can actually see and reach: that colour is
+// Ordering and timing are unit-tested in src/engine/dayStack.test.ts, and the
+// wallet geometry in stackLayout.test.ts. This file is about what a member of
+// staff can actually see and reach: what the 72px strip says, that colour is
 // never carrying a meaning on its own, that the safety note is readable without
-// a tap, and that the disclosure behaves.
-import { render, screen, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+// a tap, and that lifting a card out and putting it back behaves — focus,
+// scroll, Escape, the pile and the browser's Back button included.
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { DayStack } from "./DayStack.jsx";
 import { buildDayStack } from "../../../../engine/dayStack";
 import { buildDailyBriefBoard } from "../../../../engine/dailyBrief";
@@ -28,6 +30,7 @@ const BOOKINGS = [
     service: "full-groom",
     payment: "Due at Pick-up",
     _dogId: "d1",
+    _ownerId: "h1",
     _bookingDate: TODAY,
   },
   {
@@ -116,16 +119,110 @@ function renderStack(props = {}) {
 
 const card = (id) => document.querySelector(`[data-booking-id="${id}"]`);
 const head = (id) => card(id).querySelector("[data-stack-head]");
+const pile = () => document.querySelector("[data-stack-pile]");
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("the dog's photo", () => {
-  it("sits in the drawer, never the header, and only for a dog that has one", () => {
+  it("sits in the lifted view, never the strip, and only for a dog that has one", () => {
     renderStack({ photoPathFor: (b) => (b._dogId === "d2" ? "d2/photo.jpg" : null) });
-    // The header is the 96px the stack exposes; the photo must not crowd it.
-    expect(card("bathing").querySelector("[data-stack-header] [data-staff-dog-photo]")).toBeNull();
+    // The strip is the 72px every card shows; the photo must not crowd it.
+    expect(head("bathing").querySelector("[data-staff-dog-photo]")).toBeNull();
     fireEvent.click(head("bathing"));
     expect(card("bathing").querySelector("[data-staff-dog-photo]")?.textContent).toBe("N");
+    fireEvent.click(head("bathing"));
     fireEvent.click(head("arriving"));
     expect(card("arriving").querySelector("[data-staff-dog-photo]")).toBeNull();
+  });
+});
+
+// ---- The strip ----------------------------------------------------------------
+//
+// Line 1: time · dog name ··· status pill. Line 2: breed · service · owner
+// surname, truncating with an ellipsis. Everything essential lives here.
+
+describe("the 72px strip", () => {
+  it("says time, dog name and status on the first line", () => {
+    renderStack();
+    const line1 = head("bathing").querySelector(".wallet-line-1");
+    expect(line1.querySelector(".wallet-time").textContent).toBe("09:30");
+    expect(line1.querySelector(".wallet-name").textContent).toBe("Nell");
+    const pill = line1.querySelector("[data-status-variant='pill']");
+    expect(pill.textContent).toBe("Arrived");
+  });
+
+  it("says breed, service and the owner's surname on the second, truncating rather than wrapping", () => {
+    renderStack();
+    const subtitle = head("bathing").querySelector("[data-stack-subtitle]");
+    expect(subtitle.textContent).toBe("Cocker spaniel · Full Groom · Raman");
+    expect(head("bathing").querySelector("[data-stack-meta]").className).toContain("truncate");
+  });
+
+  it("is the card's only tap target: one button, with aria-expanded", () => {
+    renderStack();
+    const target = card("bathing");
+    const outsideTheFullView = [...target.querySelectorAll("button, a, [tabindex]")]
+      .filter((el) => !el.closest("[data-stack-details]"));
+    expect(outsideTheFullView).toEqual([head("bathing")]);
+    expect(head("bathing").tagName).toBe("BUTTON");
+    expect(head("bathing").getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("gives two dogs in the same slot a card each, each with its time", () => {
+    const pair = [
+      { ...BOOKINGS[0], id: "first", dogName: "Pip" },
+      { ...BOOKINGS[0], id: "second", dogName: "Squeak" },
+    ];
+    renderStack({ rows: buildDayStack({ bookings: pair, dateStr: TODAY, now: NOW }) });
+    expect(head("first").querySelector(".wallet-time").textContent).toBe("11:00");
+    expect(head("second").querySelector(".wallet-time").textContent).toBe("11:00");
+  });
+
+  it("shows the face of the last card, read-only and out of the accessibility tree", () => {
+    renderStack();
+    const face = card("bathing").querySelector("[data-stack-face]");
+    expect(face.textContent).toBe("Check ears, she was sore last time.");
+    expect(face.getAttribute("aria-hidden")).toBe("true");
+    expect(face.querySelector("button, a, input")).toBeNull();
+  });
+});
+
+describe("the countdown", () => {
+  it("appears on exactly one card, the next dog not yet arrived", () => {
+    renderStack();
+    const countdowns = document.querySelectorAll("[data-countdown='true']");
+    expect(countdowns).toHaveLength(1);
+    expect(countdowns[0].closest("[data-stack-card]").dataset.bookingId).toBe("arriving");
+    expect(countdowns[0].textContent).toBe("in 45 min");
+  });
+
+  it("is gone from every other card, and nothing anywhere says 'away'", () => {
+    renderStack();
+    expect(document.body.textContent).not.toMatch(/min away/);
+    expect(card("bathing").querySelector("[data-countdown]")).toBeNull();
+  });
+
+  it("refreshes with the minute and leaves a dog once it is checked in", () => {
+    const { rerender } = renderStack();
+    const at = (now, bookings = BOOKINGS) => buildDayStack({ bookings, dateStr: TODAY, now });
+    const props = (rows) => ({
+      rows,
+      resolve: (b) => ({ dogName: b.dogName, owner: "Priya Raman", dogMissing: false, ownerMissing: false }),
+      getWelfare: () => ({ alerts: [], pregnant: false, notes: "" }),
+      paymentOf: () => ({ kind: "due", amountDue: 42, subtotal: 42 }),
+      lastVisitFor: () => null,
+    });
+    rerender(<DayStack {...props(at(new Date(NOW.getTime() + 60_000)))} />);
+    expect(card("arriving").querySelector("[data-countdown]").textContent).toBe("in 44 min");
+
+    const checkedIn = BOOKINGS.map((b) => (b.id === "arriving"
+      ? { ...b, status: BOOKING_STATUS.ARRIVED, checkedInAt: NOW.toISOString() }
+      : b));
+    rerender(<DayStack {...props(at(NOW, checkedIn))} />);
+    expect(document.querySelectorAll("[data-countdown='true']")).toHaveLength(0);
   });
 });
 
@@ -187,17 +284,17 @@ describe("colour is never the only signal", () => {
 });
 
 describe("the safety note", () => {
-  it("is readable while the card is collapsed, in words", () => {
+  it("is readable in the strip before anything is opened, in words", () => {
     renderStack();
-    // Not behind the disclosure, and not an icon with a tooltip.
+    // Not behind the lift, and not an icon with a tooltip.
     expect(head("bathing").getAttribute("aria-expanded")).toBe("false");
-    expect(within(card("bathing")).getByLabelText("Safety alert: Bites / Nips")).toBeTruthy();
+    expect(head("bathing").querySelector("[data-stack-safety]").textContent).toBe("Bites / Nips");
   });
 
-  it("sits outside the disclosure button so both stay tappable", () => {
+  it("leads the second line, so truncation takes the surname before the warning", () => {
     renderStack();
-    const chip = within(card("bathing")).getByLabelText("Safety alert: Bites / Nips");
-    expect(head("bathing").contains(chip)).toBe(false);
+    const meta = head("bathing").querySelector("[data-stack-meta]");
+    expect(meta.firstElementChild.hasAttribute("data-stack-safety")).toBe(true);
   });
 
   it("is spoken as part of the card's one sentence", () => {
@@ -233,15 +330,15 @@ describe("the outstanding balance", () => {
   });
 });
 
-describe("expanding a card", () => {
-  it("opens in place and reports it", () => {
+describe("lifting a card", () => {
+  it("lifts it out and reports it", () => {
     renderStack();
-    expect(head("bathing").getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(head("bathing"));
     expect(head("bathing").getAttribute("aria-expanded")).toBe("true");
+    expect(card("bathing").dataset.lifted).toBe("true");
   });
 
-  it("animates the rows, not a height, so the drawer fits its own content", () => {
+  it("animates the rows, not a height, so the full view fits its own content", () => {
     renderStack();
     const drawer = () => document.getElementById("stack-drawer-bathing");
     expect(drawer().style.gridTemplateRows).toBe("0fr");
@@ -249,30 +346,42 @@ describe("expanding a card", () => {
     expect(drawer().style.gridTemplateRows).toBe("1fr");
   });
 
-  it("closes the previous card — two open at once pushes the day off screen", () => {
+  it("collapses every other card into an inert pile with one way back", () => {
     renderStack();
     fireEvent.click(head("bathing"));
-    fireEvent.click(head("waiting"));
-    expect(head("bathing").getAttribute("aria-expanded")).toBe("false");
-    expect(head("waiting").getAttribute("aria-expanded")).toBe("true");
+    for (const id of ["waiting", "absent", "arriving"]) {
+      expect(card(id).dataset.inPile).toBe("true");
+      expect(card(id).hasAttribute("inert")).toBe(true);
+    }
+    expect(card("bathing").hasAttribute("inert")).toBe(false);
+    expect(pile().getAttribute("aria-label")).toBe("Back to the day — 3 other dogs");
   });
 
-  it("toggles shut when pressed again", () => {
+  it("moves focus into the lifted card", () => {
     renderStack();
     fireEvent.click(head("bathing"));
-    fireEvent.click(head("bathing"));
-    expect(head("bathing").getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(card("bathing").querySelector("[data-stack-details]"));
+    expect(document.activeElement.getAttribute("aria-label")).toBe("Nell — details");
   });
 
-  it("shows owner, phone, last visit, price and notes", () => {
+  it("keeps the full view out of reach until the card is lifted", () => {
+    renderStack();
+    const inner = (id) => document.getElementById(`stack-drawer-${id}`).firstElementChild;
+    expect(inner("bathing").hasAttribute("inert")).toBe(true);
+    fireEvent.click(head("bathing"));
+    expect(inner("bathing").hasAttribute("inert")).toBe(false);
+    expect(inner("waiting").hasAttribute("inert")).toBe(true);
+  });
+
+  it("shows notes, owner contact, last visit and price", () => {
     renderStack();
     fireEvent.click(head("bathing"));
-    const open = within(card("bathing"));
+    const open = within(card("bathing").querySelector("[data-stack-details]"));
+    expect(open.getByText("Check ears, she was sore last time.")).toBeTruthy();
     expect(open.getByText("Priya Raman")).toBeTruthy();
     expect(open.getByText("07700 900377")).toBeTruthy();
     expect(open.getByText("12 June")).toBeTruthy();
     expect(open.getByText("£42")).toBeTruthy();
-    expect(open.getByText("Check ears, she was sore last time.")).toBeTruthy();
   });
 
   it("shows the dog's usual groom notes beside the visit note", () => {
@@ -295,8 +404,166 @@ describe("expanding a card", () => {
   it("links the phone number so it can be dialled one-handed", () => {
     renderStack();
     fireEvent.click(head("bathing"));
-    const link = within(card("bathing")).getByText("07700 900377");
+    const link = within(card("bathing").querySelector("[data-stack-details]")).getByText("07700 900377");
     expect(link.getAttribute("href")).toBe("tel:07700900377");
+  });
+});
+
+// ---- Putting it back ----------------------------------------------------------
+//
+// Four ways back, one close: the Close button (or the strip again), the pile,
+// Escape and the browser's Back. Each restores the scroll position the page had
+// and returns focus to the strip that opened the card.
+
+function renderInScrollport(props = {}) {
+  const rows = buildDayStack({ bookings: BOOKINGS, dateStr: TODAY, now: NOW, breedById: {} });
+  const utils = render(
+    <main>
+      <DayStack
+        rows={rows}
+        resolve={(b) => ({ dogName: b.dogName, owner: "Priya Raman", ownerPhone: "07700 900377", dogMissing: false, ownerMissing: false })}
+        getWelfare={() => ({ alerts: [], pregnant: false, notes: "" })}
+        paymentOf={() => ({ kind: "due", amountDue: 42, subtotal: 42 })}
+        lastVisitFor={() => null}
+        {...props}
+      />
+    </main>,
+  );
+  return { ...utils, main: document.querySelector("main") };
+}
+
+function liftFrom(main, id, scrollTop = 300) {
+  main.scrollTop = scrollTop;
+  head(id).focus();
+  fireEvent.click(head(id));
+  // Scrolling the open card is allowed; it must not survive the close.
+  main.scrollTop = 40;
+}
+
+function expectPutBack(main, id, scrollTop = 300) {
+  expect(head(id).getAttribute("aria-expanded")).toBe("false");
+  expect(document.querySelectorAll("[data-in-pile='true']")).toHaveLength(0);
+  expect(pile()).toBeNull();
+  expect(main.scrollTop).toBe(scrollTop);
+  expect(document.activeElement).toBe(head(id));
+}
+
+describe("putting a lifted card back", () => {
+  it("closes from its Close button", () => {
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    fireEvent.click(within(card("bathing")).getByRole("button", { name: "Close Nell" }));
+    expectPutBack(main, "bathing");
+  });
+
+  it("closes from its strip, pressed again", () => {
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    fireEvent.click(head("bathing"));
+    expectPutBack(main, "bathing");
+  });
+
+  it("closes from a tap on the pile", () => {
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    fireEvent.click(pile());
+    expectPutBack(main, "bathing");
+  });
+
+  it("closes on Escape", () => {
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    fireEvent.keyDown(document.activeElement, { key: "Escape" });
+    expectPutBack(main, "bathing");
+  });
+
+  it("leaves Escape to a dialog opened from the card", () => {
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    const dialog = document.createElement("div");
+    dialog.setAttribute("aria-modal", "true");
+    document.body.appendChild(dialog);
+    try {
+      fireEvent.keyDown(document.body, { key: "Escape" });
+      expect(head("bathing").getAttribute("aria-expanded")).toBe("true");
+    } finally {
+      dialog.remove();
+    }
+  });
+
+  it("closes on the browser's Back button, without stepping back a second time", () => {
+    const pushState = vi.spyOn(window.history, "pushState");
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    expect(pushState).toHaveBeenCalledTimes(1);
+    expect(pushState.mock.calls[0][0]).toMatchObject({ dayStackLifted: true });
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate")); });
+    expectPutBack(main, "bathing");
+    // Back already removed the entry the lift pushed.
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("steps back over its own history entry when closed any other way", () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    fireEvent.click(pile());
+    expect(back).toHaveBeenCalledTimes(1);
+    // The pop that follows is the one we asked for: it must not reopen or
+    // close anything else.
+    fireEvent.click(head("waiting"));
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate")); });
+    expect(head("waiting").getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("puts the day back if the lifted dog leaves the stack", () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { main, rerender } = renderInScrollport();
+    liftFrom(main, "bathing");
+    const rows = buildDayStack({ bookings: BOOKINGS.filter((b) => b.id !== "bathing"), dateStr: TODAY, now: NOW });
+    rerender(
+      <main>
+        <DayStack
+          rows={rows}
+          resolve={(b) => ({ dogName: b.dogName, owner: "", dogMissing: false, ownerMissing: true })}
+          getWelfare={() => ({ alerts: [], pregnant: false, notes: "" })}
+          paymentOf={() => ({ kind: "due", amountDue: 42, subtotal: 42 })}
+          lastVisitFor={() => null}
+        />
+      </main>,
+    );
+    expect(document.querySelectorAll("[data-in-pile='true']")).toHaveLength(0);
+    expect(pile()).toBeNull();
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("reduced motion", () => {
+  const reduce = () => vi.stubGlobal("matchMedia", (query) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+
+  it("switches state without a lift animation", () => {
+    reduce();
+    renderStack();
+    expect(document.querySelector("[data-day-stack]").dataset.motion).toBe("reduced");
+    expect(card("bathing").style.transition).toBe("none");
+    fireEvent.click(head("bathing"));
+    // The state still switches: lifted, piled, focus moved.
+    expect(card("bathing").dataset.lifted).toBe("true");
+    expect(card("bathing").style.transition).toBe("none");
+    expect(card("waiting").dataset.inPile).toBe("true");
+    expect(document.activeElement).toBe(card("bathing").querySelector("[data-stack-details]"));
+  });
+
+  it("animates when motion is allowed", () => {
+    renderStack();
+    expect(document.querySelector("[data-day-stack]").dataset.motion).toBe("full");
+    expect(card("bathing").style.transition).toBe("");
   });
 });
 
@@ -309,14 +576,12 @@ describe("highlighting an attention reason", () => {
     expect(card("bathing")).toBeTruthy();
   });
 
-  it("brings the requested dog forward without opening it, closing any other open card", () => {
+  it("puts a lifted card back for the requested dog, without lifting that one", () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
     const { rerender } = renderStack();
-    const first = document.querySelector("[data-stack-card]").dataset.bookingId;
-    expect(card(first).dataset.focused).toBe("true");
-    fireEvent.click(head(first));
-    expect(head(first).getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(head("bathing"));
+    expect(card("bathing").dataset.lifted).toBe("true");
 
-    const target = [...document.querySelectorAll("[data-stack-card]")].at(-1).dataset.bookingId;
     const rows = buildDayStack({ bookings: BOOKINGS, dateStr: TODAY, now: NOW, breedById: {} });
     const props = {
       rows,
@@ -325,12 +590,12 @@ describe("highlighting an attention reason", () => {
       paymentOf: () => ({ kind: "due", amountDue: 42, subtotal: 42 }),
       lastVisitFor: () => null,
     };
-    rerender(<DayStack {...props} focusRequest={{ id: target, key: 1 }} />);
+    rerender(<DayStack {...props} focusRequest={{ id: "arriving", key: 1 }} />);
 
-    expect(card(target).dataset.focused).toBe("true");
-    expect(head(target).getAttribute("aria-expanded")).toBe("false");
-    expect(card(first).dataset.focused).toBe("false");
-    expect(head(first).getAttribute("aria-expanded")).toBe("false");
+    expect(card("bathing").dataset.lifted).toBe("false");
+    expect(head("arriving").getAttribute("aria-expanded")).toBe("false");
+    expect(document.querySelectorAll("[data-in-pile='true']")).toHaveLength(0);
+    expect(back).toHaveBeenCalledTimes(1);
   });
 
   it("scrolls to the dog again when the same dog is requested again", () => {
@@ -365,9 +630,21 @@ describe("highlighting an attention reason", () => {
   });
 
   it("ignores a request for a dog that is not on the day", () => {
-    renderStack({ focusRequest: { id: "not-here", key: 1 } });
-    const first = document.querySelector("[data-stack-card]").dataset.bookingId;
-    expect(card(first).dataset.focused).toBe("true");
+    renderStack();
+    fireEvent.click(head("bathing"));
+    const rows = buildDayStack({ bookings: BOOKINGS, dateStr: TODAY, now: NOW });
+    render(
+      <DayStack
+        rows={rows}
+        resolve={(b) => ({ dogName: b.dogName, dogMissing: false, ownerMissing: true })}
+        getWelfare={() => ({ alerts: [], pregnant: false, notes: "" })}
+        paymentOf={() => ({ kind: "due", amountDue: 42, subtotal: 42 })}
+        lastVisitFor={() => null}
+        focusRequest={{ id: "not-here", key: 1 }}
+      />,
+    );
+    // The first stack's lifted card is untouched; nothing else changed.
+    expect(card("bathing").dataset.lifted).toBe("true");
   });
 });
 
@@ -392,22 +669,61 @@ function renderWithActions(extra = {}) {
   return { ...utils, onAction };
 }
 
-/** The action labels inside a card's drawer, in the order they render. */
-function actionsIn(id) {
+/** Lift a card, read its action labels in render order, and put it back. */
+function actionsIn(id, group = null) {
   fireEvent.click(head(id));
-  const list = card(id).querySelector("[data-stack-actions]");
-  return list ? [...list.querySelectorAll("button, a")].map((el) => el.textContent.trim()) : [];
+  const selector = group ? `[data-stack-actions="${group}"]` : "[data-stack-actions]";
+  const labels = [...card(id).querySelectorAll(selector)]
+    .flatMap((list) => [...list.querySelectorAll("button, a")].map((el) => el.textContent.trim()));
+  fireEvent.click(head(id));
+  return labels;
 }
 
 function press(id, label) {
-  fireEvent.click(head(id));
+  if (head(id).getAttribute("aria-expanded") !== "true") fireEvent.click(head(id));
   fireEvent.click(within(card(id)).getByLabelText(`${label} — ${BOOKINGS.find((b) => b.id === id).dogName}`));
 }
 
 describe("the actions a card offers", () => {
+  it("offers Call / WhatsApp, the next step and Take payment, in that order, then More", () => {
+    renderWithActions();
+    fireEvent.click(head("arriving"));
+    const groups = [...card("arriving").querySelectorAll("[data-stack-actions]")]
+      .map((el) => el.getAttribute("data-stack-actions"));
+    expect(groups).toEqual(["contact", "progress", "payment", "more"]);
+    fireEvent.click(head("arriving"));
+    expect(actionsIn("arriving", "contact")).toEqual(["Call Priya", "WhatsApp Priya"]);
+    expect(actionsIn("arriving", "progress")).toEqual(["Check in"]);
+    expect(actionsIn("arriving", "payment")).toEqual(["Take £42 payment"]);
+  });
+
   it("offers the next care step on an expected dog", () => {
     renderWithActions();
-    expect(actionsIn("arriving")).toContain("Arrived");
+    expect(actionsIn("arriving")).toContain("Check in");
+  });
+
+  it("has no Confirm button — confirmation comes from reminder replies", () => {
+    // An unconfirmed booking: the engine would offer Confirm and Reconfirmed.
+    const unconfirmed = BOOKINGS.map((b) => (b.id === "arriving"
+      ? { ...b, reminderState: "sent", confirmationChannel: "whatsapp" }
+      : b));
+    renderStack({
+      rows: buildDayStack({ bookings: unconfirmed, dateStr: TODAY, now: NOW }),
+      tokensById: tokenMap(unconfirmed),
+      onAction: vi.fn(),
+    });
+    const labels = actionsIn("arriving");
+    expect(labels).not.toContain("Confirm booking");
+    expect(labels).not.toContain("Reconfirmed");
+    expect(labels).not.toContain("Unconfirm booking");
+    expect(labels).toContain("Check in");
+  });
+
+  it("opens the owner's WhatsApp thread in the app, never a wa.me link", () => {
+    const { onAction } = renderWithActions();
+    press("arriving", "WhatsApp Priya");
+    expect(onAction.mock.calls[0][1].id).toBe("message");
+    expect(document.querySelector('a[href*="wa.me"]')).toBeNull();
   });
 
   it("offers the next care step on a dog mid-groom", () => {
@@ -445,8 +761,9 @@ describe("the actions a card offers", () => {
 
 describe("pressing an action", () => {
   it.each([
-    ["arriving", "Arrived", "checkIn"],
+    ["arriving", "Check in", "checkIn"],
     ["bathing", "Mark ready", "ready"],
+    ["arriving", "Take £42 payment", "payment"],
     ["arriving", "Didn't show", "didntShow"],
   ])("%s → %s runs the %s action", (id, label, actionId) => {
     const { onAction } = renderWithActions();
@@ -457,16 +774,16 @@ describe("pressing an action", () => {
     expect(action.id).toBe(actionId);
   });
 
-  it("does not close the card underneath it", () => {
+  it("does not put the card back underneath it", () => {
     renderWithActions();
-    press("arriving", "Arrived");
+    press("arriving", "Check in");
     expect(head("arriving").getAttribute("aria-expanded")).toBe("true");
   });
 
   it("is blocked while a write for that dog is in flight", () => {
     const { onAction } = renderWithActions({ busyIds: new Set(["arriving"]) });
     fireEvent.click(head("arriving"));
-    const button = within(card("arriving")).getByLabelText("Arrived — Hugo");
+    const button = within(card("arriving")).getByLabelText("Check in — Hugo");
     expect(button.getAttribute("aria-busy")).toBe("true");
     fireEvent.click(button);
     expect(onAction).not.toHaveBeenCalled();
@@ -485,9 +802,9 @@ describe("a no-show", () => {
   it("offers one clear way back into the active day", () => {
     const { onAction } = renderWithActions();
     expect(card("absent")).toBeTruthy();
-    expect(actionsIn("absent")).toContain("They turned up");
+    expect(actionsIn("absent", "progress")).toEqual(["They turned up"]);
 
-    fireEvent.click(within(card("absent")).getByLabelText("They turned up — Otto"));
+    press("absent", "They turned up");
     expect(onAction).toHaveBeenCalledTimes(1);
     const [token, action] = onAction.mock.calls[0];
     expect(token.zone).toBeNull();
@@ -675,18 +992,18 @@ describe("the route to the full invoice", () => {
   });
 });
 
-describe("fixed-header welfare disclosure", () => {
-  it("reveals every long warning in the details area without putting text into the header", () => {
+describe("several warnings", () => {
+  it("names the most important in the strip, counts the rest, and lists every one in full when lifted", () => {
     const warnings = ["Nervous / Anxious", "Needs a quiet room and a slow introduction before grooming"];
     renderStack({ getWelfare: () => ({ alerts: warnings }) });
-    const target = card("bathing");
     // Most important first: a warning nobody categorised ranks above "Nervous / Anxious".
     const ordered = [warnings[1], warnings[0]];
-    const safety = within(target).getByRole("button", { name: `Safety alert: ${ordered.join(", ")}` });
-    fireEvent.click(safety);
-    expect(head("bathing").getAttribute("aria-expanded")).toBe("true");
-    const details = target.querySelector("[data-stack-details]");
+    expect(head("bathing").querySelector("[data-stack-safety]").textContent).toBe(`${ordered[0]} +1`);
+    expect(head("bathing").getAttribute("aria-label")).toContain(`Safety note: ${ordered.join(". ")}`);
+    expect(head("bathing").getAttribute("aria-label")).toContain(`${ordered[0]} +1`);
+    fireEvent.click(head("bathing"));
+    const details = card("bathing").querySelector("[data-stack-details]");
     expect(details.textContent).toContain(ordered.join(", "));
-    expect(target.querySelector("[data-stack-header]").contains(details)).toBe(false);
+    expect(head("bathing").contains(details)).toBe(false);
   });
 });

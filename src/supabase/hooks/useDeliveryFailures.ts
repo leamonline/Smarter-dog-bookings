@@ -519,6 +519,16 @@ export function useBookingDeliveryFailure(
 }
 
 /**
+ * Every booking's live failures, keyed by booking id. For `/today`, which
+ * folds a failed reminder into "unconfirmed" across the whole day at once
+ * (engine/reminderFailure.ts) rather than card by card, so the attention
+ * strip's count and the cards cannot disagree.
+ */
+export function useLiveFailuresByBooking(): ReadonlyMap<string, FailureInfo[]> {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot).byBooking;
+}
+
+/**
  * Customers whose last few WhatsApp sends were all undeliverable, so messages
  * to them are not arriving at all. For the Today card, where it changes the
  * advice from "a reminder didn't land" to "this number may not be on WhatsApp".

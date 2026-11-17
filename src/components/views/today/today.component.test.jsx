@@ -15,6 +15,15 @@ import { TodayHeader } from "./TodayHeader.jsx";
 import { AvailabilityModal } from "./AvailabilityModal.jsx";
 import { TodayView } from "../TodayView.jsx";
 
+// The delivery-failure store, controllable per test. Empty by default, which is
+// what the real store holds under test (it never fetches offline).
+const liveFailures = new Map();
+vi.mock("../../../supabase/hooks/useDeliveryFailures", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useLiveFailuresByBooking: () => liveFailures,
+  useBookingDeliveryFailure: (id) => liveFailures.get(id) ?? null,
+}));
+
 const noop = () => {};
 
 // The page tests run at the desktop breakpoint. The stack renders one way at
@@ -32,6 +41,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  liveFailures.clear();
 });
 
 const selectedBooking = {
@@ -89,7 +99,7 @@ function renderToday(props = {}) {
   );
 }
 
-/** The dog's card, and the disclosure button that is its fixed header. */
+/** The dog's card, and the strip button that lifts it out of the stack. */
 function card(id = "b-selected") {
   return document.querySelector(`[data-booking-id="${id}"]`);
 }
@@ -97,7 +107,7 @@ function head(id = "b-selected") {
   return card(id).querySelector("[data-stack-head]");
 }
 
-/** The one gesture the whole page rests on: find the dog, open the dog. */
+/** The one gesture the whole page rests on: find the dog, lift the dog out. */
 function openDog(id = "b-selected") {
   const button = head(id);
   if (button.getAttribute("aria-expanded") !== "true") fireEvent.click(button);
@@ -166,7 +176,7 @@ describe("the day stack page — selected-date operations", () => {
     expect(screen.getByRole("heading", { name: "Manage availability" })).toBeInTheDocument();
   });
 
-  it("brings the first dog an attention segment names forward, without opening it", () => {
+  it("shows every dog's strip, timing included, and an attention segment lifts nothing", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-07-16T10:00:00+01:00"));
     const arrived = {
@@ -183,16 +193,13 @@ describe("the day stack page — selected-date operations", () => {
       dayOpenState: { "2026-07-16": true },
     });
 
-    // The earliest dog is in front by default; the late one is half-covered.
-    expect(card("b-arrived")).toHaveAttribute("data-focused", "true");
-    expect(card("b-late")).toHaveAttribute("data-focused", "false");
-    // Its timing is in the heading row, the part of a card the stack never covers.
-    expect(card("b-late").querySelector(".wallet-heading [data-stack-timing]")).toHaveTextContent("late");
+    // The lateness is in the strip, the part of a card the stack never covers.
+    expect(head("b-late").querySelector("[data-stack-timing]")).toHaveTextContent("late");
 
     fireEvent.click(screen.getByRole("button", { name: /^Highlight 1 late/ }));
-    expect(card("b-late")).toHaveAttribute("data-focused", "true");
     expect(head("b-late")).toHaveAttribute("aria-expanded", "false");
-    expect(card("b-arrived")).toHaveAttribute("data-focused", "false");
+    expect(card("b-late")).toHaveAttribute("data-lifted", "false");
+    expect(document.querySelectorAll("[data-in-pile='true']")).toHaveLength(0);
   });
 
   it("makes Manage availability say a closed day can't be booked, and offer nothing that would fail", () => {
@@ -313,7 +320,7 @@ describe("the day stack page — selected-date operations", () => {
     renderToday({ onUpdateBooking });
 
     openDog();
-    fireEvent.click(action("Arrived"));
+    fireEvent.click(action("Check in"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Check-in could not be saved.");
     // Still Expected: a dog never appears to move when the save did not land.
@@ -347,7 +354,7 @@ describe("the day stack page — selected-date operations", () => {
     renderToday({ onUpdateBooking });
 
     openDog();
-    fireEvent.click(action("Arrived"));
+    fireEvent.click(action("Check in"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
 
     fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
@@ -393,108 +400,67 @@ describe("the day stack page — selected-date operations", () => {
     );
   });
 
-  it("records a staff confirmation and toasts it", async () => {
-    const onUpdateBooking = vi.fn().mockResolvedValue(true);
-    renderToday({
-      bookingsByDate: {
-        "2026-07-16": [{ ...selectedBooking, reminderState: "sent", confirmationChannel: "whatsapp" }],
-      },
-      onUpdateBooking,
-    });
-
-    openDog();
-    fireEvent.click(action("Confirm booking"));
-
-    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
-    expect(onUpdateBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "b-selected",
-        _confirmArrival: true,
-        reminderConfirmedBy: "staff",
-        reminderState: "confirmed",
-        reminderConfirmedAt: expect.any(String),
-      }),
-      "2026-07-16",
-      "2026-07-16",
-    );
-    expect(await screen.findByText("Jack's booking confirmed")).toBeInTheDocument();
-  });
-
-  it("undoes a mis-tapped staff confirmation from the toast", async () => {
-    const onUpdateBooking = vi.fn().mockResolvedValue(true);
-    renderToday({
-      bookingsByDate: {
-        "2026-07-16": [{
-          ...selectedBooking,
-          reminderState: "sent",
-          reminderSentAt: "2026-07-15T18:00:00Z",
-          confirmationChannel: "whatsapp",
-        }],
-      },
-      onUpdateBooking,
-    });
-
-    openDog();
-    fireEvent.click(action("Confirm booking"));
-    fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
-
-    await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(2));
-    expect(onUpdateBooking).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        id: "b-selected",
-        _unconfirmArrival: true,
-        reminderConfirmedAt: null,
-        reminderConfirmedBy: null,
-        reminderState: "sent",
-      }),
-      "2026-07-16",
-      "2026-07-16",
-    );
-    expect(await screen.findByText("Jack's booking is unconfirmed again")).toBeInTheDocument();
-  });
-
-  it("offers Unconfirm for a staff-recorded confirmation, and never for a customer's own", () => {
+  // Confirmation happens automatically from reminder replies, so the card
+  // offers no Confirm, Unconfirm or Reconfirmed. The hook still handles those
+  // actions (pinned in useBookingActions.component.test.tsx); the card does
+  // not present them.
+  it("offers no Confirm, Unconfirm or Reconfirmed button on any dog", () => {
+    const unconfirmed = { ...selectedBooking, reminderState: "sent", confirmationChannel: "whatsapp" };
     const staffConfirmed = {
       ...selectedBooking,
+      id: "b-staff",
+      dogName: "Rolo",
+      slot: "10:00",
       reminderState: "confirmed",
       reminderConfirmedAt: "2026-07-16T07:40:00Z",
       reminderConfirmedBy: "staff",
     };
-    const { unmount } = renderToday({ bookingsByDate: { "2026-07-16": [staffConfirmed] } });
-    openDog();
-    expect(action("Unconfirm booking")).toBeInTheDocument();
-    unmount();
-
-    renderToday({
-      bookingsByDate: {
-        "2026-07-16": [{ ...staffConfirmed, reminderConfirmedBy: "customer" }],
-      },
-    });
-    openDog();
-    expect(screen.queryByLabelText(/^Unconfirm booking/)).not.toBeInTheDocument();
+    renderToday({ bookingsByDate: { "2026-07-16": [unconfirmed, staffConfirmed] } });
+    for (const id of ["b-selected", "b-staff"]) {
+      openDog(id);
+      expect(screen.queryByLabelText(/^Confirm booking/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Unconfirm booking/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Reconfirmed/)).not.toBeInTheDocument();
+      fireEvent.click(head(id));
+    }
   });
 
-  it("reports honestly when the unconfirm is refused because the customer confirmed", async () => {
-    const onUpdateBooking = vi.fn().mockResolvedValue(null);
+  it("colours a dog by where it stands on confirmation, and counts the same dogs to confirm", () => {
+    const awaitingReply = {
+      ...selectedBooking, id: "b-asked", dogName: "Asked", slot: "09:00",
+      reminderState: "sent", confirmationChannel: "whatsapp",
+    };
+    const reminderFailed = {
+      ...selectedBooking, id: "b-failed", dogName: "Failed", slot: "09:30",
+      reminderState: "none", confirmationChannel: "whatsapp",
+    };
+    const replied = {
+      ...selectedBooking, id: "b-replied", dogName: "Replied", slot: "10:00",
+      reminderState: "confirmed", reminderConfirmedAt: "2026-07-15T19:00:00Z",
+    };
+    const notYetAsked = {
+      ...selectedBooking, id: "b-quiet", dogName: "Quiet", slot: "10:30", reminderState: "none",
+    };
+    liveFailures.set("b-failed", [{ trigger_type: "reminder", human_id: "h1", channel: "whatsapp" }]);
     renderToday({
-      bookingsByDate: {
-        "2026-07-16": [{
-          ...selectedBooking,
-          reminderState: "confirmed",
-          reminderConfirmedAt: "2026-07-16T07:40:00Z",
-          reminderConfirmedBy: "staff",
-        }],
-      },
-      onUpdateBooking,
+      bookingsByDate: { "2026-07-16": [awaitingReply, reminderFailed, replied, notYetAsked] },
+      dayOpenState: { "2026-07-16": true },
     });
 
-    openDog();
-    fireEvent.click(action("Unconfirm booking"));
+    expect(card("b-asked")).toHaveAttribute("data-status-key", "unconfirmed");
+    // A reminder that never reached the owner needs chasing just the same.
+    expect(card("b-failed")).toHaveAttribute("data-status-key", "unconfirmed");
+    expect(head("b-failed").querySelector("[data-undelivered]")).toHaveTextContent("Reminder not delivered");
+    expect(card("b-replied")).toHaveAttribute("data-status-key", "confirmed");
+    expect(card("b-quiet")).toHaveAttribute("data-status-key", "expected");
+    expect(within(card("b-asked")).getByText("Unconfirmed")).toBeInTheDocument();
 
-    expect(
-      await screen.findByText(/Couldn't undo — if the customer has just confirmed themselves/),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    // The attention strip counts exactly the two the cards call unconfirmed.
+    fireEvent.click(screen.getByRole("button", { name: /^Highlight 2 to confirm/ }));
+    expect(card("b-asked").className).toMatch(/opacity-100/);
+    expect(card("b-failed").className).toMatch(/opacity-100/);
+    expect(card("b-replied").className).toMatch(/opacity-50/);
+    expect(card("b-quiet").className).toMatch(/opacity-50/);
   });
 
   it("uses one configured guide price for the header money, the card and the invoice", () => {
@@ -554,7 +520,7 @@ describe("the day stack page — selected-date operations", () => {
     });
 
     openDog("b-past");
-    fireEvent.click(action("Arrived"));
+    fireEvent.click(action("Check in"));
     await waitFor(() => expect(onUpdateBooking).toHaveBeenCalledTimes(1));
     expect(onUpdateBooking).toHaveBeenCalledWith(
       expect.objectContaining({ id: "b-past", status: "Arrived" }),
@@ -574,7 +540,7 @@ describe("the day stack page — selected-date operations", () => {
       onOpenBooking,
     });
 
-    // The card stays open between presses — a pressed action never closes it.
+    // The card stays lifted between presses — a pressed action never puts it back.
     openDog();
     fireEvent.click(action("Booking details"));
     expect(onOpenBooking).toHaveBeenCalledWith("b-selected");
@@ -585,7 +551,7 @@ describe("the day stack page — selected-date operations", () => {
     fireEvent.click(action("David Law's file"));
     expect(onOpenHuman).toHaveBeenCalledWith("h1");
 
-    fireEvent.click(action("Message David"));
+    fireEvent.click(action("WhatsApp David"));
     expect(screen.getByRole("status", { name: "Current route" })).toHaveTextContent("/inbox?human=h1");
   });
 
@@ -710,7 +676,7 @@ describe("the day stack page — selected-date operations", () => {
     expect(endOfDay).toHaveTextContent("Taken £42");
 
     openDog(`awaiting-${dateStr}`);
-    expect(action("Arrived", "Lucy")).toBeInTheDocument();
+    expect(action("Check in", "Lucy")).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Mark ready/)).not.toBeInTheDocument();
   });
 

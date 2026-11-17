@@ -38,6 +38,8 @@ import { buildCollectedRows, buildDayStack, selectCollected } from "../../engine
 import { DAY_CAPACITY } from "../../engine/utilisation";
 import { buildDailyBriefBoard } from "../../engine/dailyBrief";
 import { applyChatConfirmations } from "../../engine/replyConfirmation";
+import { applyReminderFailures, failedReminderBookingIds } from "../../engine/reminderFailure";
+import { useLiveFailuresByBooking } from "../../supabase/hooks/useDeliveryFailures";
 import { BOOKING_STATUS } from "../../constants/index";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useOnTheWaySignals } from "../../hooks/useOnTheWaySignals.ts";
@@ -207,21 +209,31 @@ export function TodayView({
     () => buildCollectedRows(collected, collectedTakings),
     [collected, collectedTakings],
   );
-  // Owners who answered the reminder by typing rather than tapping Confirm
-  // never stamp reminder_confirmed_at, so the engine still calls them
-  // unconfirmed. Folding the signal in here clears the flag everywhere at
-  // once: the token's tier, the zone's exception line and the attention count.
+  // Two folds into the built board, applied once so that the token's tier,
+  // the card's colour and the attention count all change together:
+  //
+  //   1. A reminder that never reached the owner counts as unconfirmed — the
+  //      owner has not been told, so it needs chasing like an unanswered one.
+  //   2. Owners who answered by typing rather than tapping Confirm never stamp
+  //      reminder_confirmed_at; their reply clears the flag. It runs second,
+  //      so a typed "yes" still clears a failed-reminder flag too.
   const replyConfirmations = useReplyConfirmations(selectedBookings);
+  const liveFailures = useLiveFailuresByBooking();
+  const failedReminders = useMemo(() => failedReminderBookingIds(liveFailures), [liveFailures]);
   const board = useMemo(() => {
     const built = buildDailyBriefBoard(selectedBookings, dateStr, now);
+    const fold = (entries) => applyChatConfirmations(
+      applyReminderFailures(entries, failedReminders),
+      replyConfirmations,
+    );
     return {
       ...built,
-      due: applyChatConfirmations(built.due, replyConfirmations),
-      withUs: applyChatConfirmations(built.withUs, replyConfirmations),
-      ready: applyChatConfirmations(built.ready, replyConfirmations),
-      home: applyChatConfirmations(built.home, replyConfirmations),
+      due: fold(built.due),
+      withUs: fold(built.withUs),
+      ready: fold(built.ready),
+      home: fold(built.home),
     };
-  }, [dateStr, now, selectedBookings, replyConfirmations]);
+  }, [dateStr, now, selectedBookings, replyConfirmations, failedReminders]);
 
   // A welfare flag lifts a mid-groom dog's prominence, so the pure ranking
   // layer is handed the ids rather than the dog records.
