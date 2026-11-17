@@ -149,10 +149,19 @@ export function ComposeNewModal({
   useEffect(() => {
     if (!initialHumanId || appliedInitialRef.current) return;
     appliedInitialRef.current = true;
+    // In sample-data mode the loaders throw ("Not connected"), synchronously,
+    // inside this effect — which took the whole inbox down to its error screen
+    // whenever a customer without a sample conversation was messaged. Without a
+    // connection there is nobody to pre-target: the picker stays open.
+    if (!contacts.connected) return;
     let cancelled = false;
-    contacts.getHumanById(initialHumanId).then((human) => {
-      if (!cancelled && human) setSelectedHuman(human);
-    });
+    contacts.getHumanById(initialHumanId)
+      .then((human) => {
+        if (!cancelled && human) setSelectedHuman(human);
+      })
+      // A failed lookup leaves the picker open rather than an unhandled
+      // rejection: staff can still search for the customer.
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [initialHumanId, contacts]);
   const [dogNames, setDogNames] = useState([]);
