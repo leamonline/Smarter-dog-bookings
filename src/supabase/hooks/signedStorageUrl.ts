@@ -114,6 +114,10 @@ export function createSignedUrlHook({
           urlCache.set(path, { url: data.signedUrl, expiresAt });
           if (cancelled) return;
           setEntry({ path, url: data.signedUrl });
+          // A freshly signed link gets its load attempt even when it matches
+          // the one that failed: tokens are stamped to the second, so a quick
+          // re-sign can return the same URL.
+          setFailedUrl(null);
           scheduleRefresh(expiresAt);
         })
         .catch((error: unknown) => {
