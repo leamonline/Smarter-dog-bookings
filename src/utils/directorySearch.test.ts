@@ -33,7 +33,8 @@ describe("directory search helpers", () => {
       "mark",
     );
 
-    expect(results.map((dog) => dog.name)).toEqual(["Rex"]);
+    // Mark Johnson owns Rex and Pepper.
+    expect(results.map((dog) => dog.name).sort()).toEqual(["Pepper", "Rex"]);
   });
 
   it("finds a human by name", () => {

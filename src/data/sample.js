@@ -1,15 +1,24 @@
 import { BOOKING_STATUS } from "../constants/salon";
 
+// `fullName` matches the shape live customer records have (transforms.ts), so
+// anything that names a customer by id — the booking modal's pick-up person,
+// for one — shows the name rather than the raw id ("H1") in sample mode.
 export const SAMPLE_HUMANS = {
-  "Sarah Jones": { id: "h1", name: "Sarah", surname: "Jones", phone: "07700 900111", sms: true, whatsapp: true, email: "sarah@example.com", fb: "", insta: "@sarahj", tiktok: "", address: "123 Main St", notes: "Prefers texts", trustedIds: ["Dave Smith"], historyFlag: "1 No-show (Oct 2023)" },
-  "Dave Smith": { id: "h2", name: "Dave", surname: "Smith", phone: "07700 900112", sms: true, whatsapp: false, email: "dave@example.com", fb: "davesmith", insta: "", tiktok: "", address: "456 Side St", notes: "", trustedIds: ["Sarah Jones"], historyFlag: "" },
-  "Emma Wilson": { id: "h3", name: "Emma", surname: "Wilson", phone: "07700 900113", sms: false, whatsapp: true, email: "emma@example.com", fb: "", insta: "", tiktok: "", address: "789 Park Rd", notes: "", trustedIds: [] },
-  "Tom Baker": { id: "h4", name: "Tom", surname: "Baker", phone: "07700 900114", sms: true, whatsapp: true, email: "tom@example.com", fb: "", insta: "", tiktok: "", address: "101 High St", notes: "", trustedIds: [] },
-  "Lisa Brown": { id: "h5", name: "Lisa", surname: "Brown", phone: "07700 900115", sms: true, whatsapp: false, email: "lisa@example.com", fb: "", insta: "", tiktok: "", address: "202 Elm St", notes: "", trustedIds: [] },
+  "Sarah Jones": { id: "h1", fullName: "Sarah Jones", name: "Sarah", surname: "Jones", phone: "07700 900111", sms: true, whatsapp: true, email: "sarah@example.com", fb: "", insta: "@sarahj", tiktok: "", address: "123 Main St", notes: "Prefers texts", trustedIds: ["Dave Smith"], historyFlag: "1 No-show (Oct 2023)" },
+  "Dave Smith": { id: "h2", fullName: "Dave Smith", name: "Dave", surname: "Smith", phone: "07700 900112", sms: true, whatsapp: false, email: "dave@example.com", fb: "davesmith", insta: "", tiktok: "", address: "456 Side St", notes: "", trustedIds: ["Sarah Jones"], historyFlag: "" },
+  "Emma Wilson": { id: "h3", fullName: "Emma Wilson", name: "Emma", surname: "Wilson", phone: "07700 900113", sms: false, whatsapp: true, email: "emma@example.com", fb: "", insta: "", tiktok: "", address: "789 Park Rd", notes: "", trustedIds: [] },
+  "Tom Baker": { id: "h4", fullName: "Tom Baker", name: "Tom", surname: "Baker", phone: "07700 900114", sms: true, whatsapp: true, email: "tom@example.com", fb: "", insta: "", tiktok: "", address: "101 High St", notes: "", trustedIds: [] },
+  "Lisa Brown": { id: "h5", fullName: "Lisa Brown", name: "Lisa", surname: "Brown", phone: "07700 900115", sms: true, whatsapp: false, email: "lisa@example.com", fb: "", insta: "", tiktok: "", address: "202 Elm St", notes: "", trustedIds: [] },
   // Said STOP on WhatsApp: shows the profile's "WhatsApp is off" notice and
   // header badge offline (the re-enable dialog itself needs the live database).
-  "Jenny Taylor": { id: "h6", name: "Jenny", surname: "Taylor", phone: "07700 900116", sms: false, whatsapp: false, email: "jenny@example.com", fb: "", insta: "", tiktok: "", address: "303 Oak St", notes: "", trustedIds: [], whatsappOptedOut: true, whatsappOptedOutAt: "2026-10-03T13:05:00.000000+00:00", whatsappOptedOutReason: "asked_on_whatsapp" },
-  "Mark Johnson": { id: "h7", name: "Mark", surname: "Johnson", phone: "07700 900117", sms: true, whatsapp: true, email: "mark@example.com", fb: "", insta: "", tiktok: "", address: "404 Pine St", notes: "", trustedIds: [] },
+  "Jenny Taylor": { id: "h6", fullName: "Jenny Taylor", name: "Jenny", surname: "Taylor", phone: "07700 900116", sms: false, whatsapp: false, email: "jenny@example.com", fb: "", insta: "", tiktok: "", address: "303 Oak St", notes: "", trustedIds: [], whatsappOptedOut: true, whatsappOptedOutAt: "2026-10-03T13:05:00.000000+00:00", whatsappOptedOutReason: "asked_on_whatsapp" },
+  "Mark Johnson": { id: "h7", fullName: "Mark Johnson", name: "Mark", surname: "Johnson", phone: "07700 900117", sms: true, whatsapp: true, email: "mark@example.com", fb: "", insta: "", tiktok: "", address: "404 Pine St", notes: "", trustedIds: [] },
+  // The owners of the dogs on the demo day stack, so a lifted card shows what
+  // a real one does: WhatsApp, Call and the owner's file (November 2026).
+  "Priya Raman": { id: "h8", fullName: "Priya Raman", name: "Priya", surname: "Raman", phone: "07700 900118", sms: true, whatsapp: true, email: "priya@example.com", fb: "", insta: "", tiktok: "", address: "505 Birch Rd", notes: "", trustedIds: [] },
+  "Amy Clarke": { id: "h9", fullName: "Amy Clarke", name: "Amy", surname: "Clarke", phone: "07700 900119", sms: true, whatsapp: true, email: "amy@example.com", fb: "", insta: "", tiktok: "", address: "606 Cedar Way", notes: "", trustedIds: [] },
+  "Rik Patel": { id: "h10", fullName: "Rik Patel", name: "Rik", surname: "Patel", phone: "07700 900120", sms: true, whatsapp: true, email: "rik@example.com", fb: "", insta: "", tiktok: "", address: "707 Ash Lane", notes: "", trustedIds: [] },
+  "Helen Wright": { id: "h11", fullName: "Helen Wright", name: "Helen", surname: "Wright", phone: "07700 900121", sms: true, whatsapp: true, email: "helen@example.com", fb: "", insta: "", tiktok: "", address: "808 Willow Close", notes: "", trustedIds: [] },
 };
 
 export const SAMPLE_DOGS = {
@@ -20,23 +29,28 @@ export const SAMPLE_DOGS = {
   "Daisy": { id: "d5", name: "Daisy", breed: "Poodle", age: "1 yr", size: "medium", humanId: "Lisa Brown" },
   "Milo": { id: "d6", name: "Milo", breed: "Maltese", age: "6 yrs", size: "small", humanId: "Jenny Taylor" },
   "Rex": { id: "d7", name: "Rex", breed: "Labrador", age: "7 yrs", size: "large", humanId: "Mark Johnson" },
+  "Nala": { id: "d8", name: "Nala", breed: "Whippet", age: "4 yrs", size: "medium", humanId: "Priya Raman" },
+  "Coco": { id: "d9", name: "Coco", breed: "Pomeranian", age: "2 yrs", size: "small", humanId: "Amy Clarke" },
+  "Teddy": { id: "d10", name: "Teddy", breed: "Goldendoodle", age: "3 yrs", size: "medium", humanId: "Rik Patel" },
+  "Poppy": { id: "d11", name: "Poppy", breed: "Cocker Spaniel", age: "5 yrs", size: "medium", humanId: "Helen Wright" },
+  "Pepper": { id: "d12", name: "Pepper", breed: "Dachshund", age: "6 yrs", size: "small", humanId: "Mark Johnson" },
 };
 
 export const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
     { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: BOOKING_STATUS.ARRIVED, addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid", _dogId: "d1", _ownerId: "h1" },
-    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up" },
+    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up", _dogId: "d2", _ownerId: "h2" },
     // Reconfirmed: the customer has told us they are coming, but the dog is
     // still at home. A fixture for the state exists so it can actually be seen
     // in the demo and asserted in a browser.
-    { id: 10, slot: "08:30", dogName: "Nala", breed: "Whippet", size: "medium", service: "full-groom", owner: "Priya Raman", status: BOOKING_STATUS.RECONFIRMED, addons: [], payment: "Due at Pick-up", reminderState: "confirmed", reminderConfirmedAt: "2026-07-12T18:30:00Z", reminderConfirmedBy: "customer" },
-    { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.READY_FOR_COLLECTION, payment: "Paid in Full" },
-    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.ARRIVED, payment: "Deposit Paid" },
-    { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown", status: BOOKING_STATUS.COMPLETED, payment: "Paid in Full" },
+    { id: 10, slot: "08:30", dogName: "Nala", breed: "Whippet", size: "medium", service: "full-groom", owner: "Priya Raman", status: BOOKING_STATUS.RECONFIRMED, addons: [], payment: "Due at Pick-up", reminderState: "confirmed", reminderConfirmedAt: "2026-07-12T18:30:00Z", reminderConfirmedBy: "customer", _dogId: "d8", _ownerId: "h8" },
+    { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.READY_FOR_COLLECTION, payment: "Paid in Full", _dogId: "d3", _ownerId: "h3" },
+    { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.ARRIVED, payment: "Deposit Paid", _dogId: "d4", _ownerId: "h4" },
+    { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown", status: BOOKING_STATUS.COMPLETED, payment: "Paid in Full", _dogId: "d5", _ownerId: "h5" },
     // Deliberately bare (no status/payment) — exercises the board's recoverable
     // unknown-status warning without making the whole demo day unusable.
-    { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath-and-brush", owner: "Jenny Taylor" },
-    { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson", status: BOOKING_STATUS.BOOKED },
+    { id: 6, slot: "10:00", dogName: "Milo", breed: "Maltese", size: "small", service: "bath-and-brush", owner: "Jenny Taylor", _dogId: "d6", _ownerId: "h6" },
+    { id: 7, slot: "12:00", dogName: "Rex", breed: "Labrador", size: "large", service: "bath-and-deshed", owner: "Mark Johnson", status: BOOKING_STATUS.BOOKED, _dogId: "d7", _ownerId: "h7" },
     // Went home without paying. The one state on this screen that actually
     // costs the salon money, and the one the day stack was silent about
     // until #878: it has left the stack, and it is not in the takings, so
@@ -48,22 +62,22 @@ export const SAMPLE_BOOKINGS_BY_DAY = {
     // Did not turn up. A first-class status now, not a Cancelled row carrying
     // a reason: it must leave the active stack without being mistaken for a
     // cancellation, and it must not consume a seat.
-    { id: 11, slot: "12:30", dogName: "Pepper", breed: "Dachshund", size: "small", service: "bath-and-brush", owner: "Mark Johnson", status: BOOKING_STATUS.NO_SHOW, cancelReason: "No-show", addons: [], payment: "Due at Pick-up" },
+    { id: 11, slot: "12:30", dogName: "Pepper", breed: "Dachshund", size: "small", service: "bath-and-brush", owner: "Mark Johnson", status: BOOKING_STATUS.NO_SHOW, cancelReason: "No-show", addons: [], payment: "Due at Pick-up", _dogId: "d12", _ownerId: "h7" },
     { id: 9, slot: "11:00", dogName: "Ziggy", breed: "Border Terrier", size: "small", service: "bath-and-brush", owner: "Nina Patel", status: BOOKING_STATUS.COMPLETED, payment: "Due at Pick-up", completedAt: "2026-07-13T11:40:00Z" },
   ],
   tue: [
-    { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke", status: BOOKING_STATUS.BOOKED },
+    { id: 101, slot: "08:30", dogName: "Coco", breed: "Pomeranian", size: "small", service: "full-groom", owner: "Amy Clarke", status: BOOKING_STATUS.BOOKED, _dogId: "d9", _ownerId: "h9" },
     // Customer answered their WhatsApp reminder — exercises the customer tick
     // and the rule that a customer confirmation is never removable by staff.
-    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel", status: BOOKING_STATUS.BOOKED, reminderState: "confirmed", reminderConfirmedAt: "2026-07-14T06:50:00Z", reminderConfirmedBy: "customer" },
+    { id: 102, slot: "09:00", dogName: "Teddy", breed: "Goldendoodle", size: "medium", service: "bath-and-brush", owner: "Rik Patel", status: BOOKING_STATUS.BOOKED, reminderState: "confirmed", reminderConfirmedAt: "2026-07-14T06:50:00Z", reminderConfirmedBy: "customer", _dogId: "d10", _ownerId: "h10" },
     // Reminder sent, no reply yet — exercises "Needs confirmation" and the
     // staff Confirm action on the Daily Brief.
-    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright", status: BOOKING_STATUS.BOOKED, reminderState: "sent", confirmationChannel: "whatsapp" },
+    { id: 103, slot: "09:30", dogName: "Poppy", breed: "Cocker Spaniel", size: "medium", service: "full-groom", owner: "Helen Wright", status: BOOKING_STATUS.BOOKED, reminderState: "sent", confirmationChannel: "whatsapp", _dogId: "d11", _ownerId: "h11" },
   ],
   wed: [
     // A cancelled booking on an open day — exercises the rule that cancelled
     // rows free their seat and must not render in the staff slot grid.
-    { id: 8, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.CANCELLED, addons: [], pickupBy: "Emma Wilson", payment: "Refunded" },
+    { id: 8, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.CANCELLED, addons: [], pickupBy: "Emma Wilson", payment: "Refunded", _dogId: "d3", _ownerId: "h3" },
   ],
   thu: [], fri: [], sat: [], sun: [],
 };
