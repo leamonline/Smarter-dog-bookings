@@ -119,6 +119,31 @@ test("closing with the Close button steps back over the history entry the lift m
   expect(await page.evaluate(() => window.history.length)).toBe(length + 1);
 });
 
+for (const when of ["at once", "once the inbox has loaded"]) test(`leaving from a lifted card and pressing Back ${when} returns to that card, and the next Back closes it`, async ({ page }) => {
+  await open(page);
+  const teddy = page.locator("[data-stack-card]").filter({ hasText: "Teddy" }).first();
+  await teddy.locator("[data-stack-head]").click();
+  await expect(teddy).toHaveAttribute("data-lifted", "true");
+
+  // WhatsApp the owner: the app moves on to the inbox. A navigation is a
+  // transition, so /today can still be mounted for a moment ("at once"); the
+  // other run waits until it has gone and the stack must rebuild the lift.
+  await teddy.getByRole("button", { name: "WhatsApp Rik — Teddy" }).click();
+  await expect(page).toHaveURL(/\/inbox\?human=h10/);
+  if (when !== "at once") await expect(page.locator("[data-day-stack]")).toHaveCount(0);
+
+  // Back is not a dead press: it lands on Teddy's card, still lifted.
+  await page.goBack();
+  await page.locator("[data-day-stack]").waitFor();
+  const back = page.locator("[data-stack-card]").filter({ hasText: "Teddy" }).first();
+  await expect(back).toHaveAttribute("data-lifted", "true");
+
+  // And the next Back closes it, on the same page.
+  await page.goBack();
+  await expect(back).toHaveAttribute("data-lifted", "false");
+  await expect(page).toHaveURL(/\/today/);
+});
+
 test("pull distance separates actual cards and cancellation restores the stack", async ({ page }) => {
   await open(page);
   const initial = await geometry(page);

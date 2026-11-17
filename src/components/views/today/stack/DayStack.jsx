@@ -14,6 +14,14 @@
 //   • the browser's Back button — lifting pushes one history entry, so on a
 //     phone the gesture people already use for "go back" does go back
 //
+// That entry names the dog it opened, so it is never a dead step. Leave
+// /today from a lifted card (WhatsApp the owner, open the dog's file) and Back
+// brings you to that dog's lifted card, the place you left; the next Back
+// closes it. Forward onto the entry lifts it again. A browser cannot delete an
+// entry from the middle of its history, so giving it a meaning is the only way
+// to stop it being an extra Back press. If the dog has left the day, the entry
+// is quietly cleared instead.
+//
 // Closing puts the page's scroll position back where it was and returns focus
 // to the strip that opened the card. Under prefers-reduced-motion the state
 // simply switches: no lift, no pile animation, no smooth scroll.
@@ -29,8 +37,24 @@ import { useReducedMotion } from "./useReducedMotion.js";
 import "./dayStack.css";
 import { StackCard } from "./StackCard.jsx";
 
-/** Marks the history entry a lift pushed, so Back closes the card, not the page. */
+/**
+ * Marks the history entry a lift pushed, holding the lifted dog's booking id, so
+ * Back closes the card rather than leaving the page, and returning to the entry
+ * lifts that card again.
+ */
 const HISTORY_KEY = "dayStackLifted";
+
+/** The booking id a history entry names, or null. */
+function liftedIdInHistory(state) {
+  const id = state?.[HISTORY_KEY];
+  return typeof id === "string" && id ? id : null;
+}
+
+function withoutLiftedId(state) {
+  if (!state || typeof state !== "object") return state;
+  const { [HISTORY_KEY]: _omit, ...rest } = state;
+  return rest;
+}
 
 function formatLastVisit(dateStr) {
   if (!dateStr) return "";
@@ -76,6 +100,13 @@ export function DayStack({
   const sentinelRef = useRef(false);
   const ignorePopRef = useRef(false);
   const revealIdRef = useRef(null);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  // Arriving on an entry a lift pushed (Back from the inbox, a reload): the
+  // card it names is lifted again once its row is on the stack.
+  const pendingRestoreRef = useRef(
+    typeof window === "undefined" ? null : liftedIdInHistory(window.history.state),
+  );
   const reducedMotion = useReducedMotion();
   const refresh = usePullToRefresh();
 
@@ -92,7 +123,12 @@ export function DayStack({
     pullProgress: lifted ? 0 : refresh.progress,
   });
 
-  const lift = useCallback((id) => {
+  /**
+   * Lift a card. `fromHistory` means the browser is already on an entry that
+   * names this card (Back or Forward onto it, or a remount), so nothing is
+   * pushed: that entry is the one the next close or Back steps off.
+   */
+  const lift = useCallback((id, { fromHistory = false } = {}) => {
     const list = listRef.current;
     if (!list) return;
     const main = scrollportOf(list);
@@ -100,11 +136,28 @@ export function DayStack({
     returnFocusRef.current = id;
     setFrame(measureLiftFrame(list));
     setLiftedId(id);
-    if (!sentinelRef.current && typeof window !== "undefined") {
-      window.history.pushState({ ...window.history.state, [HISTORY_KEY]: true }, "", window.location.href);
+    if (typeof window === "undefined") return;
+    if (fromHistory) {
+      sentinelRef.current = true;
+    } else if (!sentinelRef.current) {
+      window.history.pushState({ ...window.history.state, [HISTORY_KEY]: id }, "", window.location.href);
       sentinelRef.current = true;
     }
   }, []);
+
+  // Returning to an entry a lift pushed: lift that card again, or, if the dog
+  // has left the day, clear the entry's mark so it does not lift anything later.
+  useLayoutEffect(() => {
+    const id = pendingRestoreRef.current;
+    if (!id || liftedId) return;
+    if (rows.some((row) => row.id === id)) {
+      pendingRestoreRef.current = null;
+      lift(id, { fromHistory: true });
+    } else if (rows.length > 0) {
+      pendingRestoreRef.current = null;
+      window.history.replaceState(withoutLiftedId(window.history.state), "", window.location.href);
+    }
+  }, [rows, liftedId, lift]);
 
   /**
    * Put the day back. `fromHistory` means the browser already stepped back,
@@ -159,18 +212,29 @@ export function DayStack({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [lifted, close]);
 
-  // The browser's Back button. Only the entry this stack pushed is ours.
+  // The browser's Back and Forward buttons. The entry the browser lands on is
+  // the truth, not what this stack last did: an entry naming a dog on the day
+  // means that card is lifted; any other entry means the day is at rest. That
+  // holds even when this stack is still mounted while the router moves on — a
+  // navigation is a transition, so /today stays on screen until the next page
+  // has loaded, and a quick Back lands while it is still here.
   useEffect(() => {
-    const onPopState = () => {
+    const onPopState = (event) => {
       if (ignorePopRef.current) {
         ignorePopRef.current = false;
         return;
       }
-      if (sentinelRef.current) close({ fromHistory: true });
+      const id = liftedIdInHistory(event.state);
+      if (id && rowsRef.current.some((row) => row.id === id)) {
+        if (liftedId !== id) lift(id, { fromHistory: true });
+        else sentinelRef.current = true;
+        return;
+      }
+      if (liftedId) close({ fromHistory: true });
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [close]);
+  }, [close, lift, liftedId]);
 
   // A card that left the stack while lifted takes its history entry with it.
   useEffect(() => {

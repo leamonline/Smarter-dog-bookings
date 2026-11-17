@@ -42,6 +42,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   liveFailures.clear();
+  // Lifting a card pushes a jsdom history entry naming it; do not carry it on.
+  window.history.replaceState(null, "", window.location.href);
 });
 
 const selectedBooking = {

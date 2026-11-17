@@ -124,6 +124,14 @@ details"). Under `prefers-reduced-motion` the state simply switches: no lift
 animation, no pile animation and no smooth scroll. A lifted dog that leaves the
 stack (collected on another till) puts the day back with it.
 
+The history entry a lift pushes names the dog. Leave `/today` from a lifted
+card — WhatsApp the owner, open the dog's file — and Back brings staff to that
+dog's lifted card, where they left; the next Back closes it. Forward onto the
+entry lifts it again. A browser cannot delete an entry from the middle of its
+history and the app's `BrowserRouter` has no navigation blocker, so this is how
+the entry stops being a dead Back press. An entry whose dog has since left the
+day is cleared rather than lifting anything.
+
 The full view holds the safety note in full, any delivery problem, the visit
 notes and the dog's usual-groom notes, the photo (never in the strip), the
 owner, phone, last visit and price, then three actions:
@@ -169,6 +177,18 @@ Unconfirmed needs chasing, so it is not grey: apricot, apart from Ready's gold
 and No-show's red, which share the list, and its pill inverts (ink fill, tint
 text). Completed leaves the stack.
 
+**One palette everywhere (November 2026).** The tones live in
+`src/constants/statusPalette.ts`. The calendar's booking cards, the booking
+detail modal (header, accent bar and status stepper) and the Needs attention
+page read the same tones through `STATUS_DISPLAY` in `constants/salon.ts`; they
+used to have their own palette (mustard Booked, green Ready), so a booking
+changed colour between screens. Those screens keep their labels, which name the
+stored status ("Booked", "Completed"), and they do not layer confirmation on a
+Booked dog — that needs the reply and delivery data only `/today` loads. The
+stepper's selected step is the status ink filled behind tint text, the pill's
+pair inverted; the white-on-mid-tone it used before failed WCAG AA on blue
+Reconfirmed among others.
+
 **The timing** is the only place a number about *now* appears, computed on the
 London clock, at the right-hand end of line 2:
 
@@ -183,10 +203,18 @@ London clock, at the right-hand end of line 2:
 There is exactly one countdown, on the next dog not yet arrived and not late;
 it moves on once that dog is checked in, and the minute tick in `TodayView`
 refreshes it. "X min away" is gone from every other card: the list is already
-in time order. `nextArrivalId` in `engine/dayStack.ts` picks the dog and counts
-Reconfirmed as not yet arrived. The feed's own `isNext` does not, because its
-rank-to-stage table files Reconfirmed (rank 1) under the in-salon stage — a
-leftover from before Reconfirmed was added at that rank.
+in time order. `nextArrivalId` in `engine/dayStack.ts` picks it from the rows
+the stack actually draws, by the feed's own rule: the first Booked or
+Reconfirmed dog that is not late.
+
+**Reconfirmed is still coming in (November 2026).** Reconfirmed took rank 1
+after the feed's thresholds were written, and a bare `rank >= 1` then read a
+reconfirmed dog as already in the salon: it was never marked late, it counted
+towards "arrived so far" and the day summary's on-site figure, it could not be
+next, and its balance was chased before it arrived. The feed (`STAGE_BY_RANK`,
+`isLateArrival`, `buildDaySummary`, the payment reason and `isGroupSettled` in
+`engine/today.ts` and `engine/dailyBrief.ts`) now uses `RANK_ARRIVED`, as
+`lifecycleStamps.ts` already did, so it agrees with the board's zones.
 
 It **degrades quietly**. A booking from before July 2026 has no lifecycle
 stamps and never will, so its row does not mention time rather than saying

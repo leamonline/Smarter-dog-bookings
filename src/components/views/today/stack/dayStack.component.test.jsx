@@ -124,6 +124,9 @@ const pile = () => document.querySelector("[data-stack-pile]");
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  // A lift pushes a real jsdom history entry naming the dog; clear it so the
+  // next test's stack does not take it as a card to lift again.
+  window.history.replaceState(null, "", window.location.href);
 });
 
 describe("the dog's photo", () => {
@@ -497,7 +500,7 @@ describe("putting a lifted card back", () => {
     const { main } = renderInScrollport();
     liftFrom(main, "bathing");
     expect(pushState).toHaveBeenCalledTimes(1);
-    expect(pushState.mock.calls[0][0]).toMatchObject({ dayStackLifted: true });
+    expect(pushState.mock.calls[0][0]).toMatchObject({ dayStackLifted: "bathing" });
     act(() => { window.dispatchEvent(new PopStateEvent("popstate")); });
     expectPutBack(main, "bathing");
     // Back already removed the entry the lift pushed.
@@ -536,6 +539,48 @@ describe("putting a lifted card back", () => {
     expect(document.querySelectorAll("[data-in-pile='true']")).toHaveLength(0);
     expect(pile()).toBeNull();
     expect(back).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---- The history entry a lift leaves behind -----------------------------------
+//
+// Leave /today from a lifted card (WhatsApp the owner) and the entry the lift
+// pushed is still there. A browser cannot delete it, so it is given a meaning:
+// it names the dog, and coming back to it lifts that card again.
+describe("coming back to a lifted card", () => {
+  it("lifts the card its history entry names when the page comes back to it, pushing nothing", () => {
+    window.history.replaceState({ dayStackLifted: "bathing" }, "", window.location.href);
+    const pushState = vi.spyOn(window.history, "pushState");
+    renderStack();
+    expect(card("bathing").dataset.lifted).toBe("true");
+    expect(document.activeElement).toBe(card("bathing").querySelector("[data-stack-details]"));
+    expect(pushState).not.toHaveBeenCalled();
+  });
+
+  it("closes with Back from there, onto the page it came from", () => {
+    window.history.replaceState({ dayStackLifted: "bathing" }, "", window.location.href);
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    renderStack();
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate", { state: null })); });
+    expect(card("bathing").dataset.lifted).toBe("false");
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("lifts the card again when Forward lands on its entry", () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    renderStack();
+    fireEvent.click(head("bathing"));
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate", { state: null })); });
+    expect(card("bathing").dataset.lifted).toBe("false");
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate", { state: { dayStackLifted: "bathing" } })); });
+    expect(card("bathing").dataset.lifted).toBe("true");
+  });
+
+  it("clears an entry whose dog has left the day, and lifts nothing", () => {
+    window.history.replaceState({ dayStackLifted: "gone-home", usr: null, key: "k" }, "", window.location.href);
+    renderStack();
+    expect(document.querySelectorAll("[data-lifted='true']")).toHaveLength(0);
+    expect(window.history.state).toEqual({ usr: null, key: "k" });
   });
 });
 
