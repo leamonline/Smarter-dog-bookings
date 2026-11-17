@@ -29,23 +29,17 @@ export function useLiftedHeight(listRef, liftedId) {
 }
 
 /**
- * Where a lifted card goes: the top of what is visible now, and the bottom of
- * the visible area for the pile — both in the list's own coordinates, taken
- * once at the moment of lifting so scrolling the open card moves nothing.
+ * Where a lifted card goes: the top of what is visible now, in the list's
+ * own coordinates, taken once so scrolling the open card moves nothing.
  */
-export function measureLiftFrame(list, { topMargin = 8, bottomMargin = 16 } = {}) {
+export function measureLiftFrame(list, { topMargin = 8 } = {}) {
   const main = list.closest("main") || document.documentElement;
   const mainRect = main.getBoundingClientRect();
   const listRect = list.getBoundingClientRect();
-  const viewportBottom = window.visualViewport
-    ? window.visualViewport.height + window.visualViewport.offsetTop
-    : window.innerHeight;
   const visibleTop = Math.max(mainRect.top, 0);
-  const visibleBottom = Math.min(mainRect.bottom || viewportBottom, viewportBottom);
   // Whole pixels: a fractional transform blurs text and shaves a 44px button
   // to 43.9999px.
   return {
     top: Math.round(visibleTop + topMargin - listRect.top),
-    bottom: Math.round(visibleBottom - bottomMargin - listRect.top),
   };
 }

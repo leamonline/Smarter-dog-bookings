@@ -18,6 +18,7 @@
 // at all — not in the stack, which it had left, and not here (#878). That is
 // the one case that actually costs the salon money, so it is also the one case
 // that is stated on the closed row, where nobody has to go looking for it.
+import { ChevronDown } from "lucide-react";
 import { titleCase } from "../../../../utils/text";
 
 function moneyLabel(amount) {
@@ -36,12 +37,12 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
   const owed = owing.reduce((sum, row) => sum + (row.amount || 0), 0);
 
   return (
-    <details data-collected-summary className="mt-5 border-t border-slate-200 pt-3">
+    <details data-collected-summary className="group/collected">
       <summary
-        className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-0.5 text-sm text-slate-600 [&::-webkit-details-marker]:hidden"
+        className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-card px-4 py-3 text-sm text-ink-muted outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden"
       >
-        <span>Collected today</span>
-        <span className="flex flex-wrap items-center justify-end gap-x-2 text-right">
+        <span className="shrink-0">Collected today</span>
+        <span className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1 text-right">
           {/*
             Stated before anyone opens anything. A total that silently excluded
             a dog who walked out owing £42 is a total that reads as a good day.
@@ -55,15 +56,16 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
             {moneyLabel(total)} · {dogLabel(rows.length)}
           </span>
         </span>
+        <ChevronDown size={16} aria-hidden="true" className="shrink-0 motion-safe:transition-transform group-open/collected:rotate-180" />
       </summary>
 
       {rows.length === 0 ? (
-        <p className="px-0.5 py-2 text-sm text-ink-muted">Nothing collected yet.</p>
+        <p className="px-4 pb-3 text-sm text-ink-muted">Nothing collected yet.</p>
       ) : (
         <>
           {/* The split first: it is what the end of the day is actually for. */}
           {byMethod.length > 1 ? (
-            <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-200 px-0.5 py-2 text-body text-slate-600">
+            <div className="mx-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-brand-paper-line py-2 text-body text-ink-muted">
               {byMethod.map((entry) => (
                 <span key={entry.method}>
                   {entry.label}{" "}
@@ -76,7 +78,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
             </div>
           ) : null}
 
-          <ul className="m-0 list-none p-0">
+          <ul className="m-0 list-none px-4 pb-2">
             {rows.map((row) => {
               const display = resolve(row.booking);
               const name = titleCase(
@@ -87,7 +89,7 @@ export function CollectedSummary({ takings, rows = [], resolve }) {
                   key={String(row.booking.id)}
                   data-collected-row
                   data-settled={row.settled ? "true" : "false"}
-                  className="flex items-center justify-between gap-3 border-t border-slate-200 px-0.5 py-[7px] text-sm text-slate-600"
+                  className="flex items-center justify-between gap-3 border-t border-brand-paper-line py-2 text-sm text-ink-muted"
                 >
                   <span className="truncate text-brand-ink">{name}</span>
                   <span

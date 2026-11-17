@@ -3,8 +3,9 @@
 // At rest every card shows the same 72px strip and the last card shows in full
 // (stackLayout.ts). Tapping a strip LIFTS that card out: it moves to the top of
 // what is visible and opens, and every other card collapses into a shallow pile
-// at the bottom. That replaced the in-place expand, which pushed the rest of
-// the day down the page and hid the bottom line of every card it covered.
+// directly below it, behind a labelled way back. That replaced the in-place
+// expand, which pushed the rest of the day down the page and hid the bottom
+// line of every card it covered.
 //
 // One card lifted at a time, and four ways back, each the same close:
 //
@@ -193,23 +194,29 @@ export function DayStack({
 
   // After a close commits: scroll back first, then return focus without
   // scrolling, so the focus move cannot undo the restore.
-  const wasLiftedRef = useRef(false);
+  const focusedLiftRef = useRef(null);
   useLayoutEffect(() => {
     if (lifted) {
-      wasLiftedRef.current = true;
+      if (!liftedHeight || focusedLiftRef.current === lifted) return;
+      focusedLiftRef.current = lifted;
+      // The first render has no measured height yet. Compacting the stack
+      // can clamp the scrollport then, so restore it once the full card fits,
+      // before paint. Later content resizes must not reset the user's scroll.
+      const main = scrollportOf(listRef.current);
+      if (main) main.scrollTop = savedScrollRef.current;
       // Focus moves into the lifted card. Its full view is a labelled region
       // that takes focus, so the dog's name is what a screen reader says next.
       detailsRefs.current.get(lifted)?.focus({ preventScroll: true });
       return;
     }
-    if (!wasLiftedRef.current) return;
-    wasLiftedRef.current = false;
+    if (!focusedLiftRef.current) return;
+    focusedLiftRef.current = null;
     const main = scrollportOf(listRef.current);
     if (main) main.scrollTop = savedScrollRef.current;
     const id = returnFocusRef.current;
     returnFocusRef.current = null;
     if (id) headRefs.current.get(id)?.focus({ preventScroll: true });
-  }, [lifted]);
+  }, [lifted, liftedHeight]);
 
   // Escape closes — unless a dialog opened from the card (the invoice, a
   // confirmation) has it, because that Escape belongs to the dialog.

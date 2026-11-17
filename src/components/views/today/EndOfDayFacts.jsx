@@ -1,12 +1,10 @@
-// The day's facts on one hairline-separated row: how many have arrived, what
+// The day's facts in the summary panel: how many have arrived, what
 // is in the till, what the day is worth, and where it sits against the daily
 // cap. Restrained on purpose — this is a workflow screen, not an accounting
 // screen.
 //
-// Kept from the previous end-of-day strip unchanged in substance — the numbers
-// staff actually cash up against. It outlived the four-zone board it used to
-// sit beneath (deleted October 2026, #995); the stack's Collected summary now
-// sits above it instead.
+// These stay in deliberate rows on a phone: arrivals and capacity, then the
+// takings and payment methods with their progress bar below.
 import { formatMoney } from "./parts.jsx";
 
 export function EndOfDayFacts({ summary, takings, capacityTotal }) {
@@ -17,24 +15,35 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
     <div
       aria-label="End of day"
       role="group"
-      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-brand-paper-line px-1 pt-2.5 text-xs text-ink-muted"
+      className="grid grid-cols-2 items-baseline gap-x-4 gap-y-3 border-t border-brand-paper-line px-4 py-3 text-caption text-ink-muted sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-x-6"
     >
       {summary.arrived > 0 ? (
-        <span className="whitespace-nowrap">
+        <span>
           <strong className="font-bold text-slate-700 tabular-nums">{summary.arrived}</strong> arrived so far
         </span>
       ) : (
-        <span className="whitespace-nowrap">No dogs have arrived yet</span>
+        <span>No dogs have arrived yet</span>
       )}
       <span
-        className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"
+        className="order-3 col-span-2 grid min-w-0 gap-2 sm:order-2 sm:col-span-1"
         aria-label={`Taken ${formatMoney(takings?.total ?? 0)} of ${formatMoney(summary.expectedRevenue)} expected`}
       >
-        <span className="whitespace-nowrap">
-          Taken{" "}
-          <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(takings?.total ?? 0)}</strong>
-          {" "}of{" "}
-          <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(summary.expectedRevenue)}</strong>
+        <span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <span>
+            Taken{" "}
+            <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(takings?.total ?? 0)}</strong>
+            {" "}of{" "}
+            <strong className="font-bold text-slate-700 tabular-nums">{formatMoney(summary.expectedRevenue)}</strong>
+          </span>
+          {takings && takings.total > 0 ? (
+            <span className="flex flex-wrap gap-x-3 gap-y-1">
+              {takings.byMethod.map((method) => (
+                <span key={method.method}>
+                  {method.label} <span className="tabular-nums">{formatMoney(method.amount)}</span>
+                </span>
+              ))}
+            </span>
+          ) : null}
         </span>
         {summary.expectedRevenue > 0 ? (
           // The day's takings at a glance — one quiet bar, no chart, because
@@ -42,7 +51,7 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
           <span
             aria-hidden="true"
             data-takings-bar
-            className="inline-block h-1.5 w-24 overflow-hidden rounded-full bg-brand-ink/10"
+            className="block h-1.5 w-full overflow-hidden rounded-full bg-brand-ink/10"
           >
             <span
               className="block h-full rounded-full bg-brand-teal"
@@ -50,15 +59,8 @@ export function EndOfDayFacts({ summary, takings, capacityTotal }) {
             />
           </span>
         ) : null}
-        {takings && takings.total > 0
-          ? takings.byMethod.map((method) => (
-            <span key={method.method} className="whitespace-nowrap text-ink-muted">
-              {method.label} <span className="tabular-nums">{formatMoney(method.amount)}</span>
-            </span>
-          ))
-          : null}
       </span>
-      <span className={`whitespace-nowrap ${overCap ? "font-bold text-brand-coral-text" : ""}`}>
+      <span className={`order-2 text-right sm:order-3 ${overCap ? "font-bold text-brand-coral-text" : ""}`}>
         Capacity{" "}
         <strong className={`font-bold tabular-nums ${overCap ? "text-brand-coral-text" : "text-slate-700"}`}>
           {summary.dogsBooked}/{capacityTotal}
