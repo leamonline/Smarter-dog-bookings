@@ -16,6 +16,7 @@
 // Confirm button: confirmation comes from the owner answering the reminder.
 import { useMemo, useState } from "react";
 import { money, ownerSurname, stackConfirmation } from "../../../../engine/dayStack";
+import { bookedLine } from "../../../../engine/bookingCreator";
 import { tokenActions } from "../../../../engine/salonBoard";
 import { orderSafetyFacts } from "../../../../engine/safetyOrder";
 import { DayCard, resolveDayStatus } from "../../../ui";
@@ -43,9 +44,12 @@ const NOT_ON_CARD = new Set(["reconfirm", "confirm", "unconfirm"]);
 const CONTACT = new Set(["call", "message"]);
 const PROGRESS = new Set(["checkIn", "ready", "undoNoShow"]);
 
+// Baseline, not the default stretch: the price is a 44px tap target with its
+// text centred, and under stretch the label sat at the top of that box while
+// the figure sat in the middle — the price looked dropped below its label.
 function DetailRow({ label, children }) {
   return (
-    <div className="flex justify-between gap-3 py-[5px]">
+    <div className="flex items-baseline justify-between gap-3 py-[5px]">
       <span style={{ color: "var(--card-meta)" }}>{label}</span>
       <div className="text-right">{children}</div>
     </div>
@@ -103,6 +107,7 @@ export function StackCard({
   const tone = resolveDayStatus(booking.status, booking.cancelReason, confirmation);
   const dogName = titleCase(display.dogMissing ? "Unnamed booking" : display.dogName);
   const ownerName = display.ownerMissing ? "" : titleCase(display.owner);
+  const booked = bookedLine(booking);
 
   const safetyFacts = orderSafetyFacts(
     [welfare?.pregnant ? "Pregnant" : null, ...(welfare?.alerts || [])].filter(Boolean),
@@ -270,6 +275,11 @@ export function StackCard({
           </DetailRow>
         ) : null}
         {lastVisit ? <DetailRow label="Last visit">{lastVisit}</DetailRow> : null}
+        {booked ? (
+          <DetailRow label="Booked">
+            <span data-stack-booked>{booked}</span>
+          </DetailRow>
+        ) : null}
         {payment?.subtotal != null && !noShow ? (
           <DetailRow label="Price">
             <PriceField

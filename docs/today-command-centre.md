@@ -134,7 +134,8 @@ day is cleared rather than lifting anything.
 
 The full view holds the safety note in full, any delivery problem, the visit
 notes and the dog's usual-groom notes, the photo (never in the strip), the
-owner, phone, last visit and price, then three actions:
+owner, phone, last visit, when and by whom the booking was made, and price,
+then three actions:
 
 | Action | Comes from |
 |---|---|
@@ -271,6 +272,16 @@ override would add the add-ons a second time on the next read — so when there 
 add-ons the card shows the arithmetic, `£52 (£42 + £10)`. A quiet **Open full
 invoice** reaches `MiniInvoiceModal` for anything the chain cannot do: an add-on,
 a split, a discount.
+
+The editable price says so on sight: the figure carries a dashed underline and
+a pencil. The 44px tap target is the button, not the underline — the rule used
+to be a bottom border on that box and floated below the figure as a stray line.
+
+**Booked** reads the creator columns stamped at insert by `set_booking_creator()`
+(`created_by_name` / `created_by_role`, migration 20260627150000), worded by
+`bookedLine` in `src/engine/bookingCreator.ts`: `14 Nov by Sam (staff)`, using
+the London calendar day. A booking from before creators were recorded shows
+the date alone rather than a guessed name.
 
 ### Collected, and the takings
 

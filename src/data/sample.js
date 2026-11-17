@@ -39,11 +39,11 @@ export const SAMPLE_DOGS = {
 export const SAMPLE_BOOKINGS_BY_DAY = {
   mon: [
     { id: 1, slot: "08:30", dogName: "Bella", breed: "Cockapoo", size: "small", service: "full-groom", owner: "Sarah Jones", status: BOOKING_STATUS.ARRIVED, addons: [], pickupBy: "Dave Smith", payment: "Deposit Paid", _dogId: "d1", _ownerId: "h1" },
-    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up", _dogId: "d2", _ownerId: "h2" },
+    { id: 2, slot: "08:30", dogName: "Max", breed: "Shih Tzu", size: "medium", service: "bath-and-brush", owner: "Dave Smith", status: BOOKING_STATUS.BOOKED, addons: [], pickupBy: "Dave Smith", payment: "Due at Pick-up", createdAt: "2026-07-10T15:42:00Z", createdByName: "Sam", createdByRole: "staff", _dogId: "d2", _ownerId: "h2" },
     // Reconfirmed: the customer has told us they are coming, but the dog is
     // still at home. A fixture for the state exists so it can actually be seen
     // in the demo and asserted in a browser.
-    { id: 10, slot: "08:30", dogName: "Nala", breed: "Whippet", size: "medium", service: "full-groom", owner: "Priya Raman", status: BOOKING_STATUS.RECONFIRMED, addons: [], payment: "Due at Pick-up", reminderState: "confirmed", reminderConfirmedAt: "2026-07-12T18:30:00Z", reminderConfirmedBy: "customer", _dogId: "d8", _ownerId: "h8" },
+    { id: 10, slot: "08:30", dogName: "Nala", breed: "Whippet", size: "medium", service: "full-groom", owner: "Priya Raman", status: BOOKING_STATUS.RECONFIRMED, addons: [], payment: "Due at Pick-up", reminderState: "confirmed", reminderConfirmedAt: "2026-07-12T18:30:00Z", reminderConfirmedBy: "customer", createdAt: "2026-06-29T19:05:00Z", createdByName: "Priya Raman", createdByRole: "customer", _dogId: "d8", _ownerId: "h8" },
     { id: 3, slot: "09:00", dogName: "Luna", breed: "Cavapoo", size: "small", service: "full-groom", owner: "Emma Wilson", status: BOOKING_STATUS.READY_FOR_COLLECTION, payment: "Paid in Full", _dogId: "d3", _ownerId: "h3" },
     { id: 4, slot: "09:00", dogName: "Charlie", breed: "Bichon Frise", size: "medium", service: "bath-and-deshed", owner: "Tom Baker", status: BOOKING_STATUS.ARRIVED, payment: "Deposit Paid", _dogId: "d4", _ownerId: "h4" },
     { id: 5, slot: "10:00", dogName: "Daisy", breed: "Poodle", size: "small", service: "full-groom", owner: "Lisa Brown", status: BOOKING_STATUS.COMPLETED, payment: "Paid in Full", _dogId: "d5", _ownerId: "h5" },
