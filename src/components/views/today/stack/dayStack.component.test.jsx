@@ -520,6 +520,39 @@ describe("putting a lifted card back", () => {
     expect(head("waiting").getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("waits for its own Back to land before giving the next card an entry", () => {
+    // history.back() is asynchronous. Close Nell, then lift Bramble before
+    // that Back has landed: pushing at once would stack Bramble's entry on
+    // Nell's, and the late Back would then land on Nell's entry.
+    const pushState = vi.spyOn(window.history, "pushState");
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    expect(pushState).toHaveBeenCalledTimes(1);
+    fireEvent.click(pile());
+    fireEvent.click(head("waiting"));
+    expect(card("waiting").dataset.lifted).toBe("true");
+    expect(pushState).toHaveBeenCalledTimes(1);
+    // The Back lands; only now does Bramble get its entry.
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate", { state: null })); });
+    expect(pushState).toHaveBeenCalledTimes(2);
+    expect(pushState.mock.calls[1][0]).toMatchObject({ dayStackLifted: "waiting" });
+    expect(card("waiting").dataset.lifted).toBe("true");
+  });
+
+  it("gives a card closed before its Back landed no entry at all", () => {
+    const pushState = vi.spyOn(window.history, "pushState");
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { main } = renderInScrollport();
+    liftFrom(main, "bathing");
+    fireEvent.click(pile());
+    fireEvent.click(head("waiting"));
+    fireEvent.click(head("waiting"));
+    act(() => { window.dispatchEvent(new PopStateEvent("popstate", { state: null })); });
+    expect(pushState).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll("[data-lifted='true']")).toHaveLength(0);
+  });
+
   it("puts the day back if the lifted dog leaves the stack", () => {
     const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
     const { main, rerender } = renderInScrollport();
@@ -788,6 +821,16 @@ describe("the actions a card offers", () => {
     const labels = actionsIn("waiting");
     expect(labels).not.toContain("Take £42 payment");
     expect(labels).not.toContain("Mark collected");
+    expect(card("waiting").querySelector("[data-checkout-chain]")).toBeTruthy();
+  });
+
+  it("still offers View payment on a Ready dog that has paid — only money owed goes through the chain", () => {
+    renderStack({
+      tokensById: tokenMap(),
+      onAction: vi.fn(),
+      paymentOf: () => ({ kind: "paid", amountDue: 0, subtotal: 42, basePrice: 42, addonsTotal: 0 }),
+    });
+    expect(actionsIn("waiting", "payment")).toEqual(["View payment"]);
     expect(card("waiting").querySelector("[data-checkout-chain]")).toBeTruthy();
   });
 

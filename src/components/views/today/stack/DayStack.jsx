@@ -99,6 +99,9 @@ export function DayStack({
   const returnFocusRef = useRef(null);
   const sentinelRef = useRef(false);
   const ignorePopRef = useRef(false);
+  // A lift made while our own Back is still travelling: its entry is pushed
+  // once that Back has landed, not on top of the entry being left.
+  const deferredPushRef = useRef(null);
   const revealIdRef = useRef(null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -140,8 +143,16 @@ export function DayStack({
     if (fromHistory) {
       sentinelRef.current = true;
     } else if (!sentinelRef.current) {
-      window.history.pushState({ ...window.history.state, [HISTORY_KEY]: id }, "", window.location.href);
-      sentinelRef.current = true;
+      // history.back() is asynchronous. If a close has just stepped back and
+      // the browser has not landed yet, pushing now would stack this card's
+      // entry on the one being left, and the late Back would then land on the
+      // previous dog's entry while this dog is on screen.
+      if (ignorePopRef.current) {
+        deferredPushRef.current = id;
+      } else {
+        window.history.pushState({ ...window.history.state, [HISTORY_KEY]: id }, "", window.location.href);
+        sentinelRef.current = true;
+      }
     }
   }, []);
 
@@ -168,6 +179,8 @@ export function DayStack({
     if (!liftedId) return;
     setLiftedId(null);
     setFrame(null);
+    // A lift still waiting for its entry never gets one.
+    deferredPushRef.current = null;
     if (sentinelRef.current) {
       sentinelRef.current = false;
       if (!fromHistory && typeof window !== "undefined") {
@@ -222,6 +235,14 @@ export function DayStack({
     const onPopState = (event) => {
       if (ignorePopRef.current) {
         ignorePopRef.current = false;
+        // Our own Back has landed: now push the entry for a card lifted
+        // while it was travelling.
+        const deferred = deferredPushRef.current;
+        deferredPushRef.current = null;
+        if (deferred) {
+          window.history.pushState({ ...window.history.state, [HISTORY_KEY]: deferred }, "", window.location.href);
+          sentinelRef.current = true;
+        }
         return;
       }
       const id = liftedIdInHistory(event.state);

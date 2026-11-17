@@ -146,6 +146,7 @@ export function StackCard({
   // entries drop out of the list because the chain is now how you reach them.
   // Everything else the engine offers still renders underneath.
   const showChain = allActions.some((action) => action.id === "collected");
+  const owes = amountDue != null && amountDue > 0;
   const groups = useMemo(() => {
     const shown = allActions.filter((action) => !NOT_ON_CARD.has(action.id));
     return {
@@ -154,14 +155,14 @@ export function StackCard({
         .map((id) => shown.find((action) => action.id === id))
         .filter(Boolean),
       progress: shown.filter((action) => PROGRESS.has(action.id)),
-      // Payment outside the chain: "Take £42 payment" before Ready, "View
-      // payment" once paid. At Ready the chain is how money is taken.
-      payment: showChain ? [] : shown.filter((action) => action.id === "payment"),
+      // "Take £42 payment" before Ready; "View payment" whenever nothing is
+      // owed, Ready included. Only money still to take goes through the chain.
+      payment: shown.filter((action) => action.id === "payment" && !(showChain && owes)),
       more: shown.filter((action) => !CONTACT.has(action.id)
         && !PROGRESS.has(action.id)
         && !CHAINED.has(action.id)),
     };
-  }, [allActions, showChain]);
+  }, [allActions, showChain, owes]);
 
   const balance = hasBalance
     ? { kind: "due", text: money(amountDue) }
