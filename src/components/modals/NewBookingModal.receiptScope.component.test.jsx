@@ -88,3 +88,63 @@ describe("booking receipt recipient scope", () => {
     expect(receipt.enabled).toBe(true);
   });
 });
+
+// With "Preferred service", the server skips an owner nobody can reach and
+// writes no log for them. The receipt must not wait on that missing log, or it
+// stays pending forever and withholds the message-only retry.
+describe("booking receipt with an owner nobody can reach", () => {
+  const unreachable = { id: "emma-id", fullName: "Emma Wilson", name: "Emma", phone: null, email: null, whatsapp: true };
+  const renderDrawer = (owner) => render(
+    <ToastProvider>
+      <NewBookingModal
+        onClose={vi.fn()}
+        onAdd={vi.fn().mockResolvedValue({ ok: true, bookings: [{ id: "saved-real-id" }] })}
+        dogs={{}}
+        humans={{ owner }}
+        dogsByHumanId={{}}
+        ensureDogsForHumans={vi.fn()}
+        bookingsByDate={{}}
+        dayOpenState={{ [OPEN_DATE]: true }}
+        daySettings={{}}
+        initialDateStr={OPEN_DATE}
+        initialSlot="09:00"
+        initialEntries={[{ dog: luna, humanKey: "Emma Wilson", service: "full-groom", addons: [] }]}
+      />
+    </ToastProvider>,
+  );
+
+  it("tracks only the trusted contact who was actually messaged", async () => {
+    captured.receipts.length = 0;
+    renderDrawer({ ...unreachable, trustedContacts: [{ id: "trusted-id", fullName: "Sam Trusted", relationship: "partner" }] });
+    fireEvent.click(await screen.findByRole("button", { name: "Book & send confirmation" }));
+    expect(await screen.findByRole("heading", { name: "Who should we notify?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Sam Trusted/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm booking" }));
+    expect(await screen.findByRole("heading", { name: "Booking created" })).toBeInTheDocument();
+    const receipt = captured.receipts.at(-1);
+    expect(receipt.humanIds).toEqual(["trusted-id"]);
+    expect(receipt.enabled).toBe(true);
+    expect(screen.getByText("Confirmation delivered")).toBeInTheDocument();
+  });
+
+  it("says no confirmation was sent when the unreachable owner was the only recipient", async () => {
+    captured.receipts.length = 0;
+    trustedGate.fetch.mockResolvedValueOnce({ trustedContacts: [] });
+    renderDrawer(unreachable);
+    fireEvent.click(await screen.findByRole("button", { name: "Book & send confirmation" }));
+    expect(await screen.findByRole("heading", { name: "Booking created" })).toBeInTheDocument();
+    expect(screen.getByText("No confirmation sent")).toBeInTheDocument();
+    expect(screen.getByText(/no usable phone number or email for Emma/)).toBeInTheDocument();
+    expect(captured.receipts.at(-1).enabled).toBe(false);
+    expect(screen.queryByRole("button", { name: "Refresh message status" })).not.toBeInTheDocument();
+  });
+
+  it("leaves a reachable owner on the receipt", async () => {
+    captured.receipts.length = 0;
+    trustedGate.fetch.mockResolvedValueOnce({ trustedContacts: [] });
+    renderDrawer({ ...unreachable, phone: "+447700900123" });
+    fireEvent.click(await screen.findByRole("button", { name: "Book & send confirmation" }));
+    expect(await screen.findByRole("heading", { name: "Booking created" })).toBeInTheDocument();
+    expect(captured.receipts.at(-1)).toMatchObject({ humanIds: ["emma-id"], enabled: true });
+  });
+});

@@ -353,6 +353,14 @@ and saved booking. Missing logs, read failures and provider acceptance never
 establish delivery. Suppressed confirmations, deposit-held confirmations and
 sample-data mode each have explicit copy.
 
+With **Preferred service**, the server skips an owner nobody can reach (the
+**[no contact method]** label) and writes no log for them. The receipt therefore
+leaves that owner out and reconciles only the recipients actually messaged, such
+as a trusted contact. When that owner was the only recipient, it reads **No
+confirmation sent**, gives the reason, and offers no refresh or retry. A trusted
+contact nobody can reach is still skipped without a log, so the receipt stays
+pending for them. Fixing that needs the server to record skipped recipients.
+
 The receipt polls while open and supports manual refresh. It checks every
 recipient chosen for that save, including a trusted person, even if the draft
 changes while the insert is still running. A newer confirmation attempt is not

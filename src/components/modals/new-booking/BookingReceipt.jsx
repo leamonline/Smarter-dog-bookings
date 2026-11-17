@@ -13,12 +13,17 @@ const STATES = {
 export function BookingReceipt({ receipt, onClose, onBookAnother }) {
   const headingRef = useRef(null);
   useEffect(() => { headingRef.current?.focus(); }, []);
-  const status = useBookingConfirmation(receipt.bookingIds, receipt.humanIds, !receipt.suppressed && !receipt.awaitingDeposit);
+  // noRecipient: the only selected recipient was an owner nobody can reach, so
+  // the server sends nothing and there is no status to watch.
+  const tracked = !receipt.suppressed && !receipt.awaitingDeposit && !receipt.noRecipient;
+  const status = useBookingConfirmation(receipt.bookingIds, receipt.humanIds, tracked);
   const unavailable = !receipt.bookingIds.length;
   const [title, detail] = receipt.suppressed
     ? ["Confirmation not requested", "You chose to create this booking without messaging the customer."]
     : receipt.awaitingDeposit
       ? ["Confirmation held for deposit", "The standard confirmation is not sent while the booking awaits its deposit."]
+      : receipt.noRecipient
+        ? ["No confirmation sent", `There's no usable phone number or email for ${receipt.ownerName}, so no message was sent.`]
       : status.sample
         ? ["Sample data — no message sent", "Message delivery is not simulated. No customer has been contacted."]
         : unavailable
@@ -40,7 +45,7 @@ export function BookingReceipt({ receipt, onClose, onBookAnother }) {
             <p className="mt-2 mb-0 text-sm text-slate-600">A message-only retry is available.</p>
           )}
         </section>
-        {!receipt.suppressed && !receipt.awaitingDeposit && !status.sample && !unavailable && (
+        {tracked && !status.sample && !unavailable && (
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={() => { void status.refresh(); }}>Refresh message status</Button>
             {status.retryBookingIds.length > 0 && !status.error && (
