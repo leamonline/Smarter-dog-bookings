@@ -215,8 +215,9 @@ export function TodayView({
   //   1. A reminder that never reached the owner counts as unconfirmed — the
   //      owner has not been told, so it needs chasing like an unanswered one.
   //   2. Owners who answered by typing rather than tapping Confirm never stamp
-  //      reminder_confirmed_at; their reply clears the flag. It runs second,
-  //      so a typed "yes" still clears a failed-reminder flag too.
+  //      reminder_confirmed_at; their reply clears the flag. Replies are read
+  //      only after a reminder that was sent, so a reminder that only ever
+  //      failed stays unconfirmed until a resend succeeds or Confirm is tapped.
   const replyConfirmations = useReplyConfirmations(selectedBookings);
   const liveFailures = useLiveFailuresByBooking();
   const failedReminders = useMemo(() => failedReminderBookingIds(liveFailures), [liveFailures]);

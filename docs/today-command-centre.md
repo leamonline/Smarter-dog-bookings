@@ -452,8 +452,12 @@ left the dog a calm Expected while the owner had not been told at all.
 reminder — exactly what the delivery-failure store calls live
 (`useLiveFailuresByBooking`), resends and Meta's later verdicts included — into
 the same `confirmation` reason, before the chat fold. The card turns
-Unconfirmed, the attention strip counts it under "to confirm", and a typed
-"yes" still clears it. A failed booking confirmation, ready message or
+Unconfirmed and the attention strip counts it under "to confirm". It clears when
+the owner taps Confirm or a resend succeeds; a successful resend also gives the
+booking a sent reminder, after which typed replies are read as usual. A typed
+"yes" after a reminder that only ever failed is deliberately not read: the
+owner never saw the reminder, and staff chose not to count replies from the
+failed attempt (November 2026). A failed booking confirmation, ready message or
 cancellation is not folded: it is a delivery problem the card already names.
 Display-level only; it writes nothing.
 

@@ -15,9 +15,13 @@
 // call (AGENTS.md). Ambiguity therefore fails towards "needs confirming",
 // which is the safe direction.
 //
-// Applied to the built feed, like `applyChatConfirmations`, and BEFORE it: an
-// owner who answers by typing "yes" (to the booking confirmation, or after a
-// resend) still clears the flag. Display-level only — nothing here writes.
+// Applied to the built feed, before `applyChatConfirmations`. What clears it:
+// a recorded confirmation (the owner tapping Confirm), or a successful resend,
+// which ends the live failure and gives the booking a sent reminder whose
+// typed replies are then read. A typed "yes" after a reminder that only ever
+// failed is NOT read — the reply lookup starts from a sent reminder, and
+// staff chose to keep it that way (November 2026). Display-level only —
+// nothing here writes.
 // ============================================================
 
 import { BOOKING_STATUS } from "../constants/index";

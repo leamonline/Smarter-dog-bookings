@@ -69,7 +69,11 @@ describe("applyReminderFailures", () => {
     expect(out).toMatchObject({ isUnconfirmed: false, reminderFailed: false, actionReasons: [] });
   });
 
-  it("is still cleared by a typed reply, because that fold runs after it", () => {
+  // The ordering, not the lookup: a reply signal only exists once a reminder
+  // has actually been sent (a successful resend), because useReplyConfirmations
+  // reads replies from a sent reminder. A reminder that only ever failed has no
+  // signal and stays unconfirmed — by decision, not omission.
+  it("is cleared by a reply signal when one exists, because the chat fold runs after it", () => {
     const folded = applyReminderFailures([entry("a")], new Set(["a"]));
     const [out] = applyChatConfirmations(folded, {
       a: { messageId: "m1", text: "yes see you then", receivedAt: "2026-07-02T08:00:00Z" },
