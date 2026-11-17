@@ -281,6 +281,10 @@ export function TodayView({
     const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
     return dog?.lastGroomedDate || null;
   }, [dogs]);
+  const photoPathFor = useCallback((booking) => {
+    const dog = getDogByIdOrName(dogs, booking._dogId || booking.dogName);
+    return dog?.photoPath || null;
+  }, [dogs]);
   const attention = useMemo(() => buildAttentionSummary(tokens, isToday), [tokens, isToday]);
   const zoneCounts = useMemo(() => buildZoneCounts(tokens), [tokens]);
 
@@ -597,6 +601,7 @@ export function TodayView({
                 getWelfare={getWelfare}
                 paymentOf={paymentOf}
                 lastVisitFor={lastVisitFor}
+                photoPathFor={photoPathFor}
                 onTheWaySignals={onTheWaySignals}
                 highlightIds={highlightIds}
                 tokensById={tokensById}

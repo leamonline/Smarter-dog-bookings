@@ -2,6 +2,7 @@ import { Images, Pencil, X } from "lucide-react";
 import { titleCase } from "./helpers.js";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import { HeaderIconButton } from "../shell/index.js";
+import { StaffDogPhoto } from "../../shared/StaffDogPhoto.jsx";
 
 // Quiet shell header for the dog card — same anatomy as the human
 // card's header (eyebrow + badge row, display name, subtitle, icon
@@ -42,6 +43,8 @@ export function DogCardHeader({
 
   return (
     <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 bg-[var(--color-brand-paper)]">
+      {/* The owner's own photo, so staff can match the dog at the door. */}
+      <StaffDogPhoto path={resolvedDog.photoPath} dogName={titleCase(resolvedDog.name)} className="text-brand-ink" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-label text-ink-muted">

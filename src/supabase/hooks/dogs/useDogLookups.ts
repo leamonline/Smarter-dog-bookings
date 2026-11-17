@@ -9,6 +9,7 @@ import { useCallback, useRef } from "react";
 import { supabase } from "../../client";
 import { sanitiseFieldValue } from "../../../utils/sanitiseFieldValue";
 import { logger } from "../../../lib/logger";
+import { dogPhotoPathOf } from "../../transforms";
 import type { MutableRefObject } from "react";
 import type { Dog, DogSize } from "../../../types/index";
 import type {
@@ -59,6 +60,7 @@ export function useDogLookups({
         alerts: row.alerts || [],
         groomNotes: row.groom_notes || "",
         customPrice: row.custom_price,
+        photoPath: dogPhotoPathOf(row),
         dob: row.dob || "",
         sex: row.sex || null,
         microchip: row.microchip || null,
@@ -94,6 +96,7 @@ export function useDogLookups({
       alerts: data.alerts || [],
       groomNotes: data.groom_notes || "",
       customPrice: data.custom_price,
+      photoPath: dogPhotoPathOf(data),
       dob: data.dob || "",
       sex: data.sex || null,
       microchip: data.microchip || null,
@@ -159,6 +162,7 @@ export function useDogLookups({
         alerts: row.alerts || [],
         groomNotes: row.groom_notes || "",
         customPrice: row.custom_price ?? undefined,
+        photoPath: dogPhotoPathOf(row),
       };
       (grouped[hid] = grouped[hid] || []).push(dog);
     }

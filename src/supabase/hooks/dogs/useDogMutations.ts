@@ -5,7 +5,7 @@
 // same render), then reconciles or rolls back once the write settles.
 import { useCallback } from "react";
 import { supabase } from "../../client";
-import { findHumanByIdOrName } from "../../transforms";
+import { dogPhotoPathOf, findHumanByIdOrName } from "../../transforms";
 import { logger } from "../../../lib/logger";
 import type { Dispatch, SetStateAction } from "react";
 import type { Dog } from "../../../types/index";
@@ -194,6 +194,7 @@ export function useDogMutations({
         alerts: savedRow.alerts || [],
         groomNotes: savedRow.groom_notes || "",
         customPrice: savedRow.custom_price,
+        photoPath: dogPhotoPathOf(savedRow),
       };
 
       setDogsById((prev) => ({ ...prev, [savedRow.id]: savedRow }));
@@ -324,6 +325,7 @@ export function useDogMutations({
         alerts: data.alerts || [],
         groomNotes: data.groom_notes || "",
         customPrice: data.custom_price,
+        photoPath: dogPhotoPathOf(data),
       };
 
       setDogsById((prev) => ({ ...prev, [data.id]: data }));

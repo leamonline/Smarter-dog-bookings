@@ -16,6 +16,7 @@ import {
   dbHumansToMap,
   buildHumansById,
   dbDogsToMap,
+  dogPhotoPathOf,
   buildDogsById,
   dbBookingsToArray,
   dbConfigToApp,
@@ -383,6 +384,12 @@ describe("dbDogsToMap", () => {
     expect(d._humanId).toBeNull();
     expect(d.alerts).toEqual([]);
     expect(d.groomNotes).toBe("");
+  });
+
+  it("carries the customer-added photo path, and none when there is no photo", () => {
+    const map = dbDogsToMap([dogRow({ photo_path: "d-1/photo.jpg" }), dogRow2()], {});
+    expect(map["d-1"].photoPath).toBe("d-1/photo.jpg");
+    expect(map["d-2"].photoPath).toBeNull();
   });
 
   it("preserves customPrice", () => {
@@ -1112,5 +1119,16 @@ describe("dbBookingsToArray — reminder lifecycle from notification_log", () =>
     );
     expect(out[0].reminderSentAt).toBe("2026-06-18T10:00:00Z");
     expect(out[0].reminderChannel).toBe("sms");
+  });
+});
+
+describe("dogPhotoPathOf", () => {
+  it("reads a photo path and treats anything else as no photo", () => {
+    expect(dogPhotoPathOf({ photo_path: "d/a.jpg" })).toBe("d/a.jpg");
+    expect(dogPhotoPathOf({ photo_path: "" })).toBeNull();
+    expect(dogPhotoPathOf({ photo_path: null })).toBeNull();
+    // A row from before the column existed, or a generated type without it.
+    expect(dogPhotoPathOf({ id: "d" })).toBeNull();
+    expect(dogPhotoPathOf(null)).toBeNull();
   });
 });

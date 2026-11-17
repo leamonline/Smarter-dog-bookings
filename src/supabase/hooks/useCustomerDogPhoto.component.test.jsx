@@ -266,6 +266,26 @@ describe("useDogPhotoUrl", () => {
     expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
   });
 
+  it("still retries when the fresh link is the same URL as the one that failed", async () => {
+    const path = `${DOG}/same.jpg`;
+    mocks.bucket.createSignedUrl
+      .mockResolvedValueOnce(signed("https://signed.example/same"))
+      .mockResolvedValueOnce(signed("https://signed.example/same"));
+    const { result } = renderHook(() => useDogPhotoUrl(path));
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/same"));
+
+    act(() => { result.current.onLoadError(); });
+    expect(result.current.url).toBeNull();
+    // Re-signed within the same second: an identical URL still gets its load.
+    await waitFor(() => expect(result.current.url).toBe("https://signed.example/same"));
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
+
+    act(() => { result.current.onLoadError(); });
+    expect(result.current.url).toBeNull();
+    await act(async () => {});
+    expect(mocks.bucket.createSignedUrl).toHaveBeenCalledTimes(2);
+  });
+
   it("gives a different photo its own retry", async () => {
     mocks.bucket.createSignedUrl
       .mockResolvedValueOnce(signed("https://signed.example/a1"))

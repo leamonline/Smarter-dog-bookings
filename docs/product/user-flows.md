@@ -383,8 +383,12 @@ also removes EXIF data such as GPS location. The file goes into a new randomly
 named object in that dog's folder in the private `dog-photos` bucket, and
 `set_customer_dog_photo` points the dog at it. The previous file is then deleted.
 Removing a photo is in the dog's Edit form. Customers can only use the folders
-of their own non-archived dogs; staff can read and delete any photo. The staff
-app does not show the photo yet.
+of their own non-archived dogs; staff can read and delete any photo. Staff see
+the photo, so they can match the dog at the door, beside the name on the dog
+card and inside a Today card's drawer (not its header, which the stack keeps to
+its top 96px). Staff cannot change or remove a photo from the app yet. Signed
+photo links last an hour, so both apps re-sign a photo shortly before its link
+lapses and fetch one fresh link if an image fails to load.
 
 The Trusted humans card lists people the salon linked (read-only, "Added by the
 salon") and people the customer added. A customer adds someone with a first name,

@@ -117,6 +117,12 @@ The disclosure animates `grid-template-rows` from `0fr` to `1fr` rather than a
 height, so the drawer fits its own content without anybody measuring it, and
 `prefers-reduced-motion` is honoured.
 
+When the customer has added a photo of the dog, it opens in the drawer, after
+the safety note and before the customer details: that is where the dog is
+checked in and handed back. It is never in the header, which must keep the
+exposed portion for time, name, status and warnings. A dog without a photo gets
+no empty frame.
+
 **Colour is never the only signal.** Every card states its status as a word, and
 every tone is dark ink on a light tint — checked against the WCAG AA ratio in
 `BookingStatusBadge`'s test, so white ink on the gold fails the build rather than

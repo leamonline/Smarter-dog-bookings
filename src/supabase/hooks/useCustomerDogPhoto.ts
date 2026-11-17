@@ -13,29 +13,21 @@
 // only when nothing points at it, and kept when that cannot be confirmed. If
 // step 4 fails the photo has still changed, so the leftover file is logged,
 // not shown as an error.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 import { customerSupabase } from "../customerClient";
 import { setCustomerDogPhoto, type SetCustomerDogPhotoRow } from "../rpc";
 import { getDogPhotoPath } from "../repositories/dogsRepo";
 import { prepareDogPhoto } from "../../lib/dogPhoto";
 import { logger } from "../../lib/logger";
+import { createSignedUrlHook, DOG_PHOTOS_BUCKET } from "./signedStorageUrl";
 
-export const DOG_PHOTOS_BUCKET = "dog-photos";
-const SIGNED_URL_TTL_SECONDS = 3600;
-// A cached URL is re-signed once it has less than this left. The portal lives
-// for hours as a home-screen app, so a URL cached for "the session" would
-// outlive its hour; the margin also absorbs a few minutes of clock skew.
-const REFRESH_MARGIN_MS = 5 * 60 * 1000;
-const urlCache = new Map<string, { url: string; expiresAt: number }>();
+export { DOG_PHOTOS_BUCKET };
 
-function cachedUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
-  const entry = urlCache.get(path);
-  if (!entry) return null;
-  if (entry.expiresAt - Date.now() > REFRESH_MARGIN_MS) return entry.url;
-  urlCache.delete(path);
-  return null;
-}
+const photoUrls = createSignedUrlHook({
+  getClient: () => customerSupabase,
+  bucket: DOG_PHOTOS_BUCKET,
+  label: "Dog photo",
+});
 
 export type DogPhotoResult = { photoPath: string | null; error: unknown };
 
@@ -85,7 +77,7 @@ async function deleteObject(path: string, context: string) {
   } catch (error) {
     logger.warn("Dog photo object could not be deleted", { extra: { context, error } });
   }
-  urlCache.delete(path);
+  photoUrls.forget(path);
 }
 
 export function useCustomerDogPhoto() {
@@ -171,97 +163,10 @@ export function useCustomerDogPhoto() {
 }
 
 /**
- * A signed URL for a dog photo, kept usable for as long as it is on screen.
- *
- * Signed URLs last an hour, but the portal stays open for hours as a
- * home-screen app. So while a photo is shown its URL is re-signed shortly
- * before it lapses (the old one keeps showing meanwhile), and if the image
- * still fails to load — an expired link after the phone slept, a blip — one
- * fresh URL is fetched before giving up. `url` is null while signing, offline,
- * on a signing failure, or once the photo has failed again after that retry;
- * callers then show the dog's initial. Pass `onLoadError` to the <img>.
+ * A signed URL for a dog photo, kept usable for as long as it is on screen
+ * (re-signed before it lapses, one retry if the image fails to load; see
+ * createSignedUrlHook). `url` is null while signing, offline or after the
+ * retry fails; callers then show the dog's initial. Pass `onLoadError` to the
+ * <img>.
  */
-export function useDogPhotoUrl(path: string | null | undefined): {
-  url: string | null;
-  onLoadError: () => void;
-} {
-  const [entry, setEntry] = useState<{ path: string; url: string } | null>(() => {
-    const cached = path ? cachedUrl(path) : null;
-    return path && cached ? { path, url: cached } : null;
-  });
-  // Bumped to re-sign: by the expiry timer, or once after a failed load.
-  const [refresh, setRefresh] = useState(0);
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const retriesLeft = useRef(1);
-
-  useEffect(() => {
-    // A new photo gets a fresh error budget.
-    retriesLeft.current = 1;
-    setFailedUrl(null);
-  }, [path]);
-
-  useEffect(() => {
-    if (!path || !customerSupabase) {
-      setEntry(null);
-      return undefined;
-    }
-    const client = customerSupabase;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // Re-sign once this URL is inside the refresh margin. The extra second
-    // means the cache already counts it as stale when the timer fires.
-    const scheduleRefresh = (expiresAt: number) => {
-      const delay = Math.max(0, expiresAt - REFRESH_MARGIN_MS - Date.now() + 1000);
-      timer = setTimeout(() => setRefresh((n) => n + 1), delay);
-    };
-
-    const cached = urlCache.get(path);
-    if (cached && cachedUrl(path)) {
-      setEntry({ path, url: cached.url });
-      scheduleRefresh(cached.expiresAt);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
-      };
-    }
-
-    // Counted from before the request, so the cache never thinks a URL lives
-    // longer than it does.
-    const expiresAt = Date.now() + SIGNED_URL_TTL_SECONDS * 1000;
-    void client.storage
-      .from(DOG_PHOTOS_BUCKET)
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
-      .then(({ data, error }) => {
-        if (error || !data?.signedUrl) {
-          logger.warn("Dog photo signed URL failed", { extra: { error } });
-          return;
-        }
-        urlCache.set(path, { url: data.signedUrl, expiresAt });
-        if (cancelled) return;
-        setEntry({ path, url: data.signedUrl });
-        scheduleRefresh(expiresAt);
-      })
-      .catch((error: unknown) => {
-        logger.warn("Dog photo signed URL failed", { extra: { error } });
-      });
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [path, refresh]);
-
-  const current = entry && entry.path === path ? entry.url : null;
-
-  const onLoadError = useCallback(() => {
-    if (!path || !current) return;
-    // Hide the broken image straight away; the initial shows meanwhile.
-    setFailedUrl(current);
-    if (retriesLeft.current > 0) {
-      retriesLeft.current -= 1;
-      urlCache.delete(path);
-      setRefresh((n) => n + 1);
-    }
-  }, [path, current]);
-
-  return { url: current && current !== failedUrl ? current : null, onLoadError };
-}
+export const useDogPhotoUrl = photoUrls.useSignedUrl;
