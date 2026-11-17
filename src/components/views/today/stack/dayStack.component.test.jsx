@@ -5,7 +5,15 @@
 // never carrying a meaning on its own, that the safety note is readable without
 // a tap, and that the disclosure behaves.
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+
+const photoUrlHook = vi.hoisted(() => ({
+  useStaffDogPhotoUrl: vi.fn(() => ({ url: null, onLoadError: vi.fn() })),
+}));
+vi.mock("../../../../supabase/hooks/useStaffDogPhoto", () => ({
+  useStaffDogPhotoUrl: (path) => photoUrlHook.useStaffDogPhotoUrl(path),
+}));
+
 import { DayStack } from "./DayStack.jsx";
 import { buildDayStack } from "../../../../engine/dayStack";
 import { buildDailyBriefBoard } from "../../../../engine/dailyBrief";
@@ -118,14 +126,24 @@ const card = (id) => document.querySelector(`[data-booking-id="${id}"]`);
 const head = (id) => card(id).querySelector("[data-stack-head]");
 
 describe("the dog's photo", () => {
+  beforeEach(() => {
+    photoUrlHook.useStaffDogPhotoUrl.mockClear();
+  });
+
   it("sits in the drawer, never the header, and only for a dog that has one", () => {
     renderStack({ photoPathFor: (b) => (b._dogId === "d2" ? "d2/photo.jpg" : null) });
     // The header is the 96px the stack exposes; the photo must not crowd it.
     expect(card("bathing").querySelector("[data-stack-header] [data-staff-dog-photo]")).toBeNull();
+    // Collapsed cards keep drawer children mounted (0fr + inert). The photo
+    // must not, or every dog with a path would sign on first paint.
+    expect(card("bathing").querySelector("[data-staff-dog-photo]")).toBeNull();
+    expect(photoUrlHook.useStaffDogPhotoUrl).not.toHaveBeenCalled();
     fireEvent.click(head("bathing"));
     expect(card("bathing").querySelector("[data-staff-dog-photo]")?.textContent).toBe("N");
+    expect(photoUrlHook.useStaffDogPhotoUrl).toHaveBeenCalledWith("d2/photo.jpg");
     fireEvent.click(head("arriving"));
     expect(card("arriving").querySelector("[data-staff-dog-photo]")).toBeNull();
+    expect(card("bathing").querySelector("[data-staff-dog-photo]")).toBeNull();
   });
 });
 

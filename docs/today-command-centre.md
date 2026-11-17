@@ -121,7 +121,8 @@ When the customer has added a photo of the dog, it opens in the drawer, after
 the safety note and before the customer details: that is where the dog is
 checked in and handed back. It is never in the header, which must keep the
 exposed portion for time, name, status and warnings. A dog without a photo gets
-no empty frame.
+no empty frame. The photo is mounted only while that card is open, so a
+collapsed card does not sign or load it.
 
 **Colour is never the only signal.** Every card states its status as a word, and
 every tone is dark ink on a light tint — checked against the WCAG AA ratio in

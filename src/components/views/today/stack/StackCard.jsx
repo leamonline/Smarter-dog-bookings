@@ -182,8 +182,13 @@ export function StackCard({
         </p>
       )}
       {/* In the drawer, not the header: the stack only ever shows a card's top
-          96px, and the drawer is where the dog is checked in and handed back. */}
-      <StaffDogPhoto path={photoPath} dogName={dogName} size={96} rounded="rounded-lg" className="mt-3" />
+          96px, and the drawer is where the dog is checked in and handed back.
+          Mount only while this card is open — DayCard keeps children in the
+          DOM behind 0fr + inert, and the signing hook must not run for every
+          collapsed card on first paint. */}
+      {expanded && photoPath ? (
+        <StaffDogPhoto path={photoPath} dogName={dogName} size={96} rounded="rounded-lg" className="mt-3" />
+      ) : null}
       <div className="my-3 text-sm">
         {ownerName ? <DetailRow label="Customer">{ownerName}</DetailRow> : null}
         {display.ownerPhone ? (
