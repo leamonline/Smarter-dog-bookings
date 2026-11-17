@@ -1,3 +1,4 @@
+import { STATUS_TONES, type StatusToneKey } from "./statusPalette";
 export const SALON_SLOTS = [
   "08:30", "09:00", "09:30", "10:00", "10:30",
   "11:00", "11:30", "12:00", "12:30", "13:00",
@@ -311,12 +312,13 @@ export function isNoShowReason(cancelReason: string | null | undefined): boolean
 // the detail modal still allows arbitrary jumps for corrections. The two
 // terminal statuses never appear in the inline progression — they are reached
 // deliberately, not stepped into.
+/** The status stepper's progression, in order. Colours come from STATUS_DISPLAY. */
 export const BOOKING_STATUSES = [
-  { id: BOOKING_STATUS.BOOKED, label: "Booked", color: "#475569", bg: "#F1F5F9" },
-  { id: BOOKING_STATUS.RECONFIRMED, label: "Reconfirmed", color: "#1D4ED8", bg: "#DBEAFE" },
-  { id: BOOKING_STATUS.ARRIVED, label: "Arrived", color: "#16A34A", bg: "#DCFCE7" },
-  { id: BOOKING_STATUS.READY_FOR_COLLECTION, label: "Ready", color: "#7C3AED", bg: "#EDE9FE" },
-  { id: BOOKING_STATUS.COMPLETED, label: "Completed", color: "var(--color-brand-ink)", bg: "#E2D9F0" },
+  { id: BOOKING_STATUS.BOOKED, label: "Booked" },
+  { id: BOOKING_STATUS.RECONFIRMED, label: "Reconfirmed" },
+  { id: BOOKING_STATUS.ARRIVED, label: "Arrived" },
+  { id: BOOKING_STATUS.READY_FOR_COLLECTION, label: "Ready" },
+  { id: BOOKING_STATUS.COMPLETED, label: "Completed" },
 ];
 
 export interface StatusDisplay {
@@ -324,35 +326,40 @@ export interface StatusDisplay {
   bg: string;
   /** Readable text on `bg`. */
   color: string;
-  /** Saturated mid-tone — the accent bar and the solid primary button fill. */
+  /** Saturated mid-tone — accent bars and pill borders. Never a text colour. */
   border: string;
-  /** Readable text on a `border`-filled button. */
-  onAccent: string;
-  /** Short UI label. */
+  /** Fill for a selected or primary control: the status ink. */
+  solid: string;
+  /** Readable text on `solid`: the status tint. Same pair as color/bg, so the same contrast. */
+  onSolid: string;
+  /** Short UI label: the stored status, as the booking screens name it. */
   label: string;
 }
 
+function statusDisplay(key: StatusToneKey, label: string): StatusDisplay {
+  const tone = STATUS_TONES[key];
+  return { bg: tone.tint, color: tone.ink, border: tone.edge, solid: tone.ink, onSolid: tone.tint, label };
+}
+
 /**
- * Status palette — the single source of truth for the colour each booking
- * status shows in the UI. Used by the dashboard card pill (BookingCardNew)
- * AND the detail modal's header accent bar, active stepper step and primary
- * button, so the card and its pop-up can never drift apart.
+ * The booking screens' view of the one status palette (constants/statusPalette.ts).
+ * Used by the calendar's booking card, the booking detail modal's header,
+ * accent bar and status stepper, and the Needs attention page — the same
+ * colours the /today day stack shows, so a booking is one colour everywhere.
  *
- * Semantics: mustard for "still to come", blue for "reconfirmed, they have
- * told us they are coming", teal for "in the salon now", emerald for "ready
- * to collect", slate for "all done", coral for the two ways a booking ends
- * early. Cancelled and No-show share the coral family because they are the
- * same kind of news; No-show is the stronger of the two, since it cost the
- * salon a slot.
+ * The labels name the stored status ("Booked", "Completed"), because these
+ * screens set it. /today speaks of the day instead ("Expected", "Collected")
+ * and layers the confirmation state on a Booked dog; the colours underneath
+ * are the same tones.
  */
 export const STATUS_DISPLAY: Record<string, StatusDisplay> = {
-  [BOOKING_STATUS.BOOKED]:               { bg: "#FFF6CC", color: "var(--color-brand-ink)",     border: "var(--color-brand-yellow)", onAccent: "var(--color-brand-ink)", label: "Booked" },
-  [BOOKING_STATUS.RECONFIRMED]:          { bg: "#DBEAFE", color: "#1E40AF",                       border: "#3B82F6",                   onAccent: "#FFFFFF",                   label: "Reconfirmed" },
-  [BOOKING_STATUS.ARRIVED]:              { bg: "#E0F0EC", color: "var(--color-brand-teal-dark)",  border: "#2A6F6B",                   onAccent: "#FFFFFF",                   label: "Arrived" },
-  [BOOKING_STATUS.READY_FOR_COLLECTION]: { bg: "#D1FAE5", color: "#047857",                       border: "#10B981",                   onAccent: "#FFFFFF",                   label: "Ready" },
-  [BOOKING_STATUS.COMPLETED]:            { bg: "#F1F5F9", color: "#475569",                       border: "#94A3B8",                   onAccent: "#FFFFFF",                   label: "Completed" },
-  [BOOKING_STATUS.CANCELLED]:            { bg: "#FFE5EC", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)",  onAccent: "#FFFFFF",                   label: "Cancelled" },
-  [BOOKING_STATUS.NO_SHOW]:              { bg: "#FFD9E2", color: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral)",  onAccent: "#FFFFFF",                   label: "No-show" },
+  [BOOKING_STATUS.BOOKED]: statusDisplay("expected", "Booked"),
+  [BOOKING_STATUS.RECONFIRMED]: statusDisplay("reconfirmed", "Reconfirmed"),
+  [BOOKING_STATUS.ARRIVED]: statusDisplay("arrived", "Arrived"),
+  [BOOKING_STATUS.READY_FOR_COLLECTION]: statusDisplay("ready", "Ready"),
+  [BOOKING_STATUS.COMPLETED]: statusDisplay("collected", "Completed"),
+  [BOOKING_STATUS.CANCELLED]: statusDisplay("cancelled", "Cancelled"),
+  [BOOKING_STATUS.NO_SHOW]: statusDisplay("noShow", "No-show"),
 };
 
 export function getStatusDisplay(statusId: string): StatusDisplay {

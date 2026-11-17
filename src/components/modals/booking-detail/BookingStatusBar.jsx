@@ -50,8 +50,10 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
         {BOOKING_STATUSES.map((status, idx) => {
           const isActive = currentStatus === status.id;
           const isNext = status.id === nextStatusId;
-          // Active step pulls the same colour the dashboard card pill uses for
-          // this status, so the stepper colour-matches the card.
+          // Active step takes this status's ink as its fill and its tint as
+          // the text: the same pair as the card pill, inverted, so it reads as
+          // selected and always clears WCAG AA. (White on the mid-tone it used
+          // before did not, for blue Reconfirmed among others.)
           const accent = getStatusDisplay(status.id);
 
           return (
@@ -105,7 +107,7 @@ export function BookingStatusBar({ booking, currentDateStr, onUpdate }) {
               } ${isNext && !isActive ? "ring-1 ring-inset ring-slate-400" : ""}`}
               style={
                 isActive
-                  ? { background: accent.border, color: accent.onAccent }
+                  ? { background: accent.solid, color: accent.onSolid }
                   : undefined
               }
             >

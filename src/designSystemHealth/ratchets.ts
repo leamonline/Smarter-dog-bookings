@@ -157,7 +157,6 @@ export function measureRawButtons(srcDir: string = SRC_DIR): Measurement {
 
 /** Files where a colour literal is the design, not drift. Keep this short. */
 export const ALLOWED_COLOUR_FILES: Record<string, string> = {
-  "components/ui/BookingStatusBadge.tsx": "the one resolver for booking-status colours (frozen operational palette)",
   "components/ui/SizeDot.jsx": "dog-size colours (frozen operational palette)",
   "components/icons/index.jsx": "brand artwork: multi-colour SVG illustrations",
 };

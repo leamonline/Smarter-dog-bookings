@@ -1,7 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { BookingStatusBadge, resolveDayStatus, type DayStatusKey } from "./BookingStatusBadge";
-import { BOOKING_STATUS, NO_SHOW_REASON } from "../../constants/index";
+import {
+  BOOKING_STATUS,
+  BOOKING_STATUSES,
+  NO_SHOW_REASON,
+  STATUS_DISPLAY,
+  STATUS_TONES,
+} from "../../constants/index";
 
 // ---- Contrast -----------------------------------------------------------------
 //
@@ -262,5 +268,34 @@ describe("the strip's status pill", () => {
     const pill = container.firstElementChild as HTMLElement;
     expect(pill.className).toContain("bg-white");
     expect(pill.dataset.needsAttention).toBeUndefined();
+  });
+});
+
+// ---- One palette everywhere (November 2026) ----------------------------------
+//
+// The calendar card, the booking detail modal and the Needs attention page read
+// STATUS_DISPLAY; /today reads resolveDayStatus. They used to be two palettes
+// (mustard Booked, green Ready on one; grey and gold on the other), so a booking
+// changed colour between screens. Both now come from constants/statusPalette.ts.
+describe("the booking screens use the same palette as /today", () => {
+  it.each(Object.values(BOOKING_STATUS))("%s is the same colours on every screen", (status) => {
+    const display = STATUS_DISPLAY[status];
+    const tone = resolveDayStatus(status);
+    expect(display.bg).toBe(tone.tint);
+    expect(display.color).toBe(tone.ink);
+    expect(display.border).toBe(tone.edge);
+  });
+
+  it.each(Object.values(BOOKING_STATUS))("%s: text clears WCAG AA on the pill and on a selected control", (status) => {
+    const display = STATUS_DISPLAY[status];
+    expect(contrastRatio(display.color, display.bg)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(display.onSolid, display.solid)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps no second set of status colours anywhere else", () => {
+    for (const step of BOOKING_STATUSES) {
+      expect(Object.keys(step).sort()).toEqual(["id", "label"]);
+    }
+    expect(Object.values(STATUS_TONES).map((tone) => tone.tint)).toContain(STATUS_DISPLAY[BOOKING_STATUS.BOOKED].bg);
   });
 });

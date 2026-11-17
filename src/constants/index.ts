@@ -34,6 +34,8 @@ export {
   DEPOSIT_PER_DOG_PENCE,
   depositForDogsPence,
 } from "./salon";
+export { STATUS_TONES, UNKNOWN_STATUS_TONE } from "./statusPalette";
+export type { StatusTone, StatusToneKey } from "./statusPalette";
 export {
   DEFAULT_BUSINESS_NAME,
   DEFAULT_BUSINESS_HOURS,

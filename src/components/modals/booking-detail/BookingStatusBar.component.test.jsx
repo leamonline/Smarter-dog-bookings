@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { BookingStatusBar } from "./BookingStatusBar.jsx";
-import { BOOKING_STATUS } from "../../../constants/index";
+import { BOOKING_STATUS, STATUS_TONES } from "../../../constants/index";
 
 const { showToast } = vi.hoisted(() => ({ showToast: vi.fn() }));
 
@@ -249,5 +249,27 @@ describe("BookingStatusBar update safety", () => {
     expect(
       screen.getByRole("radio", { name: /set status to booked/i }),
     ).toBeChecked();
+  });
+});
+
+describe("BookingStatusBar colours", () => {
+  it("fills the selected step with the status ink and writes it in the status tint — the /today palette, inverted", () => {
+    render(
+      <BookingStatusBar
+        booking={{ id: "b1", status: BOOKING_STATUS.RECONFIRMED }}
+        currentDateStr="2026-06-20"
+        onUpdate={vi.fn()}
+      />,
+    );
+    const selected = screen.getByRole("radio", { name: /set status to reconfirmed/i });
+    const tone = STATUS_TONES.reconfirmed;
+    // jsdom reports colours as rgb(); compare through a probe element.
+    const probe = document.createElement("span");
+    probe.style.background = tone.ink;
+    probe.style.color = tone.tint;
+    expect(selected.style.background).toBe(probe.style.background);
+    expect(selected.style.color).toBe(probe.style.color);
+    // Unselected steps carry no status colour of their own.
+    expect(screen.getByRole("radio", { name: /set status to arrived/i }).style.background).toBe("");
   });
 });
