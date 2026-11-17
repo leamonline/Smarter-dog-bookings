@@ -1,7 +1,9 @@
 /* Card motion must not make browser scroll anchoring move the viewport too. */
 main:has([data-day-stack]) { overflow-anchor: none; }
+.day-wallet-frame { position: relative; isolation: isolate; }
 .day-wallet-stack {
   position: relative;
+  z-index: 0;
   isolation: isolate;
   /* Native vertical scrolling outside an eligible refresh gesture. */
   touch-action: pan-y;
@@ -11,14 +13,28 @@ main:has([data-day-stack]) { overflow-anchor: none; }
   top: 0;
   left: 0;
   width: 100%;
-  box-shadow: 0 -1px 0 rgb(255 255 255 / 60%);
+  box-shadow: 0 -1px 0 rgb(255 255 255 / 60%), 0 -2px 6px rgb(30 20 40 / 6%);
+  transition:
+    transform 360ms cubic-bezier(.2, .85, .25, 1.04),
+    clip-path 360ms cubic-bezier(.2, .85, .25, 1.04);
+}
+.wallet-appointment[data-lifted="true"] { box-shadow: 0 6px 18px rgb(30 20 40 / 14%); }
+.wallet-pile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   transition: transform 360ms cubic-bezier(.2, .85, .25, 1.04);
 }
 /* Dim the ink, never the opaque card: transparent layers leak hidden text. */
 .wallet-appointment.opacity-50 { opacity: 1; }
 .wallet-appointment.opacity-50 > * { opacity: .5; }
-.wallet-appointment[data-focused="true"] { box-shadow: 0 3px 9px rgb(30 20 40 / 7%); }
 .day-wallet-stack[data-dragging="true"] .wallet-appointment { transition: none; }
+/* Reduced motion: the state switches, nothing travels. The JS hook sets
+   data-motion as well, for scroll behaviour and so tests can see it. */
+.day-wallet-stack[data-motion="reduced"] .wallet-appointment,
+.day-wallet-stack[data-motion="reduced"] .wallet-drawer,
+.day-wallet-frame:has([data-motion="reduced"]) .wallet-pile { transition: none; }
 @media (prefers-reduced-motion: reduce) {
-  .wallet-appointment { transition: none; }
+  .wallet-appointment, .wallet-pile { transition: none; }
 }

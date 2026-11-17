@@ -1,7 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { BookingStatusBadge, resolveDayStatus, type DayStatusKey } from "./BookingStatusBadge";
-import { BOOKING_STATUS, NO_SHOW_REASON } from "../../constants/index";
+import {
+  BOOKING_STATUS,
+  BOOKING_STATUSES,
+  NO_SHOW_REASON,
+  STATUS_DISPLAY,
+  STATUS_TONES,
+} from "../../constants/index";
 
 // ---- Contrast -----------------------------------------------------------------
 //
@@ -164,5 +170,132 @@ describe("BookingStatusBadge", () => {
       <BookingStatusBadge status={BOOKING_STATUS.CANCELLED} cancelReason={NO_SHOW_REASON} />,
     );
     expect(container.firstElementChild?.getAttribute("data-status-key")).toBe("noShow");
+  });
+});
+
+// ---- Confirmation states (the wallet stack, November 2026) -------------------
+//
+// A Booked dog reads as one of three things. "Unconfirmed" is the one that
+// needs chasing, and staff asked for it to read as needing attention, not as
+// grey or disabled: so it has its own hue, an inverted pill, and it must stay
+// visibly apart from Ready's gold and No-show's red, which share the list.
+
+describe("a Booked dog's confirmation state", () => {
+  it.each([
+    [null, "expected", "Expected"],
+    ["unconfirmed", "unconfirmed", "Unconfirmed"],
+    ["confirmed", "confirmed", "Confirmed"],
+  ] as const)("%s reads as %s", (confirmation, key, label) => {
+    const tone = resolveDayStatus(BOOKING_STATUS.BOOKED, null, confirmation);
+    expect(tone.key).toBe(key);
+    expect(tone.label).toBe(label);
+    expect(tone.inStack).toBe(true);
+  });
+
+  it("changes nothing past Booked — the status already says it", () => {
+    for (const status of [BOOKING_STATUS.RECONFIRMED, BOOKING_STATUS.ARRIVED, BOOKING_STATUS.READY_FOR_COLLECTION]) {
+      expect(resolveDayStatus(status, null, "unconfirmed").key).toBe(resolveDayStatus(status).key);
+    }
+  });
+
+  it("marks only Unconfirmed as needing attention", () => {
+    const flagged = [
+      resolveDayStatus(BOOKING_STATUS.BOOKED, null, "unconfirmed"),
+      resolveDayStatus(BOOKING_STATUS.BOOKED, null, "confirmed"),
+      ...EVERY_STATUS.map((status) => resolveDayStatus(status, NO_SHOW_REASON)),
+    ].filter((tone) => tone.needsAttention).map((tone) => tone.key);
+    expect(flagged).toEqual(["unconfirmed"]);
+  });
+
+  it("is not grey: Unconfirmed is a different hue from Expected, Ready and No-show", () => {
+    const unconfirmed = resolveDayStatus(BOOKING_STATUS.BOOKED, null, "unconfirmed");
+    for (const other of [
+      resolveDayStatus(BOOKING_STATUS.BOOKED),
+      resolveDayStatus(BOOKING_STATUS.READY_FOR_COLLECTION),
+      resolveDayStatus(BOOKING_STATUS.NO_SHOW),
+    ]) {
+      expect(unconfirmed.tint).not.toBe(other.tint);
+      expect(unconfirmed.edge).not.toBe(other.edge);
+    }
+    // A grey has its three channels close together; this one does not.
+    const tint = unconfirmed.tint;
+    const [r, , b] = [1, 3, 5].map((i) => parseInt(tint.slice(i, i + 2), 16));
+    expect(r - b).toBeGreaterThan(48);
+  });
+});
+
+describe("every day-stack pairing clears WCAG AA", () => {
+  const TONES_IN_USE = [
+    resolveDayStatus(BOOKING_STATUS.BOOKED),
+    resolveDayStatus(BOOKING_STATUS.BOOKED, null, "unconfirmed"),
+    resolveDayStatus(BOOKING_STATUS.BOOKED, null, "confirmed"),
+    ...EVERY_STATUS.map((status) => resolveDayStatus(status, NO_SHOW_REASON)),
+    resolveDayStatus(BOOKING_STATUS.RECONFIRMED),
+    resolveDayStatus(BOOKING_STATUS.NO_SHOW),
+  ];
+
+  it.each(TONES_IN_USE.map((tone) => [tone.key, tone] as const))("%s: ink and secondary ink on the tint", (_key, tone) => {
+    expect(contrastRatio(tone.ink, tone.tint)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(tone.meta, tone.tint)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(TONES_IN_USE.map((tone) => [tone.key, tone] as const))("%s: the strip's pill", (_key, tone) => {
+    // A calm pill is ink on white; an inverted one is tint on ink.
+    const [text, fill] = tone.needsAttention ? [tone.tint, tone.ink] : [tone.ink, "#FFFFFF"];
+    expect(contrastRatio(text, fill)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(TONES_IN_USE.map((tone) => [tone.key, tone] as const))("%s: the left rule stays visible against the tint", (_key, tone) => {
+    // The rule is a second cue, not the signal (the word is), so WCAG 1.4.11's
+    // 3:1 does not bind it. This only guards that it never fades into the tint.
+    expect(contrastRatio(tone.edge, tone.tint)).toBeGreaterThanOrEqual(1.8);
+  });
+});
+
+describe("the strip's status pill", () => {
+  it("inverts for a state that needs chasing", () => {
+    const { container } = render(
+      <BookingStatusBadge status={BOOKING_STATUS.BOOKED} confirmation="unconfirmed" variant="pill" />,
+    );
+    const pill = container.firstElementChild as HTMLElement;
+    expect(pill.textContent).toBe("Unconfirmed");
+    expect(pill.dataset.needsAttention).toBe("true");
+    expect(pill.style.backgroundColor).not.toBe("");
+  });
+
+  it("stays a white pill edged in the status colour otherwise", () => {
+    const { container } = render(<BookingStatusBadge status={BOOKING_STATUS.ARRIVED} variant="pill" />);
+    const pill = container.firstElementChild as HTMLElement;
+    expect(pill.className).toContain("bg-white");
+    expect(pill.dataset.needsAttention).toBeUndefined();
+  });
+});
+
+// ---- One palette everywhere (November 2026) ----------------------------------
+//
+// The calendar card, the booking detail modal and the Needs attention page read
+// STATUS_DISPLAY; /today reads resolveDayStatus. They used to be two palettes
+// (mustard Booked, green Ready on one; grey and gold on the other), so a booking
+// changed colour between screens. Both now come from constants/statusPalette.ts.
+describe("the booking screens use the same palette as /today", () => {
+  it.each(Object.values(BOOKING_STATUS))("%s is the same colours on every screen", (status) => {
+    const display = STATUS_DISPLAY[status];
+    const tone = resolveDayStatus(status);
+    expect(display.bg).toBe(tone.tint);
+    expect(display.color).toBe(tone.ink);
+    expect(display.border).toBe(tone.edge);
+  });
+
+  it.each(Object.values(BOOKING_STATUS))("%s: text clears WCAG AA on the pill and on a selected control", (status) => {
+    const display = STATUS_DISPLAY[status];
+    expect(contrastRatio(display.color, display.bg)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(display.onSolid, display.solid)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps no second set of status colours anywhere else", () => {
+    for (const step of BOOKING_STATUSES) {
+      expect(Object.keys(step).sort()).toEqual(["id", "label"]);
+    }
+    expect(Object.values(STATUS_TONES).map((tone) => tone.tint)).toContain(STATUS_DISPLAY[BOOKING_STATUS.BOOKED].bg);
   });
 });

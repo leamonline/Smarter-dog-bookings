@@ -118,8 +118,9 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
 - `src/CustomerApp.jsx` — customer portal's gated onboarding lifecycle (login → human record →
   password → signup approval → profile → dashboard/booking wizard).
 - **`/today` day stack** — the **default staff landing** (`/staff/today`; `/staff` stays the
-  calendar). One card per dog in **strict appointment order**; the card states its status as a word,
-  carries one elapsed-time line, and expands in place for details and that dog's actions. No new
+  calendar). One card per dog in **strict appointment order**, stacked like a wallet: a 72px strip
+  per card states its status as a word and carries the timing, and a tap lifts the card out for
+  details and that dog's actions while the rest collapse into a pile. No new
   statuses, no new transitions — `tokenActions` in `salonBoard.ts` is still the single source of
   legal moves. Replaced the four-zone salon board in September 2026, because a zone says where a dog
   is but cannot say how long it has been there; the board itself was deleted in October 2026 (#995),

@@ -29,6 +29,7 @@ export { AccessibleModal } from "./AccessibleModal";
 export { ModalShell } from "./ModalShell.jsx";
 // One dog on the day list: fixed header, drawer as children. Data in, no hooks.
 export { DayCard } from "./DayCard.jsx";
+export { StackPile } from "./StackPile.jsx";
 export {
   PageHeader,
   PageHeaderSearch,

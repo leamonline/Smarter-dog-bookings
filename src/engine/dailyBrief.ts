@@ -1,5 +1,5 @@
 import { BOOKING_STATUS } from "../constants/index";
-import { paymentMethodLabel, TERMINAL_STATUSES, type BookingStatus } from "../constants/salon";
+import { paymentMethodLabel, RANK_ARRIVED, TERMINAL_STATUSES, type BookingStatus } from "../constants/salon";
 import type { Booking } from "../types/index";
 import {
   buildFutureDayFeed,
@@ -214,7 +214,7 @@ export function buildDailyBriefFeed(
     const actionReasons: NeedActionReason[] = [];
     if (isUnconfirmed) actionReasons.push("confirmation");
     if (entry.stage === "ready") actionReasons.push("collection");
-    if (rank >= 1 && owes) actionReasons.push("payment");
+    if (rank >= RANK_ARRIVED && owes) actionReasons.push("payment");
 
     return {
       ...entry,

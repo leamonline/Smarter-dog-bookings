@@ -1,10 +1,10 @@
-// The actions for one dog, in the card's own ink.
+// One group of a dog's actions, in the card's own ink.
 //
-// Same source as the board's action panel — `tokenActions` — so the two
-// surfaces cannot drift in what is legal, what it is called, or what order it
-// comes in. Only the skin differs: the board's panel sits on white and uses
-// brand purple, while a stack card is already tinted by status, so the buttons
-// take their colour from the card.
+// Every action comes from `tokenActions`, so what is legal, what it is called
+// and what order it comes in are decided in one place. The lifted card renders
+// several groups (contact, progress, payment, more); this draws one of them.
+// A stack card is already tinted by status, so the buttons take their colour
+// from the card.
 //
 // Tiers, not decoration. The primary action is the filled one, ordinary
 // operations are outlined, reference and reversal items are quiet. That is what
@@ -70,13 +70,14 @@ function styleFor(kind, tone) {
  * @param {import("../../../ui/BookingStatusBadge").DayStatusTone} props.tone
  * @param {string} props.dogName  disambiguates the accessible name across cards
  * @param {boolean} [props.busy]  a write is in flight for this booking
+ * @param {string} [props.group]  which group this is, for tests and styling
  */
-export function StackActions({ actions, onSelect, tone, dogName, busy = false }) {
+export function StackActions({ actions, onSelect, tone, dogName, busy = false, group = "actions" }) {
   if (actions.length === 0) return null;
   const ordered = primaryFirst(actions);
 
   return (
-    <div data-stack-actions className="mt-3.5 grid grid-cols-2 gap-2">
+    <div data-stack-actions={group} className="mt-3.5 grid grid-cols-2 gap-2">
       {ordered.map((action, index) =>
         action.href ? (
           <a

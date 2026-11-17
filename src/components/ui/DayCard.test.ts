@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 
 const read = (name: string) => readFileSync(`src/components/ui/${name}`, "utf8");
 
-describe("DayCard header height", () => {
-  it("is fixed by CSS, so a new row can never move the cards below", () => {
-    expect(read("dayCard.css")).toMatch(
-      /\.wallet-header\s*\{[^}]*height:\s*var\(--stack-header-height,\s*144px\)/,
-    );
+describe("DayCard strip and face heights", () => {
+  it("are fixed by CSS, so every card is the same height and a new line can never move the cards below", () => {
+    const css = read("dayCard.css");
+    expect(css).toMatch(/\.wallet-strip\s*\{[^}]*height:\s*var\(--stack-strip-height,\s*72px\)/);
+    expect(css).toMatch(/\.wallet-face\s*\{[^}]*height:\s*var\(--stack-face-height,\s*56px\)/);
   });
 });
 

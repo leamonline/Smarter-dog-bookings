@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ComposeNewModal } from "./ComposeNewModal.jsx";
-import { searchHumansAndDogs } from "../../../../supabase/repositories/humansRepo";
+import { getHumanById, searchHumansAndDogs } from "../../../../supabase/repositories/humansRepo";
 import { listForHuman } from "../../../../supabase/repositories/dogsRepo";
 import { logger } from "../../../../lib/logger";
 
@@ -15,6 +15,7 @@ vi.mock("../../../../supabase/client", () => ({
 vi.mock("../../../../supabase/repositories/humansRepo", async (importOriginal) => ({
   ...(await importOriginal()),
   searchHumansAndDogs: vi.fn(),
+  getHumanById: vi.fn(),
 }));
 
 vi.mock("../../../../supabase/repositories/dogsRepo", async (importOriginal) => ({
@@ -89,5 +90,14 @@ describe("ComposeNewModal", () => {
       expect(errorSpy).toHaveBeenCalledWith("compose-new dogs lookup:", expect.any(Error)),
     );
     errorSpy.mockRestore();
+  });
+
+  it("keeps the picker open when the deep-linked customer cannot be loaded", async () => {
+    getHumanById.mockRejectedValueOnce(new Error("network down"));
+    render(
+      <ComposeNewModal initialHumanId="h-missing" onClose={vi.fn()} onSent={vi.fn()} onSentSMS={vi.fn()} />,
+    );
+    await waitFor(() => expect(getHumanById).toHaveBeenCalledWith(expect.anything(), "h-missing"));
+    expect(screen.getByPlaceholderText("Search by name, surname, phone, or dog name…")).toBeInTheDocument();
   });
 });

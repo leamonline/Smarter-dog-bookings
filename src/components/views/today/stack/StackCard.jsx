@@ -1,14 +1,21 @@
 // One dog on the day list. This is the half that knows things: it reads the
 // delivery-failure hooks, asks the engine (`tokenActions`) which moves are
 // legal, and holds the check-out chain's open state. It hands plain data to
-// <DayCard> (ui/DayCard.jsx), which draws the fixed header and the drawer, and
-// supplies the drawer's contents as children.
+// <DayCard> (ui/DayCard.jsx), which draws the strip, the face and the lifted
+// view, and supplies the lifted view's contents as children.
 //
-// The rules the header must keep (safety note always visible as words, balance
-// from Ready onward, urgency as weight and wording, the undeliverable-message
-// chip sharing the safety row) are recorded in DayCard, where they are drawn.
+// The lifted view, top to bottom: what staff must know before handling the
+// dog (safety, delivery problems), the notes, the photo, the owner's contact
+// details, then three actions —
+//
+//   Call / WhatsApp the owner
+//   Check in → Mark ready → Check out   (one slot that moves with the dog)
+//   Take payment                         (the existing invoice)
+//
+// — and a quiet "More" row for everything else the engine allows. There is no
+// Confirm button: confirmation comes from the owner answering the reminder.
 import { useMemo, useState } from "react";
-import { money } from "../../../../engine/dayStack";
+import { money, ownerSurname, stackConfirmation } from "../../../../engine/dayStack";
 import { tokenActions } from "../../../../engine/salonBoard";
 import { orderSafetyFacts } from "../../../../engine/safetyOrder";
 import { DayCard, resolveDayStatus } from "../../../ui";
@@ -26,6 +33,15 @@ import { undeliveredNotice } from "./undeliveredNotice";
 
 /** The two engine actions the check-out chain speaks for. */
 const CHAINED = new Set(["payment", "collected"]);
+/**
+ * Not offered on the card. Confirmation happens automatically from reminder
+ * replies (a tap on Confirm, or a typed "yes"), so staff are not asked to
+ * record it by hand. The engine still knows these actions; the card does not
+ * present them.
+ */
+const NOT_ON_CARD = new Set(["reconfirm", "confirm", "unconfirm"]);
+const CONTACT = new Set(["call", "message"]);
+const PROGRESS = new Set(["checkIn", "ready", "undoNoShow"]);
 
 function DetailRow({ label, children }) {
   return (
@@ -33,6 +49,14 @@ function DetailRow({ label, children }) {
       <span style={{ color: "var(--card-meta)" }}>{label}</span>
       <div className="text-right">{children}</div>
     </div>
+  );
+}
+
+function GroupLabel({ children }) {
+  return (
+    <p className="m-0 mt-4 text-caption font-semibold uppercase tracking-[0.04em]" style={{ color: "var(--card-meta)" }}>
+      {children}
+    </p>
   );
 }
 
@@ -46,11 +70,14 @@ export function StackCard({
   photoPath = null,
   onTheWay = false,
   dimmed = false,
-  expanded,
+  lifted = false,
+  inPile = false,
+  clip = null,
   stackStyle,
-  focused = false,
-  onHeadFocus,
+  headRef,
+  detailsRef,
   onToggle,
+  onClose,
   /**
    * The board token for this booking, or null for a row the board has no
    * token for (a no-show). Actions are derived from it, never invented here.
@@ -70,7 +97,10 @@ export function StackCard({
     booking._ownerId,
     (humanId) => Boolean(humanId) && unreachableHumans.has(humanId),
   );
-  const tone = resolveDayStatus(booking.status, booking.cancelReason);
+  // The token's entry has typed replies and failed reminders folded in, so
+  // the card's colour and the attention strip's "to confirm" count agree.
+  const confirmation = stackConfirmation(token?.entry ?? null);
+  const tone = resolveDayStatus(booking.status, booking.cancelReason, confirmation);
   const dogName = titleCase(display.dogMissing ? "Unnamed booking" : display.dogName);
   const ownerName = display.ownerMissing ? "" : titleCase(display.owner);
 
@@ -116,10 +146,23 @@ export function StackCard({
   // entries drop out of the list because the chain is now how you reach them.
   // Everything else the engine offers still renders underneath.
   const showChain = allActions.some((action) => action.id === "collected");
-  const actions = useMemo(
-    () => allActions.filter((action) => !CHAINED.has(action.id)),
-    [allActions],
-  );
+  const owes = amountDue != null && amountDue > 0;
+  const groups = useMemo(() => {
+    const shown = allActions.filter((action) => !NOT_ON_CARD.has(action.id));
+    return {
+      // Call first, then WhatsApp: the order staff asked for.
+      contact: ["call", "message"]
+        .map((id) => shown.find((action) => action.id === id))
+        .filter(Boolean),
+      progress: shown.filter((action) => PROGRESS.has(action.id)),
+      // "Take £42 payment" before Ready; "View payment" whenever nothing is
+      // owed, Ready included. Only money still to take goes through the chain.
+      payment: shown.filter((action) => action.id === "payment" && !(showChain && owes)),
+      more: shown.filter((action) => !CONTACT.has(action.id)
+        && !PROGRESS.has(action.id)
+        && !CHAINED.has(action.id)),
+    };
+  }, [allActions, showChain, owes]);
 
   const balance = hasBalance
     ? { kind: "due", text: money(amountDue) }
@@ -137,25 +180,32 @@ export function StackCard({
       cancelReason={booking.cancelReason}
       time={row.time}
       spokenTime={booking.slot}
+      confirmation={confirmation}
       dogName={dogName}
       ownerName={ownerName}
+      ownerSurname={ownerSurname(ownerName)}
       subtitle={row.subtitle}
       timing={timing}
+      countdown={!!row.countdown}
       urgent={urgent}
       readyOverdue={readyOverdue}
       onTheWay={onTheWay}
       balance={balance}
       safetyFacts={safetyFacts}
       undelivered={undelivered}
-      focused={focused}
+      face={booking.notes || welfare?.groomNotes || null}
       dimmed={dimmed}
-      expanded={expanded}
+      lifted={lifted}
+      inPile={inPile}
+      clip={clip}
       stackStyle={stackStyle}
       onToggle={onToggle}
-      onHeadFocus={onHeadFocus}
+      onClose={onClose}
+      headRef={headRef}
+      detailsRef={detailsRef}
     >
       {safetyFacts.length > 0 && (
-        <p className="mt-3 rounded bg-brand-coral-light p-3 text-body text-brand-coral-text">
+        <p className="mt-1 rounded bg-brand-coral-light p-3 text-body text-brand-coral-text">
           <strong>Safety note: </strong>{safetyFacts.join(", ")}
         </p>
       )}
@@ -181,11 +231,33 @@ export function StackCard({
           ) : null}
         </p>
       )}
-      {/* In the drawer, not the header: the stack only ever shows a card's top
-          96px, and the drawer is where the dog is checked in and handed back. */}
+
+      {booking.notes ? (
+        <p
+          data-stack-notes
+          className="m-0 mt-3 rounded bg-white/40 px-3 py-2.5 text-[13.5px] leading-[1.5]"
+          style={{ color: "var(--card-ink)" }}
+        >
+          {booking.notes}
+        </p>
+      ) : null}
+
+      {welfare?.groomNotes ? (
+        <p
+          className="m-0 mt-2 whitespace-pre-wrap rounded bg-white/40 px-3 py-2.5 text-[13.5px] leading-[1.5]"
+          style={{ color: "var(--card-ink)" }}
+        >
+          <span className="mr-1.5 font-semibold">Usual groom:</span>
+          {welfare.groomNotes}
+        </p>
+      ) : null}
+
+      {/* In the full view, never the strip: the strip holds only what must
+          show while the card is in the stack. */}
       <StaffDogPhoto path={photoPath} dogName={dogName} size={96} rounded="rounded-lg" className="mt-3" />
-      <div className="my-3 text-sm">
-        {ownerName ? <DetailRow label="Customer">{ownerName}</DetailRow> : null}
+
+      <div data-stack-contact className="my-3 text-sm">
+        {ownerName ? <DetailRow label="Owner">{ownerName}</DetailRow> : null}
         {display.ownerPhone ? (
           <DetailRow label="Phone">
             <a
@@ -216,24 +288,17 @@ export function StackCard({
         ) : null}
       </div>
 
-      {booking.notes ? (
-        <p
-          className="m-0 rounded bg-white/40 px-3 py-2.5 text-[13.5px] leading-[1.5]"
-          style={{ color: "var(--card-ink)" }}
-        >
-          {booking.notes}
-        </p>
-      ) : null}
-
-      {welfare?.groomNotes ? (
-        <p
-          className="m-0 whitespace-pre-wrap rounded bg-white/40 px-3 py-2.5 text-[13.5px] leading-[1.5]"
-          style={{ color: "var(--card-ink)" }}
-        >
-          <span className="mr-1.5 font-semibold">Usual groom:</span>
-          {welfare.groomNotes}
-        </p>
-      ) : null}
+      <StackActions
+        group="contact"
+        actions={groups.contact}
+        onSelect={(action) => {
+          if (action.href) return;
+          onAction?.(token, action);
+        }}
+        tone={tone}
+        dogName={dogName}
+        busy={busy}
+      />
 
       {showChain ? (
         <CheckoutChain
@@ -247,39 +312,58 @@ export function StackCard({
             onCollectWithPayment?.(booking, { method, amountTaken: taken });
           }}
         />
-      ) : null}
+      ) : (
+        <StackActions
+          group="progress"
+          actions={groups.progress}
+          onSelect={(action) => onAction?.(token, action)}
+          tone={tone}
+          dogName={dogName}
+          busy={busy}
+        />
+      )}
 
       <StackActions
-        actions={actions}
-        onSelect={(action) => {
-          if (action.href) return;
-          onAction?.(token, action);
-        }}
+        group="payment"
+        actions={groups.payment}
+        onSelect={(action) => onAction?.(token, action)}
         tone={tone}
         dogName={dogName}
         busy={busy}
       />
 
-      {/*
-        The inline chain covers the common case. The moment there is an
-        add-on to add, a split to record or a discount to give, staff need
-        the real thing — and the old board, which was the other way to
-        reach it, is gone.
-      */}
-      {onOpenInvoice && payment?.kind !== "other" && !noShow ? (
-        <button
-          type="button"
-          data-open-invoice
-          aria-label={`Open full invoice — ${dogName}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenInvoice(booking);
-          }}
-          className="mt-2.5 min-h-11 text-left text-[13.5px] underline underline-offset-2"
-          style={{ color: "var(--card-meta)" }}
-        >
-          Open full invoice
-        </button>
+      {groups.more.length > 0 || (onOpenInvoice && payment?.kind !== "other" && !noShow) ? (
+        <div data-stack-more>
+          <GroupLabel>More</GroupLabel>
+          <StackActions
+            group="more"
+            actions={groups.more}
+            onSelect={(action) => onAction?.(token, action)}
+            tone={tone}
+            dogName={dogName}
+            busy={busy}
+          />
+          {/*
+            The chain and the payment button cover the common cases. The
+            moment there is an add-on to add, a split to record or a discount
+            to give, staff need the real invoice.
+          */}
+          {onOpenInvoice && payment?.kind !== "other" && !noShow ? (
+            <button
+              type="button"
+              data-open-invoice
+              aria-label={`Open full invoice — ${dogName}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenInvoice(booking);
+              }}
+              className="mt-2.5 min-h-11 text-left text-[13.5px] underline underline-offset-2"
+              style={{ color: "var(--card-meta)" }}
+            >
+              Open full invoice
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </DayCard>
   );

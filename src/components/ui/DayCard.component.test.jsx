@@ -1,5 +1,7 @@
 // DayCard is presentational: every state it must survive, drawn from props.
-import { render, screen } from "@testing-library/react";
+// The strip is 72px and holds everything essential in two lines; the face is
+// read-only; the full view is reachable only when the card is lifted.
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DayCard } from "./DayCard.jsx";
@@ -16,9 +18,10 @@ const base = (over = {}) => {
     time: "09:00",
     dogName: "Biscuit",
     ownerName: "Sam Lee",
-    subtitle: "Full Groom · Cockapoo",
-    timing: "Due in 10 min",
-    expanded: false,
+    ownerSurname: "Lee",
+    subtitle: "Cockapoo · Full Groom",
+    timing: "in 10 min",
+    lifted: false,
     onToggle: () => {},
     ...over,
   };
@@ -41,9 +44,20 @@ describe("DayCard states", () => {
     expect(container.querySelector("[data-status-key]").dataset.statusKey).toBe(tone.key);
   });
 
-  it("shows the balance as bold figures with the word due", () => {
-    renderCard({ status: "Ready", balance: { kind: "due", text: "£38.00" } });
-    expect(screen.getByText("£38.00 due")).toBeTruthy();
+  it("renders Unconfirmed as an inverted pill that reads as needing attention", () => {
+    const tone = resolveDayStatus("Booked", null, "unconfirmed");
+    const { container } = renderCard({ tone, confirmation: "unconfirmed" });
+    const pill = container.querySelector("[data-status-variant='pill']");
+    expect(pill.textContent).toBe("Unconfirmed");
+    expect(pill.dataset.needsAttention).toBe("true");
+    expect(container.querySelector("[data-stack-card]").dataset.statusKey).toBe("unconfirmed");
+  });
+
+  it("shows the balance as bold figures with the word due, on the first line", () => {
+    const { container } = renderCard({ status: "Ready", balance: { kind: "due", text: "£38" } });
+    const balance = container.querySelector(".wallet-line-1 [data-stack-balance]");
+    expect(balance).toHaveTextContent("£38 due");
+    expect(balance.className).toContain("font-bold");
   });
 
   it("says Paid, and says when payment is not known, in words", () => {
@@ -54,72 +68,55 @@ describe("DayCard states", () => {
     expect(screen.getByText("Payment not known")).toBeTruthy();
   });
 
-  it("shows up to two warnings as words, one per line, in a 44px target", () => {
-    const { container } = renderCard({ safetyFacts: ["Bites / Nips", "Pregnant"] });
-    const summary = container.querySelector("[data-safety-summary]");
-    expect(summary.className).toContain("min-h-touch-target");
-    expect(summary.dataset.safetyReview).toBe("false");
-    expect(screen.getByText("Bites / Nips")).toBeTruthy();
-    expect(screen.getByText("Pregnant")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Safety alert: Bites / Nips, Pregnant" })).toBeTruthy();
+  it("puts breed, service and the owner's surname on line two", () => {
+    const { container } = renderCard();
+    expect(container.querySelector(".wallet-line-2 [data-stack-subtitle]")).toHaveTextContent("Cockapoo · Full Groom · Lee");
   });
 
-  it("asks for a review, with the real count, when there are more than two", () => {
-    const { container } = renderCard({ safetyFacts: ["Bites / Nips", "Reactive to dogs", "Fear of dryer", "Sensitive paws"] });
-    const summary = container.querySelector("[data-safety-summary]");
-    expect(summary.dataset.safetyReview).toBe("true");
-    expect(summary.textContent).toContain("Review safety instructions before handling · 4 alerts");
-    // Every warning is still named for assistive technology.
-    expect(summary.getAttribute("aria-label")).toBe(
-      "Safety alert: Bites / Nips, Reactive to dogs, Fear of dryer, Sensitive paws",
-    );
+  it("leads line two with the safety note, in words, and counts the others", () => {
+    const { container } = renderCard({ safetyFacts: ["Bites / Nips", "Pregnant", "Muzzle"] });
+    const safety = container.querySelector(".wallet-line-2 [data-stack-safety]");
+    expect(safety).toHaveTextContent("Bites / Nips +2");
+    expect(safety.closest("[data-stack-meta]").firstElementChild).toBe(safety);
   });
 
-  it("keeps the safety area inside the fixed header, whatever it holds", () => {
-    const { container } = renderCard({ safetyFacts: ["a", "b", "c"], undelivered: { chip: "Message not delivered", detail: "x" } });
-    expect(container.querySelector(".wallet-header").children).toHaveLength(3);
-  });
-
-  it("lets safety keep the width: beside a safety note the delivery problem is an icon with its full name", () => {
+  it("shows an undeliverable message on line two, after any safety note", () => {
     const { container } = renderCard({
-      safetyFacts: ["Bites / Nips"],
+      safetyFacts: ["Bites"],
       undelivered: { chip: "Message not delivered", detail: "Phone them." },
     });
-    const undelivered = container.querySelector("[data-undelivered]");
-    expect(undelivered.textContent).toBe("");
-    expect(undelivered.getAttribute("aria-label")).toBe("Message not delivered. Phone them.");
-    expect(undelivered.className).toContain("w-touch-target");
-    expect(container.querySelector("[data-safety-summary]")).toBeTruthy();
-  });
-
-  it("shows an undeliverable message in the safety row", () => {
-    const { container } = renderCard({ undelivered: { chip: "Message not delivered", detail: "Phone them." } });
-    const row = container.querySelector(".wallet-safety");
-    expect(row.querySelector("[data-undelivered]")).toBeTruthy();
-    expect(row.textContent).toContain("Message not delivered");
+    const meta = container.querySelector("[data-stack-meta]");
+    expect([...meta.children].map((el) => Object.keys(el.dataset)[0])).toEqual([
+      "stackSafety",
+      "undelivered",
+      "stackSubtitle",
+    ]);
+    expect(meta.querySelector("[data-undelivered]").textContent).toBe("Message not delivered");
   });
 
   it("marks urgency by weight and wording, and widens the left rule", () => {
-    const { container } = renderCard({ urgent: true, timing: "Running late" });
+    const { container } = renderCard({ urgent: true, timing: "15 min late" });
     const card = container.querySelector("[data-stack-card]");
     expect(card.dataset.urgent).toBe("true");
     expect(card.style.borderLeftWidth).toBe("10px");
-    expect(screen.getByText("Running late").closest("span").parentElement.className).toContain("font-bold");
+    expect(container.querySelector("[data-stack-timing]").className).toContain("font-bold");
   });
 
-  it("puts the timing and on-the-way signal in the heading row, which the stack never covers", () => {
-    const { container } = renderCard({ timing: "1 hr 50 min late", urgent: true, onTheWay: true });
-    const heading = container.querySelector(".wallet-heading");
-    const timing = heading.querySelector("[data-stack-timing]");
-    expect(timing).toHaveTextContent("1 hr 50 min late");
+  it("marks the one countdown, and draws it in the card's ink", () => {
+    const { container } = renderCard({ timing: "in 27 min", countdown: true });
+    const timing = container.querySelector("[data-stack-timing]");
+    expect(timing.dataset.countdown).toBe("true");
+    expect(timing).toHaveTextContent("in 27 min");
+  });
+
+  it("keeps timing and the on-the-way signal in the strip", () => {
+    const { container } = renderCard({ timing: "waiting 50 min", onTheWay: true });
+    const timing = container.querySelector("[data-stack-head] [data-stack-timing]");
+    expect(timing).toHaveTextContent("waiting 50 min");
     expect(timing).toHaveTextContent("On the way");
-    expect(timing.className).toContain("font-bold");
-    // Not repeated in the metadata line, which sits under the next card.
-    expect(container.querySelector(".wallet-metadata")).not.toHaveTextContent("late");
-    expect(container.querySelector(".wallet-metadata")).toHaveTextContent("Full Groom · Cockapoo");
   });
 
-  it("draws no timing line when there is nothing to time", () => {
+  it("draws no timing when there is nothing to time", () => {
     const { container } = renderCard({ timing: undefined });
     expect(container.querySelector("[data-stack-timing]")).toBeNull();
   });
@@ -129,67 +126,114 @@ describe("DayCard states", () => {
     expect(container.querySelector("[data-stack-card]").style.borderLeftWidth).toBe("14px");
   });
 
-  it("keeps the visible heading together before extra spoken context", () => {
-    const { container } = renderCard({ status: "Ready for collection", balance: { kind: "paid" } });
-    expect(container.querySelector("[data-stack-head]")).toHaveAccessibleName(
-      /^09:00[. ]+Biscuit[. ]+Due in 10 min[. ]+Ready[. ]+Paid[. ]+Full Groom/,
+  it("speaks the strip's visible words first and in order (label in name)", () => {
+    const { container } = renderCard({
+      status: "Ready for collection",
+      tone: resolveDayStatus("Ready for collection", null),
+      balance: { kind: "paid" },
+      safetyFacts: ["Bites"],
+      onTheWay: true,
+    });
+    const head = container.querySelector("[data-stack-head]");
+    const label = head.getAttribute("aria-label");
+    expect(label.startsWith("09:00. Biscuit. Paid. Ready. Bites. Cockapoo · Full Groom · Lee. in 10 min. On the way")).toBe(true);
+    // Extra context after: every safety note in full, and the owner's whole name.
+    expect(label).toContain("On the way. Safety note: Bites");
+    expect(label).toContain("owner Sam Lee");
+    // The check axe makes (label-content-name-mismatch): the visible text, with
+    // punctuation dropped and spaces collapsed, is one run inside the name.
+    const curate = (text) => text.replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+    expect(curate(label)).toContain(curate(head.textContent));
+  });
+
+  it("keeps the visible text one run inside the name, whatever the strip holds", () => {
+    const states = [
+      {},
+      { status: "Ready", balance: { kind: "due", text: "£38" }, timing: "waiting 50 min", onTheWay: true },
+      { safetyFacts: ["Bites / Nips", "Pregnant"] },
+      { safetyFacts: ["Bites"], undelivered: { chip: "Reminder not delivered", detail: "x" } },
+      { timing: undefined, ownerSurname: "" },
+    ];
+    const curate = (text) => text.replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+    for (const state of states) {
+      const { container, unmount } = renderCard(state);
+      const head = container.querySelector("[data-stack-head]");
+      expect(curate(head.getAttribute("aria-label"))).toContain(curate(head.textContent));
+      unmount();
+    }
+  });
+
+  it("keeps the face read-only and out of the accessibility tree, and drops it when lifted", () => {
+    const { container, rerender } = renderCard({ face: "Check ears." });
+    const face = container.querySelector("[data-stack-face]");
+    expect(face).toHaveTextContent("Check ears.");
+    expect(face.getAttribute("aria-hidden")).toBe("true");
+    rerender(
+      <ul>
+        <DayCard {...base({ face: "Check ears.", lifted: true })}>
+          <p>drawer contents</p>
+        </DayCard>
+      </ul>,
     );
+    expect(container.querySelector("[data-stack-face]")).toBeNull();
   });
 
-  it("names the whole card in one accessible sentence", () => {
-    const { container } = renderCard({ onTheWay: true, safetyFacts: ["Bites"] });
-    const label = container.querySelector("[data-stack-head]").getAttribute("aria-label");
-    expect(label).toContain("09:00");
-    expect(label).toContain("Biscuit");
-    expect(label).toContain("On the way");
-    expect(label).toContain("Safety note: Bites");
-    // The visible heading, word for word and in order, comes first (label in name).
-    expect(label.startsWith(`09:00. Biscuit. Due in 10 min. On the way. ${resolveDayStatus("Booked", null).label}`)).toBe(true);
-  });
-
-  it("makes the closed drawer inert and the open one reachable", () => {
-    const { container, rerender } = renderCard({ expanded: false });
+  it("makes the full view inert until the card is lifted, then a labelled region with a Close button", () => {
+    const onClose = vi.fn();
+    const { container, rerender } = renderCard({ lifted: false, onClose });
     expect(container.querySelector("#stack-drawer-b1 > div").hasAttribute("inert")).toBe(true);
     rerender(
       <ul>
-        <DayCard {...base({ expanded: true })}>
+        <DayCard {...base({ lifted: true, onClose })}>
           <p>drawer contents</p>
         </DayCard>
       </ul>,
     );
     expect(container.querySelector("#stack-drawer-b1 > div").hasAttribute("inert")).toBe(false);
+    expect(screen.getByRole("region", { name: "Biscuit — details" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close Biscuit" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("toggles from the head, from blank header space, and only opens from a chip", async () => {
+  it("makes a card in the pile inert as a whole", () => {
+    const { container } = renderCard({ inPile: true, clip: 8 });
+    const card = container.querySelector("[data-stack-card]");
+    expect(card.hasAttribute("inert")).toBe(true);
+    expect(card.style.clipPath).toBe("inset(0 0 calc(100% - 8px) 0)");
+  });
+
+  it("toggles from the strip, which is the only control outside the full view", async () => {
     const onToggle = vi.fn();
     const user = userEvent.setup();
-    const { container } = renderCard({ onToggle, safetyFacts: ["Bites"], expanded: true });
-    await user.click(container.querySelector("[data-stack-head]"));
+    const { container } = renderCard({
+      onToggle,
+      safetyFacts: ["Bites"],
+      undelivered: { chip: "Message not delivered", detail: "x" },
+    });
+    await user.click(container.querySelector("[data-stack-safety]"));
     expect(onToggle).toHaveBeenCalledTimes(1);
-    await user.click(container.querySelector("[data-stack-header]"));
-    expect(onToggle).toHaveBeenCalledTimes(2);
-    // Already open: the safety chip must not collapse it.
-    await user.click(screen.getByRole("button", { name: /Safety alert/ }));
-    expect(onToggle).toHaveBeenCalledTimes(2);
+    const controls = [...container.querySelectorAll("button")]
+      .filter((el) => !el.closest("[data-stack-details]"));
+    expect(controls).toHaveLength(1);
+    expect(controls[0].getAttribute("aria-expanded")).toBe("false");
   });
 });
 
-describe("DayCard header zones", () => {
-  it("draws the same three zones in every state, so no state adds a row", () => {
+describe("DayCard strip", () => {
+  it("draws the same two lines in every state, so no state adds a row", () => {
     const states = [
       {},
-      { status: "Ready", balance: { kind: "due", text: "£38.00" } },
+      { status: "Ready", balance: { kind: "due", text: "£38" } },
       { safetyFacts: ["Bites"] },
       { undelivered: { chip: "Message not delivered", detail: "Phone them." } },
       { safetyFacts: ["Bites"], undelivered: { chip: "Message not delivered", detail: "x" }, onTheWay: true },
     ];
     for (const state of states) {
       const { container, unmount } = renderCard(state);
-      const header = container.querySelector(".wallet-header");
-      expect([...header.children].map((c) => c.className.split(" ")[0])).toEqual([
-        "wallet-heading",
-        "wallet-metadata",
-        "wallet-safety",
+      const strip = container.querySelector("[data-stack-head]");
+      expect([...strip.children].map((c) => c.className.split(" ").slice(0, 2).join(" "))).toEqual([
+        "wallet-line wallet-line-1",
+        "wallet-line wallet-line-2",
       ]);
       unmount();
     }

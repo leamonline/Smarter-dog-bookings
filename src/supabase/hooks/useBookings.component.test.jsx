@@ -1023,7 +1023,7 @@ describe("useBookings", () => {
     render(<DailyBriefUpdateHarness />);
     // Open the dog's card, then Check in from its actions.
     fireEvent.click(await screen.findByRole("button", { name: /09:00\. Bella\./ }));
-    fireEvent.click(screen.getByRole("button", { name: "Arrived — Bella" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check in — Bella" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check-in could not be saved.",

@@ -70,21 +70,19 @@ confirm failures say what failed, say what is still on screen, and where the
 result is unknown (a booking, a client) tell staff to check before trying again.
 
 `SafetyAlertChip` accepts `items` and `className`, not a semantic tone, and
-keeps its frozen colours. On the day card the safety note is `SafetySummary`: a
-full-width target at least 44px high (`--spacing-touch-target`) inside the
-unchanged 144px header. It shows up to two recorded warnings, one per line, in
-`text-caption` (never below 12px), ordered by `orderSafetyFacts`
-(`src/engine/safetyOrder.ts`): handling restrictions such as Pregnant first,
-then the recorded behaviour warnings, then free text nobody categorised, then
-the softer caution and information notes. Order comes only from the tone staff
-recorded; nothing is inferred from age, breed or a diagnosis, and no warning is
-reworded or dropped. When the warnings cannot all be read (more than two, or a
-line too wide) it says “Review safety instructions before handling · N alerts”
-with the real count; that is a prompt to open the full list, not a claim that
-everything is visible. Tapping opens the drawer, which keeps every note in full.
-Beside a safety note an undeliverable-message flag shrinks to an icon, because
-safety keeps the width. Directory cards still use `SafetyAlertChip`; their
-layout needs its own verification before they adopt the summary.
+keeps its frozen colours. On the day card the safety note is words at the start
+of the strip's second line (`DayCard`): the most important warning, then "+N"
+for the rest, ordered by `orderSafetyFacts` (`src/engine/safetyOrder.ts`):
+handling restrictions such as Pregnant first, then the recorded behaviour
+warnings, then free text nobody categorised, then the softer caution and
+information notes. Order comes only from the tone staff recorded; nothing is
+inferred from age, breed or a diagnosis, and no warning is reworded or dropped.
+The line truncates from the end, so the owner's surname gives way before the
+warning does. Every warning is in the strip's accessible name, and the lifted
+card lists each one in full. It was a separate 44px button (`SafetySummary`)
+until November 2026; the strip became the card's only tap target, so the
+summary became words inside it and the component was removed. Directory cards
+still use `SafetyAlertChip`.
 
 `ToggleChip` is the on/off pill (a filter, an add-on, a channel): a real button with
 `aria-pressed`, a tick when pressed so colour is never the only signal, and the
@@ -112,11 +110,13 @@ full-bleed header; grey text on that paper uses `text-ink-muted` (5.1:1), never
 `slate-500` (4.2:1) or lighter.
 Over-capacity and unknown-status/deposit warnings remain visible before the dog
 stack. Preserve count calculations, status labels, chronology and highlight
-behaviour. DayCard's 144px normal header and all stack geometry/expansion
-calculations remain unchanged. Anything staff must read without opening a card
-belongs in its exposed top 96px (the 48px heading row and the 44px safety row):
-the timing line ("1 hr 50 min late", "waiting 25 min", "On the way") sits under
-the dog's name for that reason, and the breed/service line below may be covered.
+behaviour. Since November 2026 every DayCard is 128px — a 72px strip and a
+56px read-only face — and the stack overlaps them by exactly the strip
+(`stackLayout.ts`). Anything staff must read without lifting a card belongs in
+that 72px strip, in its two lines: time, name, balance and status pill; then
+safety, delivery problem, breed · service · surname and the timing ("1 hr 50
+min late", "waiting 25 min", "On the way"). Nothing essential goes in the face,
+which only the last card shows.
 
 ## Security check
 

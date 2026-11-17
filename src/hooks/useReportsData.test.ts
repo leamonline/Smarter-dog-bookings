@@ -68,7 +68,9 @@ describe("offline report data", () => {
 
   it("keeps unmatched sample bookings in customer stats with fallback ids", () => {
     const source = sampleReportSource();
-    const coco = source.bookings.find((booking) => booking.id === "101");
+    // Ziggy's owner has no customer record in the sample data, so the booking
+    // has no dog or owner id and must fall back rather than drop out.
+    const ziggy = source.bookings.find((booking) => booking.id === "9");
     const stats = computeReportStats(
       7,
       source.bookings,
@@ -77,8 +79,10 @@ describe("offline report data", () => {
       new Date("2026-05-12T12:00:00"),
     );
 
-    expect(coco?.dog_id).toMatch(/^dog:/);
-    expect(Object.values(source.humanMap)).toContain("Amy Clarke");
+    expect(ziggy?.dog_id).toMatch(/^dog:/);
+    expect(Object.values(source.humanMap)).toContain("Nina Patel");
+    // Twelve countable bookings, twelve different owners: the matched ones by
+    // their records, Ziggy's by the fallback id.
     expect(stats.uniqueCusts).toBe(12);
   });
 });
