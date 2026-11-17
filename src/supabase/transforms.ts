@@ -68,6 +68,17 @@ export interface DbDogRow {
   /** Nullable so a generated `dogs` Row (custom_price: number | null) is assignable. */
   custom_price: number | null | undefined;
   last_groomed_date?: string | null;
+  /** Path in the private dog-photos bucket; null = no photo (20261115120000). */
+  photo_path?: string | null;
+}
+
+/**
+ * A dog row's photo path. Takes any row because the generated `dogs` Row type
+ * predates the column; a row without it reads as no photo.
+ */
+export function dogPhotoPathOf(row: object | null | undefined): string | null {
+  const path = (row as { photo_path?: unknown } | null | undefined)?.photo_path;
+  return typeof path === "string" && path ? path : null;
 }
 
 export interface DbBookingRow {
@@ -332,6 +343,7 @@ export function dbDogsToMap(rows: DbDogRow[], humansById: Record<string, { fullN
       groomNotes: row.groom_notes || "",
       customPrice: row.custom_price ?? undefined,
       lastGroomedDate: row.last_groomed_date || null,
+      photoPath: dogPhotoPathOf(row),
     };
   }
   return map;

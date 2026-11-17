@@ -954,6 +954,39 @@ describe("useDogs", () => {
     expect(stub.from.mock.calls.length).toBe(fromCalls);
   });
 
+  // A mapper that drops photo_path would make the photo vanish from the dog
+  // card after an edit or on a deep-link, with nothing in the UI to say why.
+  it("keeps the customer-added photo on every path that builds a dog", async () => {
+    const stub = makeSupabaseStub({
+      rpcImpl: () => ({ data: { rows: [ROW({ photo_path: "dog-1/a.jpg" })], total: 1, letters: ["B"] }, error: null }),
+      selectSingleResult: {
+        data: { id: "dog-7", name: "Coco", human_id: "human-1", alerts: [], photo_path: "dog-7/b.jpg" },
+        error: null,
+      },
+      updateResult: {
+        data: { id: "dog-1", name: "Bella", breed: "Poodle", human_id: "human-1", alerts: [], photo_path: "dog-1/a.jpg" },
+        error: null,
+      },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useDogs(HUMANS));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.dogs["dog-1"].photoPath).toBe("dog-1/a.jpg");
+
+    let fetched;
+    let cached;
+    let saved;
+    await act(async () => {
+      fetched = await result.current.fetchDogById("dog-7");
+      cached = await result.current.fetchDogById("dog-7");
+      saved = await result.current.updateDog("dog-1", { breed: "Poodle" });
+    });
+    expect(fetched.photoPath).toBe("dog-7/b.jpg");
+    expect(cached.photoPath).toBe("dog-7/b.jpg");
+    expect(saved.photoPath).toBe("dog-1/a.jpg");
+    expect(result.current.dogs["dog-1"].photoPath).toBe("dog-1/a.jpg");
+  });
+
   it("fetchDogById returns null for empty ids, fetch errors and offline misses", async () => {
     const stub = makeSupabaseStub({
       selectSingleResult: { data: null, error: { message: "not found" } },

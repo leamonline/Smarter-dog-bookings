@@ -92,6 +92,8 @@ export interface Dog {
   customPrice: number | undefined;
   // Most recent date a booking for this dog reached Completed (forward-only).
   lastGroomedDate?: string | null;
+  /** Customer-added photo: a path in the private dog-photos bucket; null = none. */
+  photoPath?: string | null;
 }
 
 export interface Booking {

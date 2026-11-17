@@ -117,6 +117,18 @@ function renderStack(props = {}) {
 const card = (id) => document.querySelector(`[data-booking-id="${id}"]`);
 const head = (id) => card(id).querySelector("[data-stack-head]");
 
+describe("the dog's photo", () => {
+  it("sits in the drawer, never the header, and only for a dog that has one", () => {
+    renderStack({ photoPathFor: (b) => (b._dogId === "d2" ? "d2/photo.jpg" : null) });
+    // The header is the 96px the stack exposes; the photo must not crowd it.
+    expect(card("bathing").querySelector("[data-stack-header] [data-staff-dog-photo]")).toBeNull();
+    fireEvent.click(head("bathing"));
+    expect(card("bathing").querySelector("[data-staff-dog-photo]")?.textContent).toBe("N");
+    fireEvent.click(head("arriving"));
+    expect(card("arriving").querySelector("[data-staff-dog-photo]")).toBeNull();
+  });
+});
+
 describe("the stack renders the day in time order", () => {
   it("lists active and recoverable bookings, earliest first, and nothing else", () => {
     renderStack();

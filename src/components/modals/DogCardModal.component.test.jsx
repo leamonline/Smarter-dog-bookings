@@ -86,6 +86,17 @@ describe("DogCardModal", () => {
     vi.restoreAllMocks();
   });
 
+  it("shows the owner's photo of the dog in the header, and no frame without one", () => {
+    const { unmount } = renderModal({ dogs: { Bella: { ...dog, photoPath: "dog-1/photo.jpg" } } });
+    const header = document.querySelector("header");
+    // Offline in tests, so the frame holds the initial in place of the photo.
+    expect(header.querySelector("[data-staff-dog-photo]")?.textContent).toBe("B");
+    unmount();
+
+    renderModal();
+    expect(document.querySelector("[data-staff-dog-photo]")).toBeNull();
+  });
+
   it("renders the dog name and breed in the header on first paint", () => {
     renderModal();
     expect(screen.getByText("Bella")).toBeInTheDocument();

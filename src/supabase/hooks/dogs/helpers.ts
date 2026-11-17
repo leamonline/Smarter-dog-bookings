@@ -4,7 +4,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { sanitiseFieldValue } from "../../../utils/sanitiseFieldValue";
 import type { Database } from "../../database.types";
-import type { DbDogRow } from "../../transforms";
+import { dogPhotoPathOf, type DbDogRow } from "../../transforms";
 import type { HumanCacheEntry } from "../humans/helpers";
 import type { Dog, DogSize } from "../../../types/index";
 
@@ -89,6 +89,7 @@ export function buildDirectoryDogEntry(row: DirectoryDogRow, humansById: HumansB
     alerts: row.alerts || [],
     groomNotes: row.groom_notes || "",
     customPrice: row.custom_price ?? undefined,
+    photoPath: dogPhotoPathOf(row),
     // Server-resolved owner display fields (from the RPC's join), read by DogsView.
     ownerFullName,
     ownerPhone: row.owner_phone || "",

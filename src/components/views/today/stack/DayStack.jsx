@@ -27,6 +27,7 @@ export function DayStack({
   getWelfare,
   paymentOf,
   lastVisitFor,
+  photoPathFor = null,
   onTheWaySignals,
   highlightIds = null,
   tokensById = null,
@@ -136,6 +137,7 @@ export function DayStack({
           welfare={getWelfare(row.booking)}
           payment={paymentOf(row.booking)}
           lastVisit={formatLastVisit(lastVisitFor(row.booking))}
+          photoPath={photoPathFor?.(row.booking) ?? null}
           onTheWay={!!onTheWaySignals?.[row.id]}
           // Highlighting dims the rest rather than hiding it. A member of staff
           // asking "which two are late?" still needs to see that the other nine

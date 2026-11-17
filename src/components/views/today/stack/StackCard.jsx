@@ -14,6 +14,7 @@ import { orderSafetyFacts } from "../../../../engine/safetyOrder";
 import { DayCard, resolveDayStatus } from "../../../ui";
 import { firstName, telephoneHref } from "../parts.jsx";
 import { titleCase } from "../../../../utils/text";
+import { StaffDogPhoto } from "../../../shared/StaffDogPhoto.jsx";
 import { StackActions } from "./StackActions.jsx";
 import { CheckoutChain } from "./CheckoutChain.jsx";
 import { PriceField } from "./PriceField.jsx";
@@ -41,6 +42,8 @@ export function StackCard({
   welfare,
   payment,
   lastVisit,
+  /** The dog's customer-added photo (dogs.photo_path), or null. */
+  photoPath = null,
   onTheWay = false,
   dimmed = false,
   expanded,
@@ -178,6 +181,9 @@ export function StackCard({
           ) : null}
         </p>
       )}
+      {/* In the drawer, not the header: the stack only ever shows a card's top
+          96px, and the drawer is where the dog is checked in and handed back. */}
+      <StaffDogPhoto path={photoPath} dogName={dogName} size={96} rounded="rounded-lg" className="mt-3" />
       <div className="my-3 text-sm">
         {ownerName ? <DetailRow label="Customer">{ownerName}</DetailRow> : null}
         {display.ownerPhone ? (
