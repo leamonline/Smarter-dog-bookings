@@ -14,7 +14,7 @@ import { BookingConfirmationSection } from "./new-booking/BookingConfirmationSec
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { fetchTrustedContactsForHuman } from "../../supabase/hooks/humans/useTrustedContacts";
 import { useConfirmationContact } from "../../supabase/hooks/useBookingConfirmation";
-import { confirmationChoiceAvailable } from "../../engine/bookingConfirmation";
+import { confirmationChoiceAvailable, preferredConfirmationService } from "../../engine/bookingConfirmation";
 import { BookingReceipt } from "./new-booking/BookingReceipt.jsx";
 
 // A dog whose record carries no size must have one CHOSEN, never assumed.
@@ -627,10 +627,20 @@ export function NewBookingModal({
     const owner = selectedHumanId
       ? Object.values(humans || {}).find((h) => h?.id === selectedHumanId)
       : null;
+    const recipients = notifyHumanIdsRef.current?.length
+      ? [...notifyHumanIdsRef.current]
+      : selectedHumanId ? [selectedHumanId] : [];
+    // With "Preferred service", the server skips an owner nobody can reach
+    // (same rule as the label) and writes no log for them. Leave them off the
+    // receipt so it reconciles the recipients who were actually messaged,
+    // instead of waiting forever on a log that will never exist.
+    const ownerSkipped = confirmationChannel === "auto" && Boolean(contactState.contact)
+      && preferredConfirmationService(contactState.contact) === null;
+    const humanIds = ownerSkipped ? recipients.filter((id) => id !== selectedHumanId) : recipients;
     const submitted = {
-      humanIds: notifyHumanIdsRef.current?.length
-        ? [...notifyHumanIdsRef.current]
-        : selectedHumanId ? [selectedHumanId] : [],
+      humanIds,
+      // Only the unreachable owner was selected: nothing will be sent.
+      noRecipient: ownerSkipped && humanIds.length === 0,
       suppressed: confirmationChannel === "none",
       summary: `${dogEntries.map((entry) => titleCase(entry.dog.name)).join(", ")} · ${selectedDateDisplay} · ${selectedSlotLabel}`,
       ownerId: selectedHumanId,
@@ -651,6 +661,7 @@ export function NewBookingModal({
       setReceipt({
         bookingIds: saved.map((booking) => booking.id).filter(Boolean),
         humanIds: submitted.humanIds,
+        noRecipient: submitted.noRecipient,
         suppressed: submitted.suppressed,
         awaitingDeposit: saved.length > 0 && saved.every((booking) => booking.depositRequired && !booking.depositReceivedAt && !["Deposit Paid", "Paid in Full"].includes(booking.payment)),
         summary: submitted.summary,
