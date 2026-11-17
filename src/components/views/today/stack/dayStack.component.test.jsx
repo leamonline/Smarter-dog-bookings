@@ -358,6 +358,8 @@ describe("lifting a card", () => {
     }
     expect(card("bathing").hasAttribute("inert")).toBe(false);
     expect(pile().getAttribute("aria-label")).toBe("Back to the day — 3 other dogs");
+    expect(within(pile()).getByText("Back to the day")).toBeVisible();
+    expect(within(pile()).getByText("3 other dogs")).toBeVisible();
   });
 
   it("moves focus into the lifted card", () => {

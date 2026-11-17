@@ -1,6 +1,6 @@
 // The wallet geometry, proven in a real browser: every card the same height,
 // overlapped so exactly a 72px strip shows, the last card in full; a tapped
-// card lifts to the top of what is visible while the rest pile at the bottom;
+// card lifts to the top of what is visible with a labelled way back below it;
 // and every way of putting it back restores the scroll position.
 import { expect, test, type Page } from "@playwright/test";
 
@@ -65,7 +65,7 @@ test("nothing in any strip is covered by the card on top of it", async ({ page }
   expect(covered).toEqual([]);
 });
 
-test("a lifted card goes to the top of the screen, the rest pile at the bottom, and closing restores the scroll", async ({ page }) => {
+test("a lifted card goes to the top of the screen, the way back stays beside it, and closing restores the scroll", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, MONDAY);
   const main = page.locator("main");
@@ -80,10 +80,12 @@ test("a lifted card goes to the top of the screen, the rest pile at the bottom, 
   expect(lifted.y).toBeGreaterThanOrEqual(scrollport.y);
   expect(lifted.y).toBeLessThan(scrollport.y + 40);
 
-  // The pile shows edges only, and sits at the bottom of the visible area.
+  // The return control covers the clipped edges and stays with the open card.
   const pile = page.getByRole("button", { name: /^Back to the day/ });
+  await expect(pile.getByText("Back to the day")).toBeVisible();
   const pileBox = (await pile.boundingBox())!;
-  expect(pileBox.y + pileBox.height).toBeLessThanOrEqual(scrollport.y + scrollport.height + 30);
+  expect(pileBox.y - (lifted.y + lifted.height)).toBeGreaterThanOrEqual(11);
+  expect(pileBox.y - (lifted.y + lifted.height)).toBeLessThanOrEqual(24);
   for (const card of await page.locator("[data-in-pile='true']").all()) {
     expect(await card.evaluate((node) => getComputedStyle(node).clipPath)).toMatch(/inset/);
   }
@@ -105,6 +107,23 @@ test("the browser's Back button puts the card back and leaves the page where it 
   await expect(card).toHaveAttribute("data-lifted", "false");
   expect(page.url()).toBe(url);
   await expect(page.locator("[data-day-stack]")).toBeVisible();
+});
+
+test("a tall phone keeps the labelled return control next to a short card", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 1200 });
+  await open(page);
+  const card = page.locator("[data-stack-card]").last();
+  await card.locator("[data-stack-head]").click();
+  await settled(page);
+  const lifted = (await card.boundingBox())!;
+  const pile = page.getByRole("button", { name: /^Back to the day/ });
+  const box = (await pile.boundingBox())!;
+  expect(box.y - (lifted.y + lifted.height)).toBeGreaterThanOrEqual(11);
+  expect(box.y - (lifted.y + lifted.height)).toBeLessThanOrEqual(24);
+  await expect(pile.getByText("Back to the day")).toBeVisible();
+  await pile.click();
+  await expect(card).toHaveAttribute("data-lifted", "false");
+  await expect(card.locator("[data-stack-head]")).toBeFocused();
 });
 
 test("closing with the Close button steps back over the history entry the lift made", async ({ page }) => {

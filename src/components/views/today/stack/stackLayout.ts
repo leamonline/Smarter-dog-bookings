@@ -7,9 +7,8 @@
 // and the breed line sat on the first pixel the next card covered.
 //
 // Lifted, one card moves to the top of what is visible and opens; every other
-// card collapses into a shallow pile at the bottom of the visible area, where
-// only its top edge shows. The pile is one tap target: tapping it puts the day
-// back.
+// card collapses into a shallow pile directly below it. The pile's labelled
+// return button covers the edges: tapping it puts the day back.
 
 /** The part of every card that always shows. Everything essential lives here. */
 export const STACK_STRIP_HEIGHT = 72;
@@ -32,8 +31,6 @@ const GAP = 12;
 export interface LiftFrame {
   /** Where the lifted card's top goes, in the list's own coordinates. */
   top: number;
-  /** The bottom of the visible area, in the list's own coordinates. */
-  bottom: number;
 }
 
 export interface StackLayoutInput {
@@ -91,10 +88,9 @@ export function stackLayout({
   const others = count - 1;
   const edges = Math.min(others, PILE_MAX_EDGES);
   const pileDepth = others ? (edges - 1) * PILE_EDGE + PILE_PEEK : 0;
-  // At the bottom of the visible area, or after the open card when its
-  // contents are taller than the screen.
-  const viewBottom = frame?.bottom ?? top + fullHeight + GAP + pileDepth;
-  const pileTop = Math.max(top + fullHeight + GAP, viewBottom - pileDepth);
+  // Keep the way back with the card, rather than marooning unlabelled edges
+  // at the viewport bottom with a screenful of empty space between them.
+  const pileTop = top + fullHeight + GAP;
 
   const positions: number[] = [];
   const clips: (number | null)[] = [];

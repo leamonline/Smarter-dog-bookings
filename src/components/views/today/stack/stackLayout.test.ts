@@ -40,17 +40,29 @@ describe("the resting stack", () => {
 });
 
 describe("a lifted card", () => {
-  const frame = { top: 300, bottom: 1000 };
+  const frame = { top: 300 };
 
   it("moves to the top of what is visible", () => {
     const { positions } = stackLayout({ count: 4, liftedIndex: 2, liftedHeight: 400, frame });
     expect(positions[2]).toBe(300);
   });
 
-  it("piles every other card at the bottom of the visible area, edges only, in day order", () => {
+  it("keeps the way back beside a short open card", () => {
+    const { positions, pile } = stackLayout({
+      count: 8,
+      liftedIndex: 2,
+      liftedHeight: 400,
+      frame,
+    });
+    const gap = pile!.top - (positions[2] + 400);
+    expect(gap).toBeGreaterThanOrEqual(12);
+    expect(gap).toBeLessThanOrEqual(24);
+  });
+
+  it("piles every other card directly below the open card, in day order", () => {
     const { positions, clips, pile } = stackLayout({ count: 4, liftedIndex: 2, liftedHeight: 400, frame });
     const depth = 2 * PILE_EDGE + PILE_PEEK;
-    expect(pile).toEqual({ top: 1000 - depth, height: depth, count: 3 });
+    expect(pile).toEqual({ top: 712, height: depth, count: 3 });
     expect([positions[0], positions[1], positions[3]]).toEqual([
       pile!.top,
       pile!.top + PILE_EDGE,
@@ -74,7 +86,7 @@ describe("a lifted card", () => {
   });
 
   it("never lifts above the top of the list", () => {
-    const { positions } = stackLayout({ count: 2, liftedIndex: 1, liftedHeight: 200, frame: { top: -40, bottom: 600 } });
+    const { positions } = stackLayout({ count: 2, liftedIndex: 1, liftedHeight: 200, frame: { top: -40 } });
     expect(positions[1]).toBe(0);
   });
 

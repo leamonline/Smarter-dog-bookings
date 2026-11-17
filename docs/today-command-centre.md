@@ -108,10 +108,12 @@ line, and why the timing had already been moved up into the heading row.
 **Tap = lift out, like a wallet.** The strip is the card's only tap target: a
 `<button aria-expanded>`. Tapping it lifts the card to the top of what is
 visible and opens its full view; every other card collapses into a shallow pile
-at the bottom of the visible area, showing only its top edge (8px each, the
-front card 10px — above its text — at most four edges). Pile cards are `inert`, and one
-`StackPile` button over them — "Back to the day — N other dogs" — puts the day
-back. This replaced the in-place expand; the full view still opens by
+12px below the open card. Pile cards are `inert`, and one opaque `StackPile`
+button covers their clipped edges. It visibly says **Back to the day**, with
+the number of other dogs, and puts the day back. Keeping it with the card
+avoids a large blank gap on taller screens; a labelled control also avoids
+mistaking the clipped card edges for a rendering fault. This replaced the
+in-place expand; the full view still opens by
 animating `grid-template-rows` from `0fr` to `1fr`, so it fits its own content.
 
 Four ways back, one close: the card's **Close** button (or its strip again), a
@@ -360,8 +362,15 @@ the day (`3 arriving · 6 with us · 2 ready` — phrased in the zone vocabulary
 kept secondary (`£286 taken`, or `All paid`), with an over-cap day in coral.
 Deliberately not a KPI row. The header's figure is every Paid-in-Full booking,
 including dogs that paid ahead and are still here, so it says **taken**, like the
-end-of-day line's "Taken £286"; "Collected today" further down is a different
+end-of-day summary's "Taken £286"; "Collected today" further down is a different
 number, the dogs that have gone home, and is the only thing called collected.
+
+At the foot of the stack, **Collected today** and the end-of-day facts share
+one quiet summary panel. The collected row has a visible disclosure chevron;
+opening it still lists every dog that has gone home, including unpaid dogs.
+On phones, arrivals and capacity share a row, followed by takings, payment
+methods and a full-width progress bar. Wider screens place those facts in
+three columns. **Later** remains a separate disclosure beneath the summary.
 
 "Salon closed" is neutral ink, not red: closed is the salon's normal state four
 days a week, not a fault. On a closed day the online status is not repeated,

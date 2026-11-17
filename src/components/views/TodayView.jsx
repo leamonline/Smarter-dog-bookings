@@ -626,8 +626,10 @@ export function TodayView({
                 focusRequest={stackFocus}
               />
             </div>
-            <CollectedSummary takings={collectedTakings} rows={collectedRows} resolve={resolve} />
-            <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
+            <section aria-label="Day summary" className="rounded-card border border-brand-paper-line bg-white/65">
+              <CollectedSummary takings={collectedTakings} rows={collectedRows} resolve={resolve} />
+              <EndOfDayFacts summary={summary} takings={takings} capacityTotal={DAY_CAPACITY} />
+            </section>
             <MissingSizeNotice dogs={dogsMissingSize} onOpenDog={onOpenDog} />
             {notesReady && <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} />}
             {!isOnline && (
