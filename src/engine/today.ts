@@ -28,6 +28,7 @@ import {
   isNoShowReason,
   LATE_ARRIVAL_GRACE_MINUTES,
   paymentMethodLabel,
+  RANK_ARRIVED,
   STATUS_RANK,
 } from "../constants/salon";
 import type { Booking, Dog, SlotOverrides } from "../types/index";
@@ -112,7 +113,11 @@ export function isLateArrival(
   now: Date,
   graceMinutes: number = LATE_ARRIVAL_GRACE_MINUTES,
 ): boolean {
-  if (statusRank(b.status) !== 0) return false;
+  // Booked AND Reconfirmed are still to arrive: a reconfirmed dog that does
+  // not turn up is just as late. (A bare `!== 0` here predated Reconfirmed
+  // taking rank 1, and quietly exempted every reconfirmed no-show.)
+  const rank = statusRank(b.status);
+  if (rank < 0 || rank >= RANK_ARRIVED) return false;
   if (!b.slot) return false;
   if (b._bookingDate && b._bookingDate !== londonNowParts(now).dateStr) return false;
   return minutesPastSlotStart(b.slot, now) > graceMinutes;
@@ -344,10 +349,11 @@ export function buildDaySummary(
   for (const b of countable) {
     // A countable row with a missing/unknown status renders as "Booked" in the
     // feed (STAGE_BY_RANK fallback), so the summary must count it the same way.
+    // Reconfirmed (rank 1) has not arrived: RANK_ARRIVED, never a bare 1.
     const rank = Math.max(0, statusRank(b.status));
-    if (rank === 0) expected++;
-    if (rank >= 1) arrived++;
-    if (rank >= 1 && b.status !== BOOKING_STATUS.COMPLETED) onSite++;
+    if (rank < RANK_ARRIVED) expected++;
+    if (rank >= RANK_ARRIVED) arrived++;
+    if (rank >= RANK_ARRIVED && b.status !== BOOKING_STATUS.COMPLETED) onSite++;
     if (b.status === BOOKING_STATUS.READY_FOR_COLLECTION) ready++;
     if (b.status === BOOKING_STATUS.COMPLETED) collected++;
     if ((b.payment || "Due at Pick-up") !== "Paid in Full") unpaidCount++;
@@ -416,7 +422,7 @@ export function buildImmediateAttention(
       if (wait == null || wait >= readyEscalation) kinds.push("ready");
     }
     if (rank === 0 && needsConfirmation(b)) kinds.push("unconfirmed");
-    if (rank >= 1 && isPaymentOutstanding(b)) kinds.push("payment");
+    if (rank >= RANK_ARRIVED && isPaymentOutstanding(b)) kinds.push("payment");
     if (kinds.length === 0) continue;
     const ordered = ATTENTION_PRIORITY.filter((k) => kinds.includes(k));
     items.push({
@@ -473,7 +479,7 @@ export function minutesUntilSlot(slot: string, now: Date): number {
 
 /** Every booking in an arrival group has at least arrived (nothing left to greet). */
 export function isGroupSettled(group: ArrivalGroup): boolean {
-  return group.bookings.every((b) => statusRank(b.status) >= 1);
+  return group.bookings.every((b) => statusRank(b.status) >= RANK_ARRIVED);
 }
 
 export interface NextUpSplit {
@@ -593,9 +599,13 @@ export function buildPaymentsList(bookings: Booking[]): PaymentEntry[] {
 export type FeedStage = "booked" | "inSalon" | "ready" | "collected" | "noShow";
 export type NeedActionReason = "late" | "confirmation" | "collection" | "payment";
 
+// Rank 1 is Reconfirmed: the owner has said they are coming, but the dog is not
+// here, so it is still "booked" — the same answer the board's zones give. This
+// table filed it under "inSalon" from before Reconfirmed took rank 1, which hid
+// a reconfirmed dog from lateness, from "next" and from the countdown.
 const STAGE_BY_RANK: Record<number, FeedStage> = {
   0: "booked",
-  1: "inSalon",
+  1: "booked",
   2: "inSalon",
   3: "ready",
   4: "collected",
@@ -706,7 +716,7 @@ export function buildTodayFeed(
     if (isLate) actionReasons.push("late");
     if (isUnconfirmed) actionReasons.push("confirmation");
     if (readyNeedsAction) actionReasons.push("collection");
-    if (rank >= 1 && owes) actionReasons.push("payment");
+    if (rank >= RANK_ARRIVED && owes) actionReasons.push("payment");
     entries.push({
       booking: b,
       slotMinutes: b.slot ? slotToMinutes(b.slot) : Number.POSITIVE_INFINITY,

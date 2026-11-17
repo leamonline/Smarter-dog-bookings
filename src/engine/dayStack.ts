@@ -14,14 +14,12 @@
 // that difference the most visible thing on the screen, which is what the
 // people running the salon actually need from it.
 import { BOOKING_STATUS, DOG_SIZE, SERVICES, isStackVisibleStatus } from "../constants/index";
-import { LATE_ARRIVAL_GRACE_MINUTES } from "../constants/salon";
 import { computeBookingPricing } from "./bookingRules";
 import { buildDailyBriefFeed } from "./dailyBrief";
 import {
   collectionWaitMinutes,
   formatDuration,
   londonDateStr,
-  minutesPastSlotStart,
   minutesUntilSlot,
   timeInSalonMinutes,
 } from "./today";
@@ -193,25 +191,15 @@ export function stackConfirmation(entry: {
 }
 
 /**
- * The id of the next dog not yet through the door, or null.
- *
- * Not the feed's `isNext`, deliberately. That flag is set only on the
- * "booked" stage, and the feed's rank-to-stage table files Reconfirmed (rank 1)
- * under "inSalon" — a leftover from before Reconfirmed was added at rank 1. The
- * board's zones are right ("Reconfirmed is still coming in"), so a reconfirmed
- * dog that has not arrived would otherwise pass the countdown to someone later.
- * Lateness uses the feed's own grace, so a dog this calls next is never one the
- * feed calls late.
+ * The id of the next dog not yet through the door, or null: the first visible
+ * Booked or Reconfirmed dog, in time order, that is not late. The feed's own
+ * `isNext` is the same rule, but it is computed across the whole feed — which
+ * includes a booking with an unrecognised status the stack does not show — so
+ * the countdown is chosen from the rows the stack actually draws.
  */
-function nextArrivalId(entries: TodayFeedEntry[], now: Date): string | null {
-  for (const entry of entries) {
-    const { booking } = entry;
-    if (booking.status !== BOOKING_STATUS.BOOKED && booking.status !== BOOKING_STATUS.RECONFIRMED) continue;
-    if (entry.isLate || !booking.slot) continue;
-    if (minutesPastSlotStart(booking.slot, now) > LATE_ARRIVAL_GRACE_MINUTES) continue;
-    return String(booking.id ?? "");
-  }
-  return null;
+function nextArrivalId(entries: TodayFeedEntry[]): string | null {
+  const next = entries.find((entry) => entry.stage === "booked" && !entry.isLate && entry.booking.slot);
+  return next ? String(next.booking.id ?? "") : null;
 }
 
 export interface DayStackInput {
@@ -257,7 +245,7 @@ export function buildDayStack({
     // until somebody decides it belongs here, which is the safe direction to
     // fail. Excluding by name would have silently admitted it.
     .filter((entry) => entry.stage === "noShow" || isStackVisibleStatus(entry.booking.status));
-  const nextId = isToday ? nextArrivalId(visible, now) : null;
+  const nextId = isToday ? nextArrivalId(visible) : null;
 
   return visible
     .map((entry) => {

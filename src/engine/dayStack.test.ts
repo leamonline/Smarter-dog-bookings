@@ -210,6 +210,13 @@ describe("buildDayStack timing", () => {
     expect(rows.some((row) => /away/.test(row.timing ?? ""))).toBe(false);
   });
 
+  it("says a reconfirmed dog that has not turned up is late, like any other", () => {
+    const [row] = stack([bk({ id: "x", slot: "09:00", status: BOOKING_STATUS.RECONFIRMED })]);
+    expect(row.timing).toBe("1 hr 15 min late");
+    expect(row.urgent).toBe(true);
+    expect(row.countdown).toBe(false);
+  });
+
   it("moves the countdown on once that dog is checked in", () => {
     const before = stack([
       bk({ id: "a", slot: "11:00", status: BOOKING_STATUS.BOOKED }),

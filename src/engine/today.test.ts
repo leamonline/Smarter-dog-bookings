@@ -1284,3 +1284,61 @@ describe("buildTakingsByMethod rows", () => {
     expect(takings.bookings.map((row) => row.booking.id)).toEqual(["a"]);
   });
 });
+
+// ---- Reconfirmed is still coming in -------------------------------------------
+//
+// Reconfirmed took rank 1 after the feed's thresholds were written, and a bare
+// `rank >= 1` / `!== 0` then read a reconfirmed dog as already in the salon: it
+// was never late, it was counted as arrived, and it could not be next. The
+// board's zones always said "coming in"; these pin the feed to the same answer.
+describe("a Reconfirmed dog has not arrived yet", () => {
+  const reconfirmed = (partial: Partial<Booking> = {}) => bk({
+    _bookingDate: TODAY,
+    slot: "10:00",
+    status: "Reconfirmed",
+    payment: "Due at Pick-up",
+    service: "full-groom",
+    size: "small",
+    ...partial,
+  });
+
+  it("is late when it does not turn up, exactly as a Booked dog would be", () => {
+    expect(isLateArrival(reconfirmed(), NOW_SUMMER, 5)).toBe(true);
+    expect(isLateArrival(reconfirmed({ slot: "11:00" }), NOW_SUMMER, 5)).toBe(false);
+  });
+
+  it("sits in the booked stage, can be next, and is never in the salon", () => {
+    const feed = buildTodayFeed([reconfirmed({ slot: "11:00" })], NOW_SUMMER);
+    expect(feed[0].stage).toBe("booked");
+    expect(feed[0].isNext).toBe(true);
+    expect(entryOpStatus(feed[0]).kind).toBe("next");
+  });
+
+  it("is late in the feed and in the immediate-attention list", () => {
+    const feed = buildTodayFeed([reconfirmed()], NOW_SUMMER);
+    expect(feed[0].isLate).toBe(true);
+    expect(feed[0].actionReasons).toContain("late");
+    expect(entryOpStatus(feed[0]).kind).toBe("overdue");
+    expect(buildImmediateAttention([reconfirmed()], NOW_SUMMER)[0].kinds).toContain("late");
+  });
+
+  it("is counted as expected, not arrived, in the day summary", () => {
+    const summary = buildDaySummary([reconfirmed(), bk({ status: "Arrived", service: "full-groom", size: "small" })], null);
+    expect(summary.expected).toBe(1);
+    expect(summary.arrived).toBe(1);
+    expect(summary.onSite).toBe(1);
+  });
+
+  it("does not chase payment before the dog has arrived", () => {
+    const feed = buildTodayFeed([reconfirmed({ slot: "11:00" })], NOW_SUMMER);
+    expect(feed[0].actionReasons).not.toContain("payment");
+    expect(buildDailyBriefFeed([reconfirmed({ _bookingDate: "2026-07-09" })], "2026-07-09", NOW_SUMMER)[0].actionReasons)
+      .not.toContain("payment");
+  });
+
+  it("leaves its arrival group unsettled until it is checked in", () => {
+    const group = (status: string) => ({ bookings: [reconfirmed({ status: status as Booking["status"] })] }) as never;
+    expect(isGroupSettled(group("Reconfirmed"))).toBe(false);
+    expect(isGroupSettled(group("Arrived"))).toBe(true);
+  });
+});
