@@ -10,6 +10,7 @@
 // its only constraint is "greater than zero", and a figure entered as pence
 // would pass that constraint and overcharge by a hundred times.
 import { useEffect, useRef, useState } from "react";
+import { Pencil } from "lucide-react";
 
 function moneyLabel(amount) {
   return Number.isInteger(amount) ? `£${amount}` : `£${amount.toFixed(2)}`;
@@ -90,19 +91,28 @@ export function PriceField({
         setDraft(String(basePrice));
         setEditing(true);
       }}
-      className="min-h-11 border-b border-dashed font-medium tabular-nums"
-      style={{ color: "inherit", borderColor: "currentColor" }}
+      // The 44px height is the tap target, not the visual. The dashed rule used
+      // to be a bottom border on that box, so it floated well below the figure
+      // and read as a stray line rather than "tap to edit". It now underlines
+      // the figure itself, with a pencil to say what tapping does.
+      className="min-h-11 font-medium tabular-nums"
+      style={{ color: "inherit" }}
     >
+      <span className="underline decoration-dashed decoration-1 underline-offset-4">
+        {moneyLabel(subtotal)}
+      </span>
       {hasAddons ? (
-        <>
-          {moneyLabel(subtotal)}
-          <span className="ml-1 text-xs font-normal" style={{ color: "var(--card-meta)" }}>
-            ({moneyLabel(basePrice)} + {moneyLabel(addonsTotal)})
-          </span>
-        </>
-      ) : (
-        moneyLabel(subtotal)
-      )}
+        <span className="ml-1 text-xs font-normal" style={{ color: "var(--card-meta)" }}>
+          ({moneyLabel(basePrice)} + {moneyLabel(addonsTotal)})
+        </span>
+      ) : null}
+      <Pencil
+        data-edit-price-icon
+        size={12}
+        aria-hidden="true"
+        className="ml-1.5 inline-block align-baseline"
+        style={{ color: "var(--card-meta)" }}
+      />
     </button>
   );
 }

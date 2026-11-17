@@ -1062,11 +1062,51 @@ describe("the price on a card", () => {
     expect(onSetPrice).not.toHaveBeenCalled();
   });
 
+  it("says it can be edited: the figure is underlined and carries a pencil", () => {
+    withPrice();
+    const button = within(card("waiting")).getByLabelText(/Change the price for Bramble/);
+    // The dashed rule underlines the figure itself, not the bottom of the
+    // 44px tap box, where it read as a stray line.
+    expect(button.className).not.toMatch(/border-dashed/);
+    expect(within(button).getByText("£42").className).toMatch(/decoration-dashed/);
+    expect(button.querySelector("[data-edit-price-icon]")).toBeTruthy();
+  });
+
   it("stops being editable once the chain has started", () => {
     withPrice();
     expect(within(card("waiting")).queryByLabelText(/Change the price for Bramble/)).toBeTruthy();
     pressChain("waiting", "Check out");
     expect(within(card("waiting")).queryByLabelText(/Change the price for Bramble/)).toBeNull();
+  });
+});
+
+describe("who made the booking, and when", () => {
+  const withCreator = (fields) => {
+    const bookings = BOOKINGS.map((b) => (b.id === "arriving" ? { ...b, ...fields } : b));
+    renderStack({
+      rows: buildDayStack({ bookings, dateStr: TODAY, now: NOW }),
+    });
+    fireEvent.click(head("arriving"));
+    return card("arriving").querySelector("[data-stack-booked]");
+  };
+
+  it("names the creator and the day it was booked", () => {
+    const booked = withCreator({
+      createdAt: "2026-06-14T10:05:00Z",
+      createdByName: "Sam",
+      createdByRole: "staff",
+    });
+    // The year shows only when it differs from the real clock's, so allow it.
+    expect(booked.textContent).toMatch(/^14 Jun( 2026)? by Sam \(staff\)$/);
+  });
+
+  it("gives just the date for a booking made before creators were recorded", () => {
+    const booked = withCreator({ createdAt: "2026-04-02T10:00:00Z", createdByName: null, createdByRole: null });
+    expect(booked.textContent).toMatch(/^2 Apr( 2026)?$/);
+  });
+
+  it("leaves the row out when nothing is known", () => {
+    expect(withCreator({})).toBeNull();
   });
 });
 
