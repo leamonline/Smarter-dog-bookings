@@ -343,6 +343,12 @@ describe("CI change selection preserves required checks and release isolation", 
     }
   });
 
+  it("skips the full browser matrix at the job level on pull requests", () => {
+    const e2e = executable(job(ci, "e2e"));
+    expect(e2e).toMatch(/^ {4}if: github\.event_name != 'pull_request'$/m);
+    expect(e2e).toContain("run: npm run e2e");
+  });
+
   it("the glob translation matches GitHub's path-filter semantics", () => {
     expect(globToRegExp("website/**").test("website/src/App.jsx")).toBe(true);
     expect(globToRegExp("website/**").test("src/website.ts")).toBe(false);

@@ -75,6 +75,13 @@ Implementation does not silently overrule signed product policy. Record a materi
 - Edge Function changes also require `npm run check:edge-types` and the relevant Deno tests. Database changes require `npm run test:db`; capacity races also require `npm run test:db:concurrency`.
 - A green build alone is not completion. Confirm acceptance criteria, migration/rollout readiness, documentation and observable behaviour.
 
+## When asked to merge
+
+Treat “merge” as authorisation to finish merging the named pull request or the
+single open pull request for the current branch. Follow the [merge procedure](docs/project-management.md#merging-a-pull-request),
+including waiting for checks and verifying the merge on GitHub. If the target
+is ambiguous, ask which pull request to merge.
+
 ## Documentation and prompts
 
 - Update requirements, specifications, architecture, user flows and operations documentation when behaviour changes.
