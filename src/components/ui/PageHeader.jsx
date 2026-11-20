@@ -16,6 +16,11 @@ function classes(...values) {
  * same gutter back as padding. Both read --app-gutter (src/index.css), so
  * they cannot drift from the shell or from each other — the hard-coded
  * `-mx-4 sm:-mx-6` they replace was 8px short of the frame from `md` up.
+ *
+ * Square, with only a bottom border: a bar that touches both screen edges has
+ * no corners to round, and side borders and curves there showed slivers of the
+ * page behind them. It now matches the navigation bar above it, and
+ * AppContextRow carries the same treatment — keep the two in step.
  */
 export function PageHeader({
   title,
@@ -31,7 +36,7 @@ export function PageHeader({
       data-testid="page-header"
       className={classes(
         "relative -mx-[var(--app-gutter)] mb-4 flex min-h-[76px] flex-wrap items-center gap-3",
-        "rounded-b-card border-x border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 shadow-sm",
+        "border-b border-slate-200 bg-white/90 px-[var(--app-gutter)] py-3 shadow-sm",
         className,
       )}
     >
