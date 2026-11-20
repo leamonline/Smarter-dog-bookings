@@ -66,4 +66,19 @@ describe("TodayBriefNotes", () => {
     fireEvent.click(screen.getByText("Later"));
     expect(screen.queryByText(/fortnight/)).not.toBeInTheDocument();
   });
+
+  it("sends each note to the report that holds its list", () => {
+    const onOpenReports = vi.fn();
+    render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={onOpenReports} defaultOpen />);
+    fireEvent.click(screen.getByText(/2 grooms in the last fortnight/));
+    expect(onOpenReports).toHaveBeenLastCalledWith("/reports/cash-up");
+    fireEvent.click(screen.getByText(/3 dogs are due back with no booking/));
+    expect(onOpenReports).toHaveBeenLastCalledWith("/reports/insights");
+  });
+
+  it("takes its heading from the caller, so an empty day is not told 'Later'", () => {
+    render(<TodayBriefNotes todayStr="2026-07-14" onOpenReports={vi.fn()} defaultOpen heading="Catch up" />);
+    expect(screen.getByText("Catch up")).toBeInTheDocument();
+    expect(screen.queryByText("Later")).not.toBeInTheDocument();
+  });
 });

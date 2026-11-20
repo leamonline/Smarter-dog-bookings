@@ -154,7 +154,9 @@ export function TodayHeader({
             className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
             {/* Closed is the salon's normal state four days a week, not a
                 fault, so it reads in the neutral ink rather than alarm red. */}
-            <span className={isDayOpen ? "font-semibold text-emerald-700" : "font-semibold text-ink-muted"}>
+            <span className={isDayOpen
+              ? "font-semibold text-emerald-700"
+              : "rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-ink-muted"}>
               {isDayOpen ? "Salon open" : "Salon closed"}
             </span>
             {/* "Online booking closed" always follows from a closed salon, so it
