@@ -149,28 +149,47 @@ Serialise migration writers and the generated types/RPC/client integration spine
 
 ## Branch controls and merge gate
 
-Live inspection on 11 August 2026 confirmed that `main` was not protected.
-GitHub rejected ruleset enforcement for this private repository on the current
-plan, so branch rules were not created. This is an external account limitation,
-not a repository guarantee.
+`main` auto-deploys to Vercel production and auto-deploys changed Edge Functions.
+Read the live [Protect main ruleset](https://github.com/leamonline/Smarter-dog-bookings/rules/22452064)
+when merging. On 20 November 2026 it required `build`, `coverage`, `agent-tests`,
+`pr-production-smoke` and `migrations-applied`, all from GitHub Actions.
 
-From 18 August 2026 there is **no merge gate at all**. The attestation control
-that previously stood in for branch protection was removed; the retired runbook
-and design are kept as history in
-[`superpowers/runbooks/2026-08-11-human-merge-control.md`](superpowers/runbooks/2026-08-11-human-merge-control.md).
+### Merging a pull request
 
-Merging to `main` is therefore governed only by CI evidence and the judgement of
-whoever merges. `main` auto-deploys to Vercel production and auto-deploys changed
-Edge Functions, so the checks named in [CONTRIBUTING.md](../CONTRIBUTING.md) should
-be green before merge, and a migration should be applied to production *before*
-merging code that depends on it — nothing enforces either.
+1. Open the named pull request, or resolve it from the current branch. Confirm
+   the repository and target branch, record the full head SHA, and mark a draft
+   ready for review if the user has asked to merge it. If GitHub already shows
+   it merged, report the existing merge commit.
+2. Watch the required GitHub checks for that head. Also wait for
+   `release-tool-tests`, `db-tests` when the [database workflow](../.github/workflows/db-tests.yml)
+   applies, and the [website](../.github/workflows/website.yml) and
+   [customer journey](../.github/workflows/customer-journeys.yml) checks when those
+   workflows apply. Use the Vercel deployment status for preview readiness when
+   the change requires a preview. Cursor reviews, Codex reviews and Vercel
+   Preview Comments are advisory. Investigate actionable findings or failed
+   validation before proceeding.
+3. Keep watching while expected checks are queued or running. If a check fails,
+   open the failing job and diagnose it. Retry a confirmed transient runner
+   failure when available. Report a persistent failure, a required check that
+   never starts, or a review or merge conflict with the relevant link. If the
+   head changes, stop and report the new SHA. Follow the [migration release procedure](migrations.md)
+   if a production migration is pending. Merging does not authorise applying a
+   production migration or bypassing a release control.
+4. Once checks and applicable review requirements are satisfied, merge against
+   the recorded head SHA using normal GitHub permissions. Use the GitHub merge
+   API with the expected head SHA or `gh pr merge --match-head-commit`. If
+   GitHub rejects the merge, read the current PR and report or resolve the
+   blocker within the user's request. Re-read the PR and confirm it is merged,
+   then report the PR link and merge commit SHA.
 
-When the repository plan supports enforcement, require pull requests, dismiss
-stale approvals, prevent force/direct pushes as policy permits and require the
-CI contexts as required checks. A required status alone is not native human
-authority because a publisher may never start; use GitHub-native review/ruleset
-state and prove the missing-run case live.
-Keep write-capable release jobs separate from untrusted pull-request code.
+With the GitHub CLI, `gh pr checks <PR> --required --watch --fail-fast` follows
+the required checks. Inspect the other applicable checks before running
+`gh pr merge <PR> --merge --match-head-commit <HEAD_SHA>`. With the GitHub API,
+poll check runs on the recorded commit and use the effective rules to identify
+required checks and their publishers. Read the latest attempt from each expected
+check. An expected test that is missing or skipped needs investigation. The
+full `e2e` matrix runs after merge and on manual dispatch.
+`pr-production-smoke` is the pre-merge browser test.
 
 ## Traceable completion
 

@@ -198,31 +198,19 @@ jobs:
         run: node --test scripts/whatsapp-eval/compare.test.mjs
 
   e2e:
-    # Playwright is by far the heaviest CI consumer (npm ci + browser
-    # download + the run), so the full browser pass only happens on push
-    # to main and on manual dispatch. On pull requests this job reports
-    # success without spinning up browsers: that keeps the `e2e` status
-    # check green — so branch protection is never left hanging — while
-    # saving the bulk of the Actions minutes that every PR push used to
-    # burn. To run e2e against a branch on demand, use the "Run workflow"
-    # button (workflow_dispatch) on the CI workflow.
+    # The full browser matrix runs on main and on manual dispatch.
+    # pr-production-smoke provides the required browser check on pull requests.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
-      - name: Skip on pull requests
-        if: github.event_name == 'pull_request'
-        run: echo "Skipping Playwright e2e on pull requests to conserve Actions minutes — it runs on push to main and via workflow_dispatch."
       - uses: actions/checkout@v7
-        if: github.event_name != 'pull_request'
       - uses: actions/setup-node@v7
-        if: github.event_name != 'pull_request'
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-        if: github.event_name != 'pull_request'
       - name: Resolve the pinned Playwright version
         id: playwright
-        if: github.event_name != 'pull_request'
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       # Playwright's browser bundles are the slowest part of these jobs and they
       # only change when the pinned version does, so cache them on that version.
@@ -234,30 +222,28 @@ jobs:
       # packages on the runner, not files in the cached directory.
       - uses: actions/cache@v6
         id: playwright-cache
-        if: github.event_name != 'pull_request'
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-chromium-${{ steps.playwright.outputs.version }}
       - name: Install Playwright browsers
-        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
       - name: Install Playwright system dependencies (cached browsers)
-        if: github.event_name != 'pull_request' && steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - run: npm run e2e
-        if: github.event_name != 'pull_request'
       # The boot-order guard (#998): the only check that tier-1 data queries
       # leave before the staff profile resolves. It builds its own online
       # bundle against a stub Supabase URL, so it cannot share the run above.
       - name: Boot request order probe
         # !cancelled(): still runs when an unrelated spec above failed, so a
         # boot-order regression cannot hide behind another E2E failure.
-        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        if: ${{ !cancelled() }}
         # Its own HTML report folder, so it never overwrites the main report.
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report-bootprobe
         run: npm run e2e:bootprobe
-      - if: always() && github.event_name != 'pull_request'
+      - if: always()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
