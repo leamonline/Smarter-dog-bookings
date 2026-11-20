@@ -386,7 +386,8 @@ Removing a photo is in the dog's Edit form. Customers can only use the folders
 of their own non-archived dogs; staff can read and delete any photo. Staff see
 the photo, so they can match the dog at the door, beside the name on the dog
 card and inside a Today card's drawer (not its header, which the stack keeps to
-its top 96px). Staff cannot change or remove a photo from the app yet. Signed
+its top 96px; collapsed cards do not sign the photo). Staff cannot change or
+remove a photo from the app yet. Signed
 photo links last an hour, so both apps re-sign a photo shortly before its link
 lapses and fetch one fresh link if an image fails to load.
 
