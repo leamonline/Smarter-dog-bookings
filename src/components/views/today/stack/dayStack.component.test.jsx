@@ -7,7 +7,15 @@
 // a tap, and that lifting a card out and putting it back behaves — focus,
 // scroll, Escape, the pile and the browser's Back button included.
 import { render, screen, fireEvent, within, act } from "@testing-library/react";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+
+const photoUrlHook = vi.hoisted(() => ({
+  useStaffDogPhotoUrl: vi.fn(() => ({ url: null, onLoadError: vi.fn() })),
+}));
+vi.mock("../../../../supabase/hooks/useStaffDogPhoto", () => ({
+  useStaffDogPhotoUrl: (path) => photoUrlHook.useStaffDogPhotoUrl(path),
+}));
+
 import { DayStack } from "./DayStack.jsx";
 import { buildDayStack } from "../../../../engine/dayStack";
 import { buildDailyBriefBoard } from "../../../../engine/dailyBrief";
@@ -130,15 +138,25 @@ afterEach(() => {
 });
 
 describe("the dog's photo", () => {
+  beforeEach(() => {
+    photoUrlHook.useStaffDogPhotoUrl.mockClear();
+  });
+
   it("sits in the lifted view, never the strip, and only for a dog that has one", () => {
     renderStack({ photoPathFor: (b) => (b._dogId === "d2" ? "d2/photo.jpg" : null) });
     // The strip is the 72px every card shows; the photo must not crowd it.
     expect(head("bathing").querySelector("[data-staff-dog-photo]")).toBeNull();
+    // Collapsed cards keep their full view mounted (0fr + inert). The photo
+    // must not be, or every dog with a path would sign on first paint.
+    expect(card("bathing").querySelector("[data-staff-dog-photo]")).toBeNull();
+    expect(photoUrlHook.useStaffDogPhotoUrl).not.toHaveBeenCalled();
     fireEvent.click(head("bathing"));
     expect(card("bathing").querySelector("[data-staff-dog-photo]")?.textContent).toBe("N");
+    expect(photoUrlHook.useStaffDogPhotoUrl).toHaveBeenCalledWith("d2/photo.jpg");
     fireEvent.click(head("bathing"));
     fireEvent.click(head("arriving"));
     expect(card("arriving").querySelector("[data-staff-dog-photo]")).toBeNull();
+    expect(card("bathing").querySelector("[data-staff-dog-photo]")).toBeNull();
   });
 });
 

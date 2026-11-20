@@ -116,6 +116,11 @@ mistaking the clipped card edges for a rendering fault. This replaced the
 in-place expand; the full view still opens by
 animating `grid-template-rows` from `0fr` to `1fr`, so it fits its own content.
 
+When the customer has added a photo of the dog, it opens in the lifted view,
+never the strip, which must keep its 72px for time, name, status and warnings.
+A dog without a photo gets no empty frame. The photo is mounted only while that
+card is lifted, so a collapsed card does not sign or load it.
+
 Four ways back, one close: the card's **Close** button (or its strip again), a
 tap on the **pile**, **Escape** (left to a dialog opened from the card, such as
 the invoice), and the browser's **Back** button — lifting pushes one history

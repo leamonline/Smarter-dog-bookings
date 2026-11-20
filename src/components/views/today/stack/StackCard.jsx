@@ -258,8 +258,12 @@ export function StackCard({
       ) : null}
 
       {/* In the full view, never the strip: the strip holds only what must
-          show while the card is in the stack. */}
-      <StaffDogPhoto path={photoPath} dogName={dogName} size={96} rounded="rounded-lg" className="mt-3" />
+          show while the card is in the stack. Mount only while this card is
+          lifted: DayCard keeps its children in the DOM behind 0fr + inert, and
+          the signing hook must not run for every collapsed card on first paint. */}
+      {lifted && photoPath ? (
+        <StaffDogPhoto path={photoPath} dogName={dogName} size={96} rounded="rounded-lg" className="mt-3" />
+      ) : null}
 
       <div data-stack-contact className="my-3 text-sm">
         {ownerName ? <DetailRow label="Owner">{ownerName}</DetailRow> : null}
