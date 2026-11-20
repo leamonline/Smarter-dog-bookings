@@ -74,7 +74,7 @@ describe("TodayEmptyState — closed day", () => {
     renderEmpty({ onGoToDate });
 
     const next = screen.getByRole("region", { name: "Next open day" });
-    expect(next).toHaveTextContent("Closed today · next open day");
+    expect(next).toHaveTextContent("Next open day");
     expect(next).toHaveTextContent("Monday 16 November");
     expect(next).toHaveTextContent("3 dogs booked · first at 09:00");
     fireEvent.click(within(next).getByRole("button", { name: "Go to Monday 16 November" }));

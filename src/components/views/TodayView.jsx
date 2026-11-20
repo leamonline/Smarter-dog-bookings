@@ -460,7 +460,7 @@ export function TodayView({
   // Warm notes mount after first paint so their queries never delay the page.
   const [notesReady, setNotesReady] = useState(false);
   useEffect(() => setNotesReady(true), []);
-  const onOpenReports = useCallback(() => navigate("/reports"), [navigate]);
+  const onOpenReports = useCallback((path = "/reports") => navigate(path), [navigate]);
 
   // Day stepping. Noon, not midnight, so a clock change can never tip the
   // picked Date into the neighbouring day (same convention as the calendar).

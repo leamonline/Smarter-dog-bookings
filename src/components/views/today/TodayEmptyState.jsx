@@ -45,9 +45,11 @@ export function describeDay(bookings) {
   return first ? `${dogs} · first at ${first}` : dogs;
 }
 
-function NextOpenDay({ fromDateStr, isToday, isOnline, onGoToDate }) {
+function NextOpenDay({ fromDateStr, isOnline, onGoToDate }) {
   const next = useNextOpenDayBrief(fromDateStr, true);
-  const eyebrow = isToday ? "Closed today · next open day" : "Closed · next open day";
+  // The header's "Salon closed" chip already says the day is closed; this card
+  // only needs to say what comes next.
+  const eyebrow = "Next open day";
 
   if (next.loading) {
     return (
@@ -98,7 +100,7 @@ function NextOpenDay({ fromDateStr, isToday, isOnline, onGoToDate }) {
       </div>
       {onGoToDate ? (
         <Button
-          variant="ghost"
+          variant="strong"
           onClick={() => onGoToDate(next.dateStr)}
           aria-label={`Go to ${longLabel}`}
           iconRight={<ChevronRight size={16} aria-hidden="true" />}
@@ -195,10 +197,10 @@ export function TodayEmptyState({
           ) : null}
         </section>
       ) : (
-        <NextOpenDay fromDateStr={dateStr} isToday={isToday} isOnline={isOnline} onGoToDate={onGoToDate} />
+        <NextOpenDay fromDateStr={dateStr} isOnline={isOnline} onGoToDate={onGoToDate} />
       )}
       <NeedsYou />
-      {notesReady ? <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} defaultOpen /> : null}
+      {notesReady ? <TodayBriefNotes todayStr={dateStr} onOpenReports={onOpenReports} defaultOpen heading="Catch up" /> : null}
     </div>
   );
 }
