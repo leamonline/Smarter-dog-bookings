@@ -130,6 +130,26 @@ describe("isContinueDisabled", () => {
       immediateDate: "2099-01-01",
       todayStr: "2099-01-01",
     })).toBe(true);
+    // Device calendar can be ahead of Europe/London. The live offer's date is
+    // still bookable; a different past date is not.
+    expect(isContinueDisabled({
+      selectedDate: "2099-01-01",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: true,
+      immediateDate: "2099-01-01",
+      todayStr: "2099-01-02",
+    })).toBe(false);
+    expect(isContinueDisabled({
+      selectedDate: "2098-12-31",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: true,
+      immediateDate: "2099-01-01",
+      todayStr: "2099-01-02",
+    })).toBe(true);
   });
 
   it("rejects a past draft date even when it is absent from the current page", () => {

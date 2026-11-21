@@ -82,13 +82,15 @@ export function isContinueDisabled({
 }): boolean {
   if (!selectedDate || displayLoading) return true;
   if (isHolidayDate(holidays, selectedDate)) return true;
-  // ISO YYYY-MM-DD compares lexicographically; drafts can outlive the day they
-  // picked, and those past dates are absent from dayStates just like later pages.
-  if (selectedDate < todayStr) return true;
-
+  // immediateDate is London today from get_immediate_slots and can precede the
+  // device calendar. Decide that offer before the past-date guard, or Continue
+  // stays disabled for a live "Today — last minute" selection.
   if (selectedDate === todayStr || selectedDate === immediateDate) {
     return !(todayAvailable && selectedDate === immediateDate);
   }
+  // ISO YYYY-MM-DD compares lexicographically; drafts can outlive the day they
+  // picked, and those past dates are absent from dayStates just like later pages.
+  if (selectedDate < todayStr) return true;
 
   if (!dayStates.has(selectedDate)) return false;
   return dayStates.get(selectedDate) !== "open";
