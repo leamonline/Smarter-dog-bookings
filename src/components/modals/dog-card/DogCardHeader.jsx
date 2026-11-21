@@ -1,4 +1,5 @@
-import { Images, Pencil, X } from "lucide-react";
+import { useRef } from "react";
+import { Camera, Images, Pencil, X } from "lucide-react";
 import { titleCase } from "./helpers.js";
 import { BreedCombobox } from "../../shared/BreedCombobox.jsx";
 import { HeaderIconButton } from "../shell/index.js";
@@ -33,9 +34,12 @@ export function DogCardHeader({
   onClose,
   onEnterEdit,
   onOpenGallery,
+  onPhotoFile,
+  photoBusy = false,
   titleId,
   incomplete = false,
 }) {
+  const photoInput = useRef(null);
   const subtitleParts = [
     titleCase(resolvedDog.breed),
     displayAge ? displayAge.replace(" yrs", "yo") : "",
@@ -153,6 +157,36 @@ export function DogCardHeader({
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
+        {!isEditing && onPhotoFile && (
+          <>
+            {/* No `capture`: phones offer both the camera and the photo library. */}
+            <input
+              ref={photoInput}
+              type="file"
+              accept="image/*"
+              hidden
+              data-dog-photo-input
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) onPhotoFile(file);
+              }}
+            />
+            <HeaderIconButton
+              label={
+                photoBusy
+                  ? "Saving photo…"
+                  : resolvedDog.photoPath
+                    ? `Change ${resolvedDog.name || "dog"}'s photo`
+                    : `Add a photo of ${resolvedDog.name || "the dog"}`
+              }
+              onClick={() => photoInput.current?.click()}
+              disabled={photoBusy}
+            >
+              <Camera size={15} strokeWidth={2.2} aria-hidden="true" />
+            </HeaderIconButton>
+          </>
+        )}
         {!isEditing && onOpenGallery && (
           <HeaderIconButton label="View groom photos" onClick={onOpenGallery}>
             <Images size={15} strokeWidth={2.2} aria-hidden="true" />
