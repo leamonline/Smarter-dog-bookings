@@ -1,4 +1,4 @@
-Status: Active
+Status: Completed
 Issue: #1243
 Base: main@16597bcb
 Last verified: 2026-11-21
@@ -112,4 +112,13 @@ No product-policy decision is needed. GitHub access was restored on 21 November.
   fixture: selecting 9:00am enabled Continue within the 360 × 640 viewport and
   clicking it invoked the next action. Temporary fixtures were removed.
 - No live customer records, production writes or deployments. GitHub issue/PR
-  linkage and review remain outstanding because issue lookup returned HTTP 403.
+  linkage was initially blocked by HTTP 403; network access was restored before
+  creating issue #1243 and PR #1244.
+
+## Review and release handoff
+
+Implementation and local acceptance checks are complete.
+[PR #1244](https://github.com/leamonline/Smarter-dog-bookings/pull/1244) links
+[issue #1243](https://github.com/leamonline/Smarter-dog-bookings/issues/1243).
+Diff review found no blocking issues. GitHub checks and the normal merge gate
+own release readiness; merge is authorised by the user, with no bypass.
