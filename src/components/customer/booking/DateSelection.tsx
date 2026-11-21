@@ -58,9 +58,10 @@ function toDateStr(d: Date): string {
 
 /**
  * Continue stays available for a date chosen on another page (or restored from
- * a draft) — SlotSelection re-checks capacity. Today is outside the grid and
- * only remains bookable while a live last-minute offer exists. On-page days
- * that are closed or full keep Continue disabled.
+ * a draft) — SlotSelection re-checks capacity. Past dates stay blocked even
+ * when they are off-page. Today is outside the grid and only remains bookable
+ * while a live last-minute offer exists. On-page days that are closed or full
+ * keep Continue disabled.
  */
 export function isContinueDisabled({
   selectedDate,
@@ -81,6 +82,9 @@ export function isContinueDisabled({
 }): boolean {
   if (!selectedDate || displayLoading) return true;
   if (isHolidayDate(holidays, selectedDate)) return true;
+  // ISO YYYY-MM-DD compares lexicographically; drafts can outlive the day they
+  // picked, and those past dates are absent from dayStates just like later pages.
+  if (selectedDate < todayStr) return true;
 
   if (selectedDate === todayStr || selectedDate === immediateDate) {
     return !(todayAvailable && selectedDate === immediateDate);
