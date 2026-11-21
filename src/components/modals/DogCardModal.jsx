@@ -22,8 +22,11 @@ import {
   useDogEditForm,
   calcAge,
 } from "./dog-card/index.js";
+import { titleCase } from "./dog-card/helpers.js";
 import { TrustedHumansPanel } from "./shared/TrustedHumansPanel.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useStaffDogPhotoUpload } from "../../supabase/hooks/useStaffDogPhotoUpload";
+import { friendlyDogPhotoError } from "../../lib/dogPhoto";
 import { ConfirmDialog } from "../shared/ConfirmDialog.jsx";
 import { ModalShell } from "../ui";
 
@@ -47,6 +50,8 @@ export function DogCardModal({
   searchHumansByTerm,
 }) {
   const toast = useToast();
+  const { uploadDogPhoto, discardDogPhoto, currentDogPhotoPath } = useStaffDogPhotoUpload();
+  const [photoBusy, setPhotoBusy] = useState(false);
   const { resolvedDog, isLoadingDog, notFound } = useResolvedDog(dogId, dogs, fetchDogById);
 
   // _humanId is the source of truth for "is this dog linked to an owner".
@@ -146,6 +151,43 @@ export function DogCardModal({
 
   const displayAlerts = isEditing ? editAlerts : resolvedDog.alerts || [];
 
+  // Staff add or replace the dog's photo on the owner's behalf. Upload first,
+  // then point the dog at it; if that save fails the new upload is deleted, and
+  // only after it succeeds is the photo it replaced deleted.
+  const handlePhotoFile = async (file) => {
+    if (photoBusy || !resolvedDog?.id) return;
+    const previousPath = resolvedDog.photoPath || null;
+    const name = titleCase(resolvedDog.name) || "The dog";
+    setPhotoBusy(true);
+    try {
+      const { photoPath, error } = await uploadDogPhoto(resolvedDog.id, file);
+      if (error || !photoPath) {
+        toast.show(friendlyDogPhotoError(error), "error");
+        return;
+      }
+      const saved = await onUpdateDog(resolvedDog.id, { photoPath });
+      if (!saved) {
+        // A failed update can still have committed (the reply may have been
+        // lost), so read the dog back before deleting anything. Delete the new
+        // upload only when the row is known not to point at it; keep it when
+        // that cannot be confirmed (a spare file is harmless, a deleted saved
+        // photo is not). The previous file is left alone either way.
+        const current = await currentDogPhotoPath(resolvedDog.id);
+        if (!current.error && current.photoPath === photoPath) {
+          toast.show(`${name}'s photo saved`, "success");
+          return;
+        }
+        if (!current.error) await discardDogPhoto(photoPath, "unsaved staff upload");
+        toast.show("Couldn't save the photo. Please try again.", "error");
+        return;
+      }
+      if (previousPath && previousPath !== photoPath) await discardDogPhoto(previousPath, "replaced by staff");
+      toast.show(`${name}'s photo saved`, "success");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
   if (isLoadingDog) return <DogCardLoading onClose={onClose} />;
   if (notFound) return <DogCardNotFound onClose={onClose} />;
 
@@ -185,6 +227,8 @@ export function DogCardModal({
           onClose={onClose}
           onEnterEdit={() => setIsEditing(true)}
           onOpenGallery={() => setShowGallery(true)}
+          onPhotoFile={onUpdateDog ? handlePhotoFile : undefined}
+          photoBusy={photoBusy}
           incomplete={
             !resolvedDog.size ||
             !resolvedDog.breed ||

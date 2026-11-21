@@ -735,6 +735,31 @@ describe("useDogs", () => {
     expect(result.current.dogs["dog-1"].customPrice).toBe(30);
   });
 
+  it("updateDog writes the new photo_path to the dog row and into the cache", async () => {
+    const stub = makeSupabaseStub({
+      rpcImpl: () => ({ data: { rows: [ROW({ photo_path: "dog-1/old.jpg" })], total: 1, letters: ["B"] }, error: null }),
+      updateResult: {
+        data: { id: "dog-1", name: "Bella", human_id: "human-1", alerts: [], photo_path: "dog-1/new.jpg" },
+        error: null,
+      },
+    });
+    setSupabase(stub);
+    const { result } = renderHook(() => useDogs(HUMANS));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.dogs["dog-1"].photoPath).toBe("dog-1/old.jpg");
+
+    let saved;
+    await act(async () => {
+      saved = await result.current.updateDog("dog-1", { photoPath: "dog-1/new.jpg" });
+    });
+
+    // The row that hit the table, not just what the caller passed.
+    expect(stub._updateCalls[0]).toEqual({ photo_path: "dog-1/new.jpg" });
+    expect(saved.photoPath).toBe("dog-1/new.jpg");
+    expect(result.current.dogsById["dog-1"].photo_path).toBe("dog-1/new.jpg");
+    expect(result.current.dogs["dog-1"].photoPath).toBe("dog-1/new.jpg");
+  });
+
   it("updateDog resolves the dog by name when no id matches", async () => {
     const stub = makeSupabaseStub({
       rpcImpl: () => ({ data: { rows: [ROW()], total: 1, letters: ["B"] }, error: null }),

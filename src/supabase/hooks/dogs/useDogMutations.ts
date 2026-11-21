@@ -87,6 +87,8 @@ export function useDogMutations({
       // unarchive ({ archivedAt: null }); the realtime UPDATE then refetches the
       // directory, which excludes archived dogs.
       if (updates.archivedAt !== undefined) dbUpdates.archived_at = updates.archivedAt;
+      // The generated Row type predates dogs.photo_path (see dogPhotoPathOf).
+      if (updates.photoPath !== undefined) (dbUpdates as Record<string, unknown>).photo_path = updates.photoPath;
 
       if (updates.humanId !== undefined) {
         const owner = findHumanByIdOrName(humansById, updates.humanId);
