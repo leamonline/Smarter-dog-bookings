@@ -21,7 +21,7 @@ vi.mock("../../../lib/logger", () => ({
   logger: { error: availability.logError, warn: vi.fn(), info: vi.fn() },
 }));
 
-import { DateSelection } from "./DateSelection";
+import { DateSelection, isContinueDisabled } from "./DateSelection";
 
 function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -73,6 +73,97 @@ async function goToLastPage(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole("button", { name: "Next dates" }));
   }
 }
+
+describe("isContinueDisabled", () => {
+  const openStates = new Map<string, "closed" | "full" | "open">([
+    ["2099-01-05", "open"],
+    ["2099-01-06", "full"],
+    ["2099-01-07", "closed"],
+  ]);
+
+  it("allows an off-page selection while rejecting closed or full on-page days", () => {
+    expect(isContinueDisabled({
+      selectedDate: "2099-02-01",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: false,
+      immediateDate: null,
+      todayStr: "2099-01-01",
+    })).toBe(false);
+    expect(isContinueDisabled({
+      selectedDate: "2099-01-06",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: false,
+      immediateDate: null,
+      todayStr: "2099-01-01",
+    })).toBe(true);
+    expect(isContinueDisabled({
+      selectedDate: "2099-01-05",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: false,
+      immediateDate: null,
+      todayStr: "2099-01-01",
+    })).toBe(false);
+  });
+
+  it("only keeps today bookable while a live last-minute offer exists", () => {
+    expect(isContinueDisabled({
+      selectedDate: "2099-01-01",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: true,
+      immediateDate: "2099-01-01",
+      todayStr: "2099-01-01",
+    })).toBe(false);
+    expect(isContinueDisabled({
+      selectedDate: "2099-01-01",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: false,
+      immediateDate: "2099-01-01",
+      todayStr: "2099-01-01",
+    })).toBe(true);
+    // Device calendar can be ahead of Europe/London. The live offer's date is
+    // still bookable; a different past date is not.
+    expect(isContinueDisabled({
+      selectedDate: "2099-01-01",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: true,
+      immediateDate: "2099-01-01",
+      todayStr: "2099-01-02",
+    })).toBe(false);
+    expect(isContinueDisabled({
+      selectedDate: "2098-12-31",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: true,
+      immediateDate: "2099-01-01",
+      todayStr: "2099-01-02",
+    })).toBe(true);
+  });
+
+  it("rejects a past draft date even when it is absent from the current page", () => {
+    expect(isContinueDisabled({
+      selectedDate: "2098-12-31",
+      displayLoading: false,
+      dayStates: openStates,
+      holidays: [],
+      todayAvailable: false,
+      immediateDate: null,
+      todayStr: "2099-01-01",
+    })).toBe(true);
+  });
+});
 
 describe("DateSelection horizon paging", () => {
   afterEach(() => {
@@ -272,6 +363,77 @@ describe("DateSelection horizon paging", () => {
     await user.click(screen.getByRole("button", { name: "Previous dates" }));
 
     expect(await screen.findByRole("button", { name: ariaDate(selected) })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps Continue enabled after paging away from the selected date", async () => {
+    arrangeAvailability();
+    const user = userEvent.setup();
+    const selected = nextMonday();
+    render(
+      <DateSelection
+        bookingHorizonDays={180}
+        selectedDate={toDateStr(selected)}
+        onSelect={() => {}}
+        onNext={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.queryByText("Loading availability…")).toBeNull());
+    expect(screen.getByRole("button", { name: /Continue/i })).not.toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Next dates" }));
+    await waitFor(() => expect(screen.queryByText("Loading availability…")).toBeNull());
+
+    expect(screen.queryByRole("button", { name: ariaDate(selected) })).toBeNull();
+    expect(screen.getByRole("button", { name: /Continue/i })).not.toBeDisabled();
+  });
+
+  it("enables Continue when a draft restores a date that sits on a later page", async () => {
+    arrangeAvailability();
+    const laterMonday = firstMondayBetween(29, 56);
+    render(
+      <DateSelection
+        bookingHorizonDays={180}
+        selectedDate={toDateStr(laterMonday)}
+        onSelect={() => {}}
+        onNext={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.queryByText("Loading availability…")).toBeNull());
+
+    expect(screen.queryByRole("button", { name: ariaDate(laterMonday) })).toBeNull();
+    expect(screen.getByRole("button", { name: /Continue/i })).not.toBeDisabled();
+  });
+
+  it("disables Continue when the on-page selected date is fully booked", async () => {
+    const full = nextMonday();
+    availability.getOpenDays.mockResolvedValue({
+      data: [{ setting_date: toDateStr(full), is_open: true }],
+      error: null,
+    });
+    availability.listRangeForCapacity.mockResolvedValue({
+      byDate: {
+        [toDateStr(full)]: Array.from({ length: 14 }, () => ({ slot: "08:30", size: "small" })),
+      },
+      error: null,
+    });
+    availability.listBlockedSeats.mockResolvedValue({ byDate: {}, error: null });
+    availability.listImmediateSlots.mockResolvedValue({ date: null, slots: [] });
+
+    render(
+      <DateSelection
+        bookingHorizonDays={180}
+        selectedDogs={[{ dogId: "dog-1", name: "Alfie", size: "small" }]}
+        selectedDate={toDateStr(full)}
+        onSelect={() => {}}
+        onNext={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(await screen.findByRole("button", { name: `${ariaDate(full)}, fully booked` })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Continue/i })).toBeDisabled();
   });
 
   it("only offers Today — last minute on the first page", async () => {

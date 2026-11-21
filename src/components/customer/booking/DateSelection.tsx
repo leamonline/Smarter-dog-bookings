@@ -56,6 +56,46 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Continue stays available for a date chosen on another page (or restored from
+ * a draft) — SlotSelection re-checks capacity. Past dates stay blocked even
+ * when they are off-page. Today is outside the grid and only remains bookable
+ * while a live last-minute offer exists. On-page days that are closed or full
+ * keep Continue disabled.
+ */
+export function isContinueDisabled({
+  selectedDate,
+  displayLoading,
+  dayStates,
+  holidays,
+  todayAvailable,
+  immediateDate,
+  todayStr,
+}: {
+  selectedDate: string | null;
+  displayLoading: boolean;
+  dayStates: Map<string, DayState>;
+  holidays: Parameters<typeof isHolidayDate>[0];
+  todayAvailable: boolean;
+  immediateDate: string | null;
+  todayStr: string;
+}): boolean {
+  if (!selectedDate || displayLoading) return true;
+  if (isHolidayDate(holidays, selectedDate)) return true;
+  // immediateDate is London today from get_immediate_slots and can precede the
+  // device calendar. Decide that offer before the past-date guard, or Continue
+  // stays disabled for a live "Today — last minute" selection.
+  if (selectedDate === todayStr || selectedDate === immediateDate) {
+    return !(todayAvailable && selectedDate === immediateDate);
+  }
+  // ISO YYYY-MM-DD compares lexicographically; drafts can outlive the day they
+  // picked, and those past dates are absent from dayStates just like later pages.
+  if (selectedDate < todayStr) return true;
+
+  if (!dayStates.has(selectedDate)) return false;
+  return dayStates.get(selectedDate) !== "open";
+}
+
 function incompletePage(rangeKey: string): DatePageAvailability {
   return {
     rangeKey,
@@ -429,7 +469,20 @@ export function DateSelection({
 
       <div className="wizard-actions">
         <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>Back</button>
-        <button type="button" className="wizard-btn wizard-btn--primary" onClick={onNext} disabled={!selectedDate || displayLoading || (dayStates.get(selectedDate) !== "open" && !(todayAvailable && selectedDate === immediate.date)) || isHolidayDate(holidays, selectedDate)}>
+        <button
+          type="button"
+          className="wizard-btn wizard-btn--primary"
+          onClick={onNext}
+          disabled={isContinueDisabled({
+            selectedDate,
+            displayLoading,
+            dayStates,
+            holidays,
+            todayAvailable,
+            immediateDate: immediate.date,
+            todayStr: toDateStr(today),
+          })}
+        >
           Continue <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>
