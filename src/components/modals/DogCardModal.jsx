@@ -50,7 +50,7 @@ export function DogCardModal({
   searchHumansByTerm,
 }) {
   const toast = useToast();
-  const { uploadDogPhoto, discardDogPhoto } = useStaffDogPhotoUpload();
+  const { uploadDogPhoto, discardDogPhoto, currentDogPhotoPath } = useStaffDogPhotoUpload();
   const [photoBusy, setPhotoBusy] = useState(false);
   const { resolvedDog, isLoadingDog, notFound } = useResolvedDog(dogId, dogs, fetchDogById);
 
@@ -167,7 +167,17 @@ export function DogCardModal({
       }
       const saved = await onUpdateDog(resolvedDog.id, { photoPath });
       if (!saved) {
-        await discardDogPhoto(photoPath, "unsaved staff upload");
+        // A failed update can still have committed (the reply may have been
+        // lost), so read the dog back before deleting anything. Delete the new
+        // upload only when the row is known not to point at it; keep it when
+        // that cannot be confirmed (a spare file is harmless, a deleted saved
+        // photo is not). The previous file is left alone either way.
+        const current = await currentDogPhotoPath(resolvedDog.id);
+        if (!current.error && current.photoPath === photoPath) {
+          toast.show(`${name}'s photo saved`, "success");
+          return;
+        }
+        if (!current.error) await discardDogPhoto(photoPath, "unsaved staff upload");
         toast.show("Couldn't save the photo. Please try again.", "error");
         return;
       }

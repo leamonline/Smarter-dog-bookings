@@ -12,7 +12,7 @@ vi.mock("../../hooks/useGroomPhotos", () => ({
   }),
 }));
 
-const upload = vi.hoisted(() => ({ uploadDogPhoto: vi.fn(), discardDogPhoto: vi.fn() }));
+const upload = vi.hoisted(() => ({ uploadDogPhoto: vi.fn(), discardDogPhoto: vi.fn(), currentDogPhotoPath: vi.fn() }));
 vi.mock("../../supabase/hooks/useStaffDogPhotoUpload", () => ({
   useStaffDogPhotoUpload: () => upload,
 }));
@@ -56,6 +56,7 @@ describe("staff adding a dog photo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     upload.uploadDogPhoto.mockResolvedValue({ photoPath: "dog-1/new.jpg", error: null });
+    upload.currentDogPhotoPath.mockResolvedValue({ photoPath: "dog-1/old.jpg", error: null });
   });
 
   it("offers Add a photo for a dog without one, and Change for a dog with one", () => {
@@ -77,7 +78,7 @@ describe("staff adding a dog photo", () => {
     expect(await screen.findByText("Bella's photo saved")).toBeInTheDocument();
   });
 
-  it("deletes the new upload, keeps the old photo and says so when the save fails", async () => {
+  it("deletes the new upload, keeps the old photo and says so when the save is confirmed not to have landed", async () => {
     const { onUpdateDog } = renderModal({
       dogOverrides: { photoPath: "dog-1/old.jpg" },
       onUpdateDog: vi.fn(() => Promise.resolve(null)),
@@ -87,6 +88,29 @@ describe("staff adding a dog photo", () => {
     await waitFor(() => expect(upload.discardDogPhoto).toHaveBeenCalledWith("dog-1/new.jpg", "unsaved staff upload"));
     expect(upload.discardDogPhoto).not.toHaveBeenCalledWith("dog-1/old.jpg", expect.anything());
     expect(await screen.findByText("Couldn't save the photo. Please try again.")).toBeInTheDocument();
+  });
+
+  it("keeps the upload, and the old photo, when a lost reply means the save may have committed", async () => {
+    upload.currentDogPhotoPath.mockResolvedValue({ photoPath: null, error: new Error("offline") });
+    const { onUpdateDog } = renderModal({
+      dogOverrides: { photoPath: "dog-1/old.jpg" },
+      onUpdateDog: vi.fn(() => Promise.resolve(null)),
+    });
+    pick();
+    expect(await screen.findByText("Couldn't save the photo. Please try again.")).toBeInTheDocument();
+    expect(onUpdateDog).toHaveBeenCalled();
+    expect(upload.discardDogPhoto).not.toHaveBeenCalled();
+  });
+
+  it("treats a save the database did commit as saved, and deletes nothing", async () => {
+    upload.currentDogPhotoPath.mockResolvedValue({ photoPath: "dog-1/new.jpg", error: null });
+    renderModal({
+      dogOverrides: { photoPath: "dog-1/old.jpg" },
+      onUpdateDog: vi.fn(() => Promise.resolve(null)),
+    });
+    pick();
+    expect(await screen.findByText("Bella's photo saved")).toBeInTheDocument();
+    expect(upload.discardDogPhoto).not.toHaveBeenCalled();
   });
 
   it("changes nothing when the photo can't be prepared or uploaded", async () => {
