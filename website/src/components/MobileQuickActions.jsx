@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { colors } from '../constants/colors';
 import { trackEvent } from '../utils/analytics';
 import { useSalonFacts } from '../hooks/useSalonFacts';
@@ -6,12 +6,24 @@ import { whatsAppUrl } from '../constants/salonFacts';
 
 const MobileQuickActions = ({ onBookClick }) => {
     const facts = useSalonFacts();
+    const barRef = useRef(null);
+    useEffect(() => {
+        const update = () => document.documentElement.style.setProperty('--booking-bar-height', `${barRef.current?.getBoundingClientRect().height ?? 0}px`);
+        update();
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+        if (barRef.current) observer?.observe(barRef.current);
+        return () => {
+            observer?.disconnect();
+            document.documentElement.style.removeProperty('--booking-bar-height');
+        };
+    }, []);
     const handleWhatsAppClick = () => {
         trackEvent('Engagement', 'Click WhatsApp', 'Mobile Quick Actions');
     };
 
     return (
         <nav
+            ref={barRef}
             aria-label="Quick actions"
             className="fixed bottom-0 left-0 right-0 z-40 md:hidden pointer-events-none"
         >

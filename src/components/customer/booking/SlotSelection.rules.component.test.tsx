@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 // Empty occupancy + no blocked seats + no immediate slots: the whole grid is
@@ -78,5 +78,22 @@ describe("SlotSelection — per-human booking rules", () => {
     expect(await screen.findByText("8:30am")).toBeInTheDocument();
     expect(screen.getByText("10:00am")).toBeInTheDocument();
     expect(screen.queryByText(/your usual time/i)).toBeNull();
+  });
+});
+
+
+describe("dashboard time suggestions", () => {
+  it.each([false, true])("rechecks the suggestion against owner rules (blocked=%s)", async (blocked) => {
+    rules.value = { preferredSlots: [], blockedSlots: blocked ? ["09:00"] : [], depositRequired: false };
+    const select = vi.fn();
+    render(<SlotSelection selectedDogs={oneSmallDog} selectedDate={futureDateStr()}
+      slotAllocation={null} suggestedTime="09:00" onSelect={select} onNext={noop} onBack={noop} humanId="h1" />);
+    await screen.findByText("8:30am");
+    if (blocked) {
+      expect(select).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
+    } else {
+      await waitFor(() => expect(select).toHaveBeenCalledWith(expect.objectContaining({ dropOffTime: "09:00" })));
+    }
   });
 });

@@ -60,7 +60,7 @@ describe('need pages', () => {
 
     renderPage('/dog-de-shedding-ashton-under-lyne');
     const bookingLinks = screen.getAllByRole('link', { name: 'book online' });
-    expect(bookingLinks.some((link) => link.getAttribute('href') === 'https://smarterdog.co.uk/book/login')).toBe(true);
+    expect(bookingLinks.some((link) => link.getAttribute('href') === 'https://smarterdog.co.uk/book/new')).toBe(true);
   });
 
   it('links the matted-coat policy and names De-shed', () => {

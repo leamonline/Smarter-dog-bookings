@@ -362,6 +362,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
             onBookAgain={repeatEntries.length > 0 ? handleBookAgain : undefined}
             onBookingChanged={refreshBookings}
             nextSlot={nextSlot}
+            onChooseSlot={(slot) => navigate(`/new?${new URLSearchParams({ date: slot.date, time: slot.dropOffTime })}`)}
             nextSlotDogName={nextSlotDog?.name}
           />
 

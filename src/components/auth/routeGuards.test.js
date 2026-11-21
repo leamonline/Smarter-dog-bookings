@@ -95,3 +95,12 @@ describe("auth route guards", () => {
     expect(getSafeRedirectPath({ pathname: "https://example.com" }, "/")).toBe("/");
   });
 });
+
+
+it("resumes the wizard and suggested slot after customer sign-in", () => {
+  const location = { pathname: "/new", search: "?date=2026-11-30&time=09%3A00", hash: "" };
+  const redirected = getCustomerAuthRouteState({ loading: false, user: null, location });
+  expect(getCustomerAuthRouteState({ loading: false, user: { id: "customer" },
+    location: { pathname: redirected.to }, from: redirected.state.from,
+  })).toEqual({ status: "redirect", to: "/new?date=2026-11-30&time=09%3A00" });
+});
