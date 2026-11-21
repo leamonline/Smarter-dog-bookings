@@ -163,7 +163,7 @@ describe("BookingWizard — receipt guidance for changing the booking", () => {
     const footnote = await bookAndReadFootnote();
 
     expect(footnote).toHaveTextContent(/move or cancel it from your dashboard/i);
-    expect(footnote).not.toHaveTextContent(/whatsapp/i);
+    expect(footnote).not.toHaveTextContent(/message us on whatsapp/i);
   });
 
   it("points to WhatsApp when the server says the deadline has already passed", async () => {
@@ -231,9 +231,12 @@ describe("BookingWizard — receipt guidance for changing the booking", () => {
     expect(footnote).toHaveTextContent(/whatsapp/i);
   });
 
-  it("still promises the reminder text the day before", async () => {
+  it("uses the same reminder channels as the review", async () => {
     const footnote = await bookAndReadFootnote();
 
-    expect(footnote).toHaveTextContent(/text a reminder the day before/i);
+    expect(footnote).toHaveTextContent(/send a reminder the day before/i);
+    expect(footnote).toHaveTextContent(/WhatsApp where we can, and text you if it doesn’t reach you/);
+    expect(screen.getByRole("heading", { name: "All booked in!" })).toHaveFocus();
+    expect(screen.getByText("booking-1", { selector: "code" })).toBeVisible();
   });
 });

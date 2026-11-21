@@ -412,3 +412,19 @@ keeps them on the surviving record.
 
 Both features depend on migrations `20261115120000` and `20261115120100` being
 applied to production before the portal change merges.
+
+## Mobile booking entry and receipt
+
+Marketing Book now opens `/book/new`; the customer authentication guard retains
+that destination through sign-in and the existing account gates. On mobile the
+cookie prompt reserves the measured quick-action bar height, keeping booking
+clickable before consent. The dashboard's Choose this time carries an advisory
+date and drop-off time into the wizard. Existing drafts take precedence; the
+chosen dogs and current owner rules determine whether the time is still offered.
+
+The time step keeps Back and Continue at the mobile viewport bottom. Continue
+requires a currently available selection. The receipt uses the full first booking
+ID returned by the server as its reference, including a grouped appointment,
+and describes WhatsApp with text fallback consistently with review. Success,
+waitlist and request receipts receive heading focus. Decorative paws are hidden
+from assistive technology; the visible step count remains accessible.

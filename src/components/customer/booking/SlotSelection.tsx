@@ -26,6 +26,7 @@ interface SlotSelectionProps {
    *  filtered out (defence in depth — the DB trigger is the authority) and
    *  preferred slots are surfaced first as "Your usual time". */
   humanId?: string;
+  suggestedTime?: string | null;
 }
 
 function formatSlot(slot: string): string {
@@ -51,6 +52,7 @@ export function SlotSelection({
   onJoinWaitlist,
   onNoAvailability,
   humanId,
+  suggestedTime,
 }: SlotSelectionProps) {
   const [availableSlots, setAvailableSlots] = useState<SlotAllocation[]>([]);
   const [preferredSlots, setPreferredSlots] = useState<SlotAllocation[]>([]);
@@ -134,6 +136,12 @@ export function SlotSelection({
 
     return () => { cancelled = true; };
   }, [selectedDate, selectedDogs, onNoAvailability, humanId, availability]);
+
+  useEffect(() => {
+    if (loading || loadError || slotAllocation || !suggestedTime) return;
+    const match = [...preferredSlots, ...availableSlots].find(slot => slot.dropOffTime === suggestedTime);
+    if (match) onSelect(match);
+  }, [loading, loadError, slotAllocation, suggestedTime, preferredSlots, availableSlots, onSelect]);
 
   const selectedDropOff = slotAllocation?.dropOffTime ?? null;
   const isToday = selectedDate === toDateStr(new Date());
@@ -273,7 +281,8 @@ export function SlotSelection({
         )}
       </div>
 
-      <div className="wizard-actions">
+      <div className="wizard-slot-action-space">
+      <div className="wizard-actions wizard-actions--slots">
         <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>
           Back
         </button>
@@ -281,11 +290,12 @@ export function SlotSelection({
           type="button"
           className="wizard-btn wizard-btn--primary"
           onClick={onNext}
-          disabled={!selectedDropOff}
+          disabled={loading || !!loadError || ![...preferredSlots, ...availableSlots].some(slot => slot.dropOffTime === selectedDropOff)}
         >
           Continue
           <ArrowRight size={16} aria-hidden="true" />
         </button>
+      </div>
       </div>
     </>
   );

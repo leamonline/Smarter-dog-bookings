@@ -429,7 +429,7 @@ export function DateSelection({
 
       <div className="wizard-actions">
         <button type="button" className="wizard-btn wizard-btn--back" onClick={onBack}>Back</button>
-        <button type="button" className="wizard-btn wizard-btn--primary" onClick={onNext} disabled={!selectedDate || displayLoading || (dayStates.has(selectedDate) && dayStates.get(selectedDate) !== "open") || isHolidayDate(holidays, selectedDate)}>
+        <button type="button" className="wizard-btn wizard-btn--primary" onClick={onNext} disabled={!selectedDate || displayLoading || (dayStates.get(selectedDate) !== "open" && !(todayAvailable && selectedDate === immediate.date)) || isHolidayDate(holidays, selectedDate)}>
           Continue <ArrowRight size={16} aria-hidden="true" />
         </button>
       </div>

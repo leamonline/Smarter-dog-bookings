@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { MESSAGE_CHANNEL_NOTICE } from "../../../constants/salonPolicies";
 import { useLocation } from "react-router-dom";
 import { useCustomerBookingWizard } from "../../../supabase/hooks/useCustomerBookingWizard";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
@@ -255,6 +256,12 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     if (new URLSearchParams(location.search).get("again") !== "1") return [];
     return readRepeatEntries((location.state as { repeatFrom?: unknown } | null)?.repeatFrom);
   });
+  const suggestion = !rescheduleFrom && !draft
+    ? new URLSearchParams(location.search) : null;
+  const suggestedDate = suggestion?.get("date");
+  const suggestedTime = suggestion?.get("time");
+  const validSuggestedDate = suggestedDate && /^\d{4}-\d{2}-\d{2}$/.test(suggestedDate)
+    && Number.isFinite(Date.parse(suggestedDate)) ? suggestedDate : null;
   const draftHasDogs = (draft?.selectedDogs?.length ?? 0) > 0;
   const [repeatMode, setRepeatMode] = useState<"off" | "ask" | "apply" | "done">(() =>
     repeatEntries.length === 0 ? "off" : draftHasDogs ? "ask" : "apply",
@@ -266,7 +273,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   const [requestSent, setRequestSent] = useState(false);
   const [selectedDogs, setSelectedDogs] = useState<WizardDog[]>(() => draft?.selectedDogs ?? []);
   const [services, setServices] = useState<Record<string, ServiceId>>(() => draft?.services ?? {});
-  const [selectedDate, setSelectedDate] = useState<string | null>(() => draft?.selectedDate ?? null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => draft?.selectedDate ?? validSuggestedDate);
   const [slotAllocation, setSlotAllocation] = useState<SlotAllocation | null>(
     () => draft?.slotAllocation ?? null,
   );
@@ -388,7 +395,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   // Focus the step heading when the step changes (A2: focus management)
   useEffect(() => {
     stepHeadingRef.current?.focus();
-  }, [step]);
+  }, [step, booked, waitlistJoined, requestSent]);
 
   // Warn before navigating away mid-wizard (U5). With the draft persistence
   // below this is now a backstop rather than the only protection.
@@ -471,6 +478,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
   }, [repeatMode, dogsLoading, dogsError, dogs, repeatEntries]);
 
   const toggleDog = (dog: WizardDog) => {
+    setSlotAllocation(null);
     setSelectedDogs((prev) => {
       const exists = prev.find((d) => d.dogId === dog.dogId);
       if (exists) return prev.filter((d) => d.dogId !== dog.dogId);
@@ -972,9 +980,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     const dogNameStr = dogNames.length === 1
       ? dogNames[0]
       : dogNames.slice(0, -1).join(", ") + " & " + dogNames[dogNames.length - 1];
-    const bookingRef = selectedDate
-      ? `${selectedDate.replace(/-/g, "")}-${dropOff.replace(":", "")}`
-      : "";
+    // Keep the full server-issued identity; truncating UUIDs risks collisions.
+    const bookingRef = bookedIds[0] ?? "";
 
     if (requestSent) {
       return (
@@ -985,7 +992,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
                 <Clipboard size={48} />
               </div>
             </div>
-            <h1 className="booking-success-title">
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="booking-success-title">
               Request sent
               <ScribbleUnderline color="var(--color-brand-coral)" />
             </h1>
@@ -1016,7 +1023,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
                 <Clipboard size={48} />
               </div>
             </div>
-            <h1 className="booking-success-title">
+            <h1 ref={stepHeadingRef} tabIndex={-1} className="booking-success-title">
               You&apos;re on the waitlist!
               <ScribbleUnderline color="var(--color-brand-coral)" />
             </h1>
@@ -1043,7 +1050,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
               <PawPrint size={48} />
             </div>
           </div>
-          <h1 className="booking-success-title">
+          <h1 ref={stepHeadingRef} tabIndex={-1} className="booking-success-title">
             {depositInfo
               ? "Deposit needed"
               : depositStatusUnknown
@@ -1106,7 +1113,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             </button>
           </div>
           <p className="booking-success-footnote">
-            We&apos;ll text a reminder the day before. {receiptChangeGuidance(changeDeadline, portalPolicy)}
+            We&apos;ll send a reminder the day before. {MESSAGE_CHANNEL_NOTICE} {receiptChangeGuidance(changeDeadline, portalPolicy)}
           </p>
         </div>
       </SuccessShell>
@@ -1135,14 +1142,10 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
           </div>
         </div>
 
-        {/* Paw-print stepper (A5: progressbar semantics; A3: dots + filled state are non-colour indicators) */}
+        {/* Decorative paw markers; the heading above announces the step count */}
         <ol
           className="booking-wizard-steps"
-          role="progressbar"
-          aria-valuenow={step}
-          aria-valuemin={1}
-          aria-valuemax={5}
-          aria-label={`Booking progress: step ${step} of 5`}
+          aria-hidden="true"
         >
           {[1, 2, 3, 4, 5].map((s) => (
             <li key={s} className={s < step ? "is-done" : s === step ? "is-current" : "is-future"}>
@@ -1295,7 +1298,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             bookingHorizonDays={bookingHorizonDays}
             selectedDogs={selectedDogs}
             selectedDate={selectedDate}
-            onSelect={setSelectedDate}
+            onSelect={(date) => { setSelectedDate(date); setSlotAllocation(null); }}
             onNext={() => {
               fireFunnel("select_date");
               setStep(4);
@@ -1313,7 +1316,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             selectedDogs={selectedDogs}
             selectedDate={selectedDate}
             slotAllocation={slotAllocation}
-            onSelect={(allocation) => setSlotAllocation(allocation)}
+            suggestedTime={selectedDate === validSuggestedDate ? suggestedTime : null}
+            onSelect={setSlotAllocation}
             onNext={() => {
               fireFunnel("select_slot");
               setStep(5);

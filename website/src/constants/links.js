@@ -5,13 +5,9 @@
 // same-origin destination. It pointed at smarterdog.vercel.app until then,
 // which still worked but bounced customers onto a Vercel hostname.
 //
-// Deliberately "/book/login" and not "/book": this site has its own "/book"
-// route that redirects here (App.jsx), so aiming this at "/book" would be a
-// redirect loop anywhere that route is the one serving the path, such as a
-// host that carries only the marketing build with no edge rewrite for "/book".
-// "/book/login" does not match that route, and is the screen
-// "/customer/login" already redirected to.
-export const BOOKING_URL = 'https://smarterdog.co.uk/book/login';
+// Open the wizard directly. Its authentication guard keeps this destination
+// through sign-in and account setup. This also avoids the marketing /book redirect.
+export const BOOKING_URL = 'https://smarterdog.co.uk/book/new';
 
 // Where the small dog-silhouette circle next to the social icons in the
 // footer sends staff. Same-origin since the cutover, and "/stafflogin" is

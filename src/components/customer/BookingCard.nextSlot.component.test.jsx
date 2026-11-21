@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -19,7 +19,7 @@ vi.mock("./AddToCalendarButton.tsx", () => ({
 
 import { BookingCard } from "./BookingCard.jsx";
 
-function renderEmpty(nextSlot) {
+function renderEmpty(nextSlot, onChooseSlot = vi.fn()) {
   return render(
     <MemoryRouter>
       <BookingCard
@@ -27,6 +27,7 @@ function renderEmpty(nextSlot) {
         dogs={[{ id: "d1", name: "Tipi" }]}
         dataLoaded
         nextSlot={nextSlot}
+        onChooseSlot={onChooseSlot}
         nextSlotDogName="Tipi"
         onBook={vi.fn()}
         onBookingChanged={vi.fn()}
@@ -97,4 +98,12 @@ describe("BookingCard next free slot", () => {
     expect(within(card).getByRole("button", { name: "Reschedule" })).toBeInTheDocument();
     expect(within(card).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
+});
+
+it("passes the displayed date and time to the wizard entry action", () => {
+  const choose = vi.fn();
+  const slot = { date: "2026-11-30", dropOffTime: "09:00" };
+  renderEmpty({ status: "found", slot }, choose);
+  fireEvent.click(screen.getByRole("button", { name: "Choose this time" }));
+  expect(choose).toHaveBeenCalledWith(slot);
 });

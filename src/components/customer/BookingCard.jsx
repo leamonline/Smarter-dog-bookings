@@ -36,7 +36,7 @@ function showsNextSlot(nextSlot) {
 }
 
 /** The right-hand side of the empty booking card. */
-function NextSlotPanel({ nextSlot, dogName }) {
+function NextSlotPanel({ nextSlot, dogName, onChoose }) {
   return (
     <section className="portal-booking-card-side" aria-label="Next free slot" aria-busy={nextSlot.status === "loading" || undefined}>
       <span className="portal-card-iconbadge portal-card-iconbadge--sky">
@@ -51,8 +51,9 @@ function NextSlotPanel({ nextSlot, dogName }) {
           <>
             <p className="portal-next-slot-date">{longDate(nextSlot.slot.date)}</p>
             <p className="portal-next-slot-time">{formatSlot(nextSlot.slot.dropOffTime)} drop-off</p>
+            <button type="button" className="portal-btn portal-btn--cta" onClick={() => onChoose(nextSlot.slot)}>Choose this time</button>
             <p className="portal-next-slot-help">
-              Choose it, or any other date, when you book.
+              We’ll check this time again for the dogs you choose.
             </p>
           </>
         )}
@@ -99,7 +100,7 @@ export function BookingCard(props) {
   ));
 }
 
-function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext, nextSlot, nextSlotDogName }) {
+function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext, nextSlot, nextSlotDogName, onChooseSlot }) {
   const navigate = useNavigate();
   const { cancelBooking } = useCustomerBookingActions();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
@@ -159,7 +160,7 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
             )}
           </div>
         </div>
-        {hasPanel && <NextSlotPanel nextSlot={nextSlot} dogName={nextSlotDogName} />}
+        {hasPanel && <NextSlotPanel nextSlot={nextSlot} dogName={nextSlotDogName} onChoose={onChooseSlot ?? onBook} />}
       </div>
     );
   }

@@ -704,7 +704,7 @@
   padding: 6px 12px;
   margin-bottom: 24px;
 }
-.booking-success-ref code { font-family: inherit; }
+.booking-success-ref code { font-family: inherit; overflow-wrap: anywhere; }
 .booking-success-actions {
   display: flex;
   flex-direction: column;
@@ -736,4 +736,21 @@
 .wizard-btn:disabled {
   background: var(--color-slate-100);
   color: var(--color-slate-600);
+}
+
+/* Reserve space for the mobile time-step actions, including the safe area. */
+@media (max-width: 767px) {
+  .wizard-slot-action-space { min-height: calc(100px + env(safe-area-inset-bottom)); }
+  .wizard-actions--slots {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    margin: 0;
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+    background: var(--color-brand-paper);
+    box-shadow: 0 -2px 12px #00000014;
+    justify-content: space-between;
+  }
 }
