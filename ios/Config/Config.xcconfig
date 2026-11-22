@@ -9,8 +9,13 @@
 SUPABASE_URL = https:/$()/placeholder.invalid
 SUPABASE_PUBLISHABLE_KEY = placeholder-not-a-real-key
 
+// Public Cloudflare Turnstile site key, the same widget the website uses.
+// This is not a secret. Never put the Turnstile secret key in this file.
+TURNSTILE_SITE_KEY = 0x4AAAAAADMvAmN7LsBYiIqZ
+
 #include? "Config.local.xcconfig"
 
 // Assigned after the optional local file so a local override wins.
 INFOPLIST_KEY_SupabaseURL = $(SUPABASE_URL)
 INFOPLIST_KEY_SupabasePublishableKey = $(SUPABASE_PUBLISHABLE_KEY)
+INFOPLIST_KEY_TurnstileSiteKey = $(TURNSTILE_SITE_KEY)

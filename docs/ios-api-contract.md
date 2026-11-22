@@ -7,9 +7,9 @@ the app should use, plus the push groundwork added for it.
 **Last verified:** 22 November 2026 against the booking app and
 `supabase/functions/`.
 
-The iPhone project in [`ios/`](../ios/README.md) is still a sign-in skeleton.
-Continue and Staff sign in do not call Supabase yet. This contract is the list
-for the screens that come next. Do not invent a second booking API.
+The iPhone app in [`ios/`](../ios/README.md) signs customers and staff in.
+Booking, dogs, contacts and push registration are the screens that come next.
+This contract is that list. Do not invent a second booking API.
 
 Two roles, one app:
 
@@ -32,11 +32,10 @@ Being signed in is not enough to be staff: `is_staff()` is true only when
 
 1. `POST /functions/v1/customer-phone-on-file` with `{ phone }`. The reply is
    only `{ on_file, has_password }`. It is rate-limited. It does not send a text.
-2. Password, when `has_password` is true: `auth.signInWithPassword({ phone, password })`.
-   The website also sends a Turnstile captcha token. The iPhone app has no
-   captcha widget yet. If the Supabase project requires a captcha, a password
-   sign-in from the app will be refused until that is decided. That decision is
-   not part of this contract.
+2. Password, when `has_password` is true: `auth.signInWithPassword({ phone, password })`,
+   with the same Turnstile captcha token the website sends. The app shows the
+   check before the password is sent. A build without the public site key
+   refuses to sign in rather than skipping the check.
 3. First login or forgotten password: `auth.signInWithOtp({ phone })`, then
    `auth.verifyOtp({ phone, token, type: "sms" })`. Supabase sends the code
    (Twilio). The app does not call Twilio itself.
@@ -207,7 +206,7 @@ to `api.sandbox.push.apple.com`. TestFlight and App Store builds talk to
 
 ## Gaps (not this change)
 
-- The SwiftUI screens do not call any of the above yet.
+- Sign-in is in the app: `customer-phone-on-file`, password and SMS code, `link_customer_to_human`, and `staff_profiles`. Booking, dogs, contacts and `register-device-token` are not called yet.
 - No messenger tables and no unified inbox beyond the website's WhatsApp / SMS / email thread.
 - No Square deposit charging.
 - Staff booking edits are still direct table writes under RLS.
