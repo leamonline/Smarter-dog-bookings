@@ -263,10 +263,10 @@ select ok(
   (select deposit_received_at is not null from public.bookings where id = '26600000-0000-4000-8000-000000000109'),
   'the carried deposit stamps deposit_received_at');
 
--- A carry older than 15 minutes, and not from this transaction, stays put.
+-- A carry from another transaction stays put, even if it was marked just now.
 update public.deposit_payments
    set disposition = 'carry_pending',
-       disposition_at = now() - interval '1 hour',
+       disposition_at = now(),
        carry_txid = 0
  where id = '26600000-0000-4000-8000-000000000305';
 set local session_replication_role = replica;
@@ -276,7 +276,7 @@ insert into public.bookings (id, booking_date, slot, dog_id, size, service, stat
 set local session_replication_role = default;
 select ok(
   smarter_dog_private.attach_carried_square_deposit('26600000-0000-4000-8000-000000000110') is null,
-  'a carry from more than 15 minutes ago does not attach to a later booking');
+  'a later booking for the same dog does not receive a deposit held for a different reschedule');
 
 -- ── Staff ───────────────────────────────────────────────────
 select set_config(

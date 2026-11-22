@@ -364,12 +364,8 @@ begin
      and old.id <> p_new_booking_id
      and p.disposition = 'carry_pending'
      and p.status in ('pending', 'completed')
-     and (
-       p.carry_txid = txid_current()
-       or p.disposition_at > now() - interval '15 minutes'
-     )
-   order by (p.carry_txid is not distinct from txid_current()) desc,
-            p.disposition_at desc
+     and p.carry_txid = txid_current()
+   order by p.disposition_at desc
    limit 1
    for update of p;
 
@@ -399,7 +395,7 @@ end;
 $$;
 
 comment on function smarter_dog_private.attach_carried_square_deposit(uuid) is
-  'Moves a reschedule-held Square deposit onto the replacement booking for the same dog. Same transaction always matches; a follow-up insert within 15 minutes matches too (the WhatsApp reschedule is two calls).';
+  'Moves a reschedule-held Square deposit onto the replacement booking for the same dog, and only when that replacement is inserted in the same transaction as the cancellation. A later booking cannot pick the deposit up.';
 
 revoke all on function smarter_dog_private.attach_carried_square_deposit(uuid)
   from public, anon, authenticated, service_role;
