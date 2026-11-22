@@ -35,6 +35,11 @@ export function interpretApnsSend(args: {
   if (args.body.fallback === true) {
     return { sent: false, providerId: null, outcomeUnknown: false, fallback: true };
   }
+  // These refusals happen before any request to Apple. A reminder must not
+  // go silent just because the token list was too long or badly shaped.
+  if (args.body.error === "invalid_tokens" || args.body.error === "invalid_body") {
+    return { sent: false, providerId: null, outcomeUnknown: false, fallback: true };
+  }
   // A reply we do not understand might have been accepted. Do not double-send.
   return { sent: false, providerId: null, outcomeUnknown: true, fallback: false };
 }

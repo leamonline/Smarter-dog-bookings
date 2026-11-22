@@ -19,6 +19,17 @@ Deno.test("interpretApnsSend falls back only when the sender says the push never
   });
 });
 
+Deno.test("interpretApnsSend falls back when the token list was refused before Apple", () => {
+  assertEquals(
+    interpretApnsSend({ networkError: false, body: { error: "invalid_tokens" } }).fallback,
+    true,
+  );
+  assertEquals(
+    interpretApnsSend({ networkError: false, body: { error: "invalid_body" } }).outcomeUnknown,
+    false,
+  );
+});
+
 Deno.test("interpretApnsSend does not double-send when the outcome is unknown or the reply is unreadable", () => {
   assertEquals(interpretApnsSend({ networkError: false, body: { sent: 0, outcome_unknown: true, fallback: true } }).fallback, false);
   assertEquals(interpretApnsSend({ networkError: true, body: null }).outcomeUnknown, true);

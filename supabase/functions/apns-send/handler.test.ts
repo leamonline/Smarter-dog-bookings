@@ -170,6 +170,23 @@ Deno.test("a key that cannot sign falls back and never calls Apple", async () =>
   assertEquals(rows.map((row) => row.id), ["live", "dead"]);
 });
 
+Deno.test("more than 20 tokens is refused before Apple and is safe to fall back", async () => {
+  const { handle, rows, calls } = await world();
+  const tokens = Array.from({ length: 21 }, (_, index) => ({
+    id: `extra-${index}`,
+    apns_token: (index.toString(16).padStart(2, "0") + "ab".repeat(31)).slice(0, 64),
+    environment: "production",
+    bundle_id: BUNDLE,
+  }));
+  const res = await handle(post("internal-secret", { ...payload, tokens }));
+  const body = await res.json();
+  assertEquals(body.fallback, true);
+  assertEquals(body.outcome_unknown, false);
+  assertEquals(body.error, "invalid_tokens");
+  assertEquals(calls, []);
+  assertEquals(rows.map((row) => row.id), ["live", "dead"]);
+});
+
 Deno.test("write path: a dead token is removed and the accepted one stays", async () => {
   const { handle, rows, calls } = await world();
   const res = await handle(post("internal-secret", payload));

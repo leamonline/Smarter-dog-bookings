@@ -33,6 +33,21 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/** Apple was not contacted. The reminder may use WhatsApp, then SMS, then email. */
+function notSent(error: string): Response {
+  return json({
+    ok: false,
+    sent: 0,
+    invalid: 0,
+    failed: 0,
+    all_invalid: false,
+    outcome_unknown: false,
+    fallback: true,
+    apns_id: null,
+    error,
+  });
+}
+
 interface TokenInput {
   id: string;
   apnsToken: string;
@@ -117,10 +132,11 @@ export function createApnsSendHandler(deps: ApnsSendDeps) {
     try {
       parsedBody = await req.json();
     } catch {
-      return json({ error: "invalid_body" }, 400);
+      // Nothing was sent to Apple, so the reminder may use WhatsApp.
+      return notSent("invalid_body");
     }
     const input = parseApnsSendBody(parsedBody);
-    if (!input.ok) return json({ error: input.reason }, 400);
+    if (!input.ok) return notSent(input.reason);
 
     const bundleId = deps.expectedBundleId();
     const secrets = deps.secrets();

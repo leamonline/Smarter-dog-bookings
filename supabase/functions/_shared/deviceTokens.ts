@@ -28,14 +28,33 @@ function seenOf(row: DeviceTokenRow): ApnsSeen {
   };
 }
 
-/** Tokens that may be pushed right now: notifications on, seen within 14 days, sandbox or production. */
-export function sendableDeviceTokens(rows: readonly DeviceTokenRow[], now: Date): DeviceTokenRow[] {
-  return rows.filter((row) =>
-    (row.environment === "sandbox" || row.environment === "production") &&
-    typeof row.apns_token === "string" &&
-    row.apns_token.length > 0 &&
-    apnsTokenIsFresh(seenOf(row), now)
-  );
+/** apns-send refuses more than this many devices in one call. Newest phones are kept. */
+export const MAX_PUSH_TOKENS = 20;
+
+/**
+ * Tokens that may be pushed right now: notifications on, seen within 14 days,
+ * sandbox or production. At most MAX_PUSH_TOKENS, newest last_seen_at first,
+ * so a long registration history cannot make the send refuse the whole reminder.
+ */
+export function sendableDeviceTokens(
+  rows: readonly DeviceTokenRow[],
+  now: Date,
+  limit: number = MAX_PUSH_TOKENS,
+): DeviceTokenRow[] {
+  return rows
+    .filter((row) =>
+      (row.environment === "sandbox" || row.environment === "production") &&
+      typeof row.apns_token === "string" &&
+      row.apns_token.length > 0 &&
+      apnsTokenIsFresh(seenOf(row), now)
+    )
+    .sort((a, b) => {
+      const aSeen = Date.parse(a.last_seen_at ?? "") || 0;
+      const bSeen = Date.parse(b.last_seen_at ?? "") || 0;
+      if (bSeen !== aSeen) return bSeen - aSeen;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    })
+    .slice(0, limit);
 }
 
 export async function loadDeviceTokensForHuman(
