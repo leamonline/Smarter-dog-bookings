@@ -18,7 +18,7 @@ import { RiskPill } from "../RiskPill.jsx";
 import { WhyHeldExplainer } from "./WhyHeldExplainer.jsx";
 import { Button } from "../../../ui";
 
-export function DraftPanel({ draft, conversation = null, attachedActions = [], onApprove, onReject, inFlight }) {
+export function DraftPanel({ draft, conversation = null, attachedActions = [], onApprove, onReject, inFlight, sendOnWhatsApp = false }) {
   const [editing, setEditing] = useState(false);
   const [editedText, setEditedText] = useState(draft?.proposed_text ?? "");
   const [error, setError] = useState(null);
@@ -173,6 +173,11 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
 
       </div>
       <div className="flex shrink-0 flex-wrap gap-2 bg-white px-4 py-2" role="group" aria-label="AI draft actions">
+        {sendOnWhatsApp && (
+          <p className="w-full text-xs font-semibold text-ink-muted">
+            This suggestion is sent on WhatsApp. The box below replies in the app.
+          </p>
+        )}
         {mode === "editing" && hasAttached && (
           <>
             <button
@@ -193,7 +198,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
               onClick={() => handleApprove(true)}
               disabled={inFlight || !editedText.trim()}
             >
-              Send edit
+              Send edit{sendOnWhatsApp ? " on WhatsApp" : ""}
             </Button>
             <button
               onClick={() => { setEditing(false); setEditedText(draft.proposed_text); }}
@@ -242,7 +247,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
               onClick={() => handleApprove(false)}
               disabled={inFlight}
             >
-              Approve &amp; send
+              Approve &amp; send{sendOnWhatsApp ? " on WhatsApp" : ""}
             </Button>
             <button
               onClick={() => setEditing(true)}

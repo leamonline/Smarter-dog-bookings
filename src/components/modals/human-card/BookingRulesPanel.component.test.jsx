@@ -71,6 +71,32 @@ describe("BookingRulesPanel", () => {
     expect(onUpdateHuman).toHaveBeenCalledWith("h1", { blockedSlots: [] });
   });
 
+  it("shows why a no-show turned the deposit on", () => {
+    render(
+      <BookingRulesPanel
+        human={human({
+          depositRequired: true,
+          depositRequiredReason: "Deposit required after a no-show: Pepper on 22 Nov 2026",
+        })}
+        onUpdateHuman={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Deposit required after a no-show: Pepper on 22 Nov 2026")).toBeInTheDocument();
+  });
+
+  it("hides that note when staff have switched the deposit off", () => {
+    render(
+      <BookingRulesPanel
+        human={human({
+          depositRequired: false,
+          depositRequiredReason: "Deposit required after a no-show: Pepper on 22 Nov 2026",
+        })}
+        onUpdateHuman={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/Pepper on 22 Nov 2026/)).toBeNull();
+  });
+
   it("toggles the deposit tag", () => {
     const onUpdateHuman = vi.fn();
     render(<BookingRulesPanel human={human()} onUpdateHuman={onUpdateHuman} />);

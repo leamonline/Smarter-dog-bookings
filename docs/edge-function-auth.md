@@ -47,6 +47,7 @@ the build.
 | `webhook-bearer` | `Authorization: Bearer <WEBHOOK_SECRET>` from pg_net triggers and cron | 401, or 500 when the secret is unset |
 | `webhook-bearer-or-internal-secret` | The above, or `x-internal-secret: <SEND_INTERNAL_SECRET>` | 401 |
 | `webhook-bearer-or-staff-jwt` | The webhook bearer, or a staff JWT + `is_staff()` | 401 / 403 |
+| `authenticated-jwt` | Any signed-in customer or staff session, verified via `auth.getUser()` | 401 |
 | `staff-jwt` | Staff session JWT verified via `auth.getUser()`, then `is_staff()` | 401 / 403 |
 | `staff-jwt-or-internal-secret` | The above, or `x-internal-secret` for service callers | 401 / 403 |
 | `internal-secret` | `x-internal-secret` only; no browser path | 401 |
@@ -143,7 +144,7 @@ protection.
   is syntactic: it proves the guard shape exists and exits, not that every
   request path passes through it, and it follows names rather than scopes, so
   a shadowed variable could in principle mislead it. Executing the handlers
-  would mean restructuring all 27 functions — importing an entrypoint starts an
+  would mean restructuring all deployable functions — importing an entrypoint starts an
   HTTP server — which is exactly the trade this analysis exists to avoid.
 - Guard *polarity*. `if (ok) reject()` instead of `if (!ok) reject()` satisfies
   the shape check; only a runtime test or review catches an inverted condition.

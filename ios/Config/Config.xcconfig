@@ -1,16 +1,26 @@
 // Shared by Debug and Release.
-// These placeholders let a fresh checkout and Xcode Cloud compile with no secrets.
-// Copy Config.local.xcconfig.example to Config.local.xcconfig to override them locally.
-// Config.local.xcconfig is gitignored. Never commit a real key.
+// These are the public salon connection. The website already ships the same
+// publishable key in the browser. It is not a secret. Row Level Security
+// protects the data. Never put the service role key here.
 //
-// xcconfig treats // as a comment, so a normal https:// URL cannot be written here.
-// :/$()/ is an empty expansion. Xcode stores the value as https://placeholder.invalid.
+// Copy Config.local.xcconfig.example to Config.local.xcconfig to override
+// them on a Mac. That file is gitignored. Xcode Cloud can override them too,
+// by setting SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY on the workflow.
+// The include below is read after these defaults, so an override wins.
+//
+// xcconfig treats // as a comment, so the URL is written with :/$()/.
+// Xcode stores that as https://.
 
-SUPABASE_URL = https:/$()/placeholder.invalid
-SUPABASE_PUBLISHABLE_KEY = placeholder-not-a-real-key
+SUPABASE_URL = https:/$()/nlzhllhkigmsvrzduefz.supabase.co
+SUPABASE_PUBLISHABLE_KEY = sb_publishable_-Uyblq9H8Ji_qbeZHwOZTw_9YIW6Mfk
+
+// Public Cloudflare Turnstile site key, the same widget the website uses.
+// This is not a secret. Never put the Turnstile secret key in this file.
+TURNSTILE_SITE_KEY = 0x4AAAAAADMvAmN7LsBYiIqZ
 
 #include? "Config.local.xcconfig"
 
 // Assigned after the optional local file so a local override wins.
 INFOPLIST_KEY_SupabaseURL = $(SUPABASE_URL)
 INFOPLIST_KEY_SupabasePublishableKey = $(SUPABASE_PUBLISHABLE_KEY)
+INFOPLIST_KEY_TurnstileSiteKey = $(TURNSTILE_SITE_KEY)

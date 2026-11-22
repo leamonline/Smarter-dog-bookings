@@ -32,6 +32,7 @@ export const CHANNELS = {
   dashboardDeliveryFailures: "dashboard-delivery-failures",
   whatsappInboxList: "whatsapp-inbox-list",
   whatsappInboxDetail: "whatsapp-inbox-detail",
+  appInbox: "app-inbox",
   signupApprovalQueue: "signup-approval-queue",
   pendingSignupsCount: "pending-signups-count",
   dashboardTomorrowReminders: "dashboard-tomorrow-reminders",

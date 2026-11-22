@@ -7,6 +7,7 @@ const ROUTES = [
   { path: '/faq', heading: /Frequently Asked Questions/i },
   { path: '/privacy', heading: /Privacy Policy/i },
   { path: '/terms', heading: /Terms/i },
+  { path: '/support', heading: /App support/i },
   { path: '/matted-coat-policy', heading: /Matted Coat Policy/i },
   // '/book' and '/houndsly' are intentionally omitted: both are pure external
   // redirects (ExternalRedirect -> window.location.replace to the customer

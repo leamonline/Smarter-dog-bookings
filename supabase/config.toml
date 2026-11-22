@@ -121,6 +121,10 @@ verify_jwt = false
 verify_jwt = false
 [functions.square-deposit-webhook]
 verify_jwt = false
+[functions.apns-send]
+verify_jwt = false
+[functions.register-device-token]
+verify_jwt = false
 [edge_runtime]
 policy = "per_worker"
 [analytics]

@@ -26,6 +26,7 @@ It does not duplicate those sources.
 | How are hosted Supabase CLI targets guarded? | [`hosted-supabase-target-guard.md`](hosted-supabase-target-guard.md) |
 | Is the database backed up, and how is a backup restored? | [`operations.md`](operations.md) |
 | Who may be messaged on which channel (SMS, WhatsApp, STOP, marketing), and the audit of existing customers? | [`messaging-policy.md`](messaging-policy.md) |
+| How do messages typed in the iPhone app sit next to WhatsApp? | [`app-inbox.md`](app-inbox.md) |
 | What do `whatsapp-send` and `sms-send` promise when a send is uncertain, unrecorded, or aimed at the wrong thread? | [`send-outcomes.md`](send-outcomes.md) |
 | How is the customer portal tested in a browser against a real local database? | [`customer-journey-tests.md`](customer-journey-tests.md) |
 | Which features are supported, enabled or deliberately unavailable? | [`interface-capability-truth.md`](interface-capability-truth.md) |
@@ -105,6 +106,12 @@ These files remain authoritative for their bounded topics:
 - [`ios-deposits.md`](ios-deposits.md) — £10 card and Apple Pay deposits from the
   iPhone app: when the money is refunded, kept or carried, and how to switch
   the feature on in Square's sandbox.
+- [`messaging-policy.md`](messaging-policy.md) — who may be messaged on which
+  channel, STOP, and the audit of existing customers.
+- [`app-inbox.md`](app-inbox.md) — in-app messages beside WhatsApp, the staff
+  inbox flag, and what has to be applied on staging before anyone tries it.
+- [`ios-api-contract.md`](ios-api-contract.md) — what the iPhone app may call,
+  and the dark-launched APNs path for booking reminders.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and

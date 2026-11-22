@@ -53,6 +53,91 @@ export type Database = {
         }
         Relationships: []
       }
+      app_conversations: {
+        Row: {
+          created_at: string
+          customer_unread_count: number
+          human_id: string
+          id: string
+          last_message_at: string | null
+          last_message_sender: string | null
+          last_message_text: string | null
+          staff_unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_unread_count?: number
+          human_id: string
+          id?: string
+          last_message_at?: string | null
+          last_message_sender?: string | null
+          last_message_text?: string | null
+          staff_unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_unread_count?: number
+          human_id?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_sender?: string | null
+          last_message_text?: string | null
+          staff_unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_conversations_human_id_fkey"
+            columns: ["human_id"]
+            isOneToOne: true
+            referencedRelation: "humans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          customer_read_at: string | null
+          id: string
+          sender: string
+          staff_read_at: string | null
+          staff_user_id: string | null
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          customer_read_at?: string | null
+          id?: string
+          sender: string
+          staff_read_at?: string | null
+          staff_user_id?: string | null
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          customer_read_at?: string | null
+          id?: string
+          sender?: string
+          staff_read_at?: string | null
+          staff_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "app_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_capacity_audit: {
         Row: {
           auth_uid: string | null
@@ -2681,6 +2766,8 @@ export type Database = {
           created_at: string | null
           customer_user_id: string | null
           deposit_required: boolean
+          deposit_required_reason: string | null
+          deposit_required_set_at: string | null
           email: string | null
           email_opted_out: boolean
           email_opted_out_at: string | null
@@ -2725,6 +2812,8 @@ export type Database = {
           created_at?: string | null
           customer_user_id?: string | null
           deposit_required?: boolean
+          deposit_required_reason?: string | null
+          deposit_required_set_at?: string | null
           email?: string | null
           email_opted_out?: boolean
           email_opted_out_at?: string | null
@@ -2769,6 +2858,8 @@ export type Database = {
           created_at?: string | null
           customer_user_id?: string | null
           deposit_required?: boolean
+          deposit_required_reason?: string | null
+          deposit_required_set_at?: string | null
           email?: string | null
           email_opted_out?: boolean
           email_opted_out_at?: string | null
@@ -4622,6 +4713,47 @@ export type Database = {
       }
       list_staff_booking_policy_attention: { Args: never; Returns: Json }
       list_staff_booking_visit: { Args: { p_visit_id: string }; Returns: Json }
+      list_staff_unified_inbox: {
+        Args: never
+        Returns: {
+          app_conversation_id: string | null
+          channels: string[]
+          customer_name: string | null
+          customer_surname: string | null
+          human_id: string | null
+          last_channel: string | null
+          last_message_at: string | null
+          last_message_direction: string | null
+          last_message_text: string | null
+          phone_e164: string | null
+          staff_unread_count: number
+          thread_key: string
+          whatsapp_conversation_id: string | null
+          app_unread_count: number
+        }[]
+      }
+      list_staff_unified_thread: {
+        Args: {
+          p_human_id?: string
+          p_whatsapp_conversation_id?: string
+        }
+        Returns: {
+          body: string | null
+          channel: string
+          direction: string
+          error_message: string | null
+          id: string
+          in_reply_to_meta_id: string | null
+          media_mime: string | null
+          media_path: string | null
+          meta_message_id: string | null
+          reaction_emoji: string | null
+          sender: string
+          sent_at: string
+          staff_user_id: string | null
+          status: string | null
+        }[]
+      }
       log_booking_denial: {
         Args: {
           p_alternative_shown?: boolean
@@ -4651,6 +4783,13 @@ export type Database = {
           p_step_index?: number
         }
         Returns: undefined
+      }
+      mark_app_messages_read: {
+        Args: { p_conversation_id: string }
+        Returns: {
+          out_conversation_id: string
+          out_unread_count: number
+        }[]
       }
       mark_booking_visit_no_show: {
         Args: {
@@ -4929,6 +5068,17 @@ export type Database = {
           p_whatsapp?: boolean
         }
         Returns: Json
+      }
+      send_app_message: {
+        Args: { p_body: string; p_human_id?: string }
+        Returns: {
+          out_body: string
+          out_conversation_id: string
+          out_created_at: string
+          out_human_id: string
+          out_id: string
+          out_sender: string
+        }[]
       }
       set_ai_whatsapp_enabled: {
         Args: { p_enabled: boolean }
