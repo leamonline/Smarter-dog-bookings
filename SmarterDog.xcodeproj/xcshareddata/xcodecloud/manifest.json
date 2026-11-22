@@ -1,0 +1,9 @@
+{
+  "id" : "f46ed8bb-fb86-4143-8360-c65505d4c20c",
+  "targets" : [
+    {
+      "id" : "f9b743b7-659a-41c5-8c5b-ffd8bccc551d",
+      "name" : "SmarterDog"
+    }
+  ]
+}
