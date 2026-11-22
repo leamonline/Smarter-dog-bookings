@@ -58,3 +58,8 @@ pr-gate-results/
 
 # Combined website + booking app output (scripts/build-combined.mjs)
 dist-combined
+
+# Native iOS: local Supabase URL/publishable key, and Xcode's per-Mac state.
+ios/Config/Config.local.xcconfig
+xcuserdata/
+*.xcuserstate

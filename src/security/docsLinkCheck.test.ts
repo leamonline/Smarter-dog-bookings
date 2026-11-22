@@ -37,6 +37,8 @@ describe("documentation link governance", () => {
         "src/not-markdown.ts",
         "website/README.md",
         "website/docs/guide.md",
+        "ios/README.md",
+        "ios/docs/guide.md",
       ]),
     ).toEqual([
       ".design-sync/conventions.md",
@@ -53,6 +55,7 @@ describe("documentation link governance", () => {
       path.relative(repositoryRoot, file).split(path.sep).join("/"),
     );
     expect(discovered.some((file) => file.startsWith("website/"))).toBe(false);
+    expect(discovered.some((file) => file.startsWith("ios/"))).toBe(false);
     expect(discovered).toEqual(
       expect.arrayContaining([
         ".design-sync/conventions.md",

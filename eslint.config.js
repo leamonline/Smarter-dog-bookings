@@ -31,6 +31,9 @@ export default [
       // ESLint config, lockfile and CI (ADR 009). Root lint must never
       // discover it: `npm run website:lint` runs its own rules.
       "website/**",
+      // Native iPhone skeleton. Swift is not an ESLint language, and a stray
+      // script dropped under ios/ must not become part of the web lint.
+      "ios/**",
     ],
   },
   js.configs.recommended,

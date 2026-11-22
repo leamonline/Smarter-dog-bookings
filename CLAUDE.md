@@ -26,6 +26,12 @@ history per [ADR 009](docs/architecture/decisions/009-independent-applications-i
 Root lint, test and build discovery exclude it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
 `.github/workflows/website.yml`.
 
+**Also in this repository:** `ios/` is a SwiftUI iPhone skeleton (home-screen name Smarter Dog)
+so Xcode Cloud can produce a first TestFlight build. It is not part of the booking programme,
+does not call Supabase, and is not in the web build. Root lint, Vitest and the docs link check
+ignore it. There is no iOS job in CI (Linux runners cannot compile it). Instructions:
+[ios/README.md](ios/README.md).
+
 **What actually publishes smarterdog.co.uk:** since the [domain cutover](docs/superpowers/runbooks/2026-09-11-smarterdog-domain-cutover.md)
 on 11 September 2026 the domain points at **Vercel**, so the live site is the combined build
 ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that a merge to `main` deploys — the same
