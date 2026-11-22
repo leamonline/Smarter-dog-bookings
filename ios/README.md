@@ -4,6 +4,8 @@ This folder is the iPhone app. A customer signs in with their mobile number, the
 
 The website and the staff dashboard in the browser are unchanged. The iPhone app uses the same sign-in system as the website.
 
+What the app may call after sign-in, including booking and iPhone notifications, is written in `docs/ios-api-contract.md` (in the folder above this one).
+
 You need a Mac. The rest of this repository can be worked on from other computers. The iPhone app cannot.
 
 ## Names

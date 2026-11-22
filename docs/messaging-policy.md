@@ -33,6 +33,12 @@ page is wrong.
    implied by anything above. Nothing sends promotional SMS today.
 6. **Existing customers are audited** ([below](#audit-of-existing-customers)).
 7. **Failures reach staff.** See [what is not done yet](#what-is-not-done-yet).
+8. **iPhone reminders are prepared and switched off.** A customer who uses the
+   iPhone app can later get a booking reminder as an Apple push instead of
+   WhatsApp, when `IOS_PUSH_ENABLED` is on, notifications are on, and the app
+   has been opened in the last 14 days. If it cannot, the reminder uses
+   WhatsApp, then SMS, then email, as today. Until that secret is turned on,
+   nothing changes. The contract is [`ios-api-contract.md`](ios-api-contract.md).
 
 ## Where the rules live
 
@@ -40,6 +46,7 @@ page is wrong.
 |---|---|
 | The policy (pure, shared by edge functions, staff UI and tests) | [`supabase/functions/_shared/channelPolicy.ts`](../supabase/functions/_shared/channelPolicy.ts) |
 | Channel choice for confirmations, reminders, cancellations, SMS fallback | [`_shared/recipients.ts`](../supabase/functions/_shared/recipients.ts) (`channelAvailableFor`, `pickChannel`) |
+| iPhone reminder push (off until `IOS_PUSH_ENABLED`) | [`_shared/apnsChannel.ts`](../supabase/functions/_shared/apnsChannel.ts), [`ios-api-contract.md`](ios-api-contract.md) |
 | Day-closure broadcast, staff-composed reminders, welcome message | `_shared/broadcast.ts`, `reminder-send`, `notify-customer-welcome` |
 | Collection notice (by preferred method of contact; SMS too where WhatsApp can't reach them) | [`src/engine/collectionNotice.ts`](../src/engine/collectionNotice.ts) |
 | Automatic SMS when a WhatsApp collection notice fails | [`_shared/collectionFallback.ts`](../supabase/functions/_shared/collectionFallback.ts), called from `whatsapp-agent`'s delivery-status handler |
