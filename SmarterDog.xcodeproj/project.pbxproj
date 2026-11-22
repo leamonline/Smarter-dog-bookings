@@ -27,6 +27,12 @@
 		A1000000000000000000000D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* RootView.swift */; };
 		A1000000000000000000000E /* SessionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* SessionClient.swift */; };
 		A1000000000000000000000F /* SupabaseSessionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002D /* SupabaseSessionClient.swift */; };
+		A10000000000000000000090 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000080 /* HomeModels.swift */; };
+		A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000081 /* SupabaseHomeClient.swift */; };
+		A10000000000000000000092 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* HomeView.swift */; };
+		A10000000000000000000093 /* Poppins-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000083 /* Poppins-Black.ttf */; };
+		A10000000000000000000094 /* Caveat-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000084 /* Caveat-Bold.ttf */; };
+		A10000000000000000000095 /* OFL-Caveat.txt in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000085 /* OFL-Caveat.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +60,12 @@
 		A1000000000000000000002B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		A1000000000000000000002C /* SessionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionClient.swift; sourceTree = "<group>"; };
 		A1000000000000000000002D /* SupabaseSessionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseSessionClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000080 /* HomeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeModels.swift; sourceTree = "<group>"; };
+		A10000000000000000000081 /* SupabaseHomeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseHomeClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000082 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		A10000000000000000000083 /* Poppins-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-Black.ttf"; sourceTree = "<group>"; };
+		A10000000000000000000084 /* Caveat-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Caveat-Bold.ttf"; sourceTree = "<group>"; };
+		A10000000000000000000085 /* OFL-Caveat.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Caveat.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +116,9 @@
 				A1000000000000000000002D /* SupabaseSessionClient.swift */,
 				A1000000000000000000002A /* SecurityCheckView.swift */,
 				A1000000000000000000002B /* RootView.swift */,
+				A10000000000000000000080 /* HomeModels.swift */,
+				A10000000000000000000081 /* SupabaseHomeClient.swift */,
+				A10000000000000000000082 /* HomeView.swift */,
 				A10000000000000000000067 /* Info.plist */,
 				A10000000000000000000016 /* Assets.xcassets */,
 				A10000000000000000000070 /* Fonts */,
@@ -116,7 +131,10 @@
 			children = (
 				A10000000000000000000064 /* Poppins-Bold.ttf */,
 				A10000000000000000000065 /* Poppins-SemiBold.ttf */,
+				A10000000000000000000083 /* Poppins-Black.ttf */,
+				A10000000000000000000084 /* Caveat-Bold.ttf */,
 				A10000000000000000000066 /* OFL.txt */,
+				A10000000000000000000085 /* OFL-Caveat.txt */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -199,7 +217,10 @@
 				A10000000000000000000006 /* Assets.xcassets in Resources */,
 				A10000000000000000000054 /* Poppins-Bold.ttf in Resources */,
 				A10000000000000000000055 /* Poppins-SemiBold.ttf in Resources */,
+				A10000000000000000000093 /* Poppins-Black.ttf in Resources */,
+				A10000000000000000000094 /* Caveat-Bold.ttf in Resources */,
 				A10000000000000000000056 /* OFL.txt in Resources */,
+				A10000000000000000000095 /* OFL-Caveat.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -216,6 +237,9 @@
 				A10000000000000000000051 /* AppFont.swift in Sources */,
 				A10000000000000000000052 /* AppMetrics.swift in Sources */,
 				A10000000000000000000053 /* Decorations.swift in Sources */,
+				A10000000000000000000090 /* HomeModels.swift in Sources */,
+				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
+				A10000000000000000000092 /* HomeView.swift in Sources */,
 				A10000000000000000000004 /* SupabaseConfig.swift in Sources */,
 				A10000000000000000000008 /* PhoneNumber.swift in Sources */,
 				A10000000000000000000009 /* AuthModels.swift in Sources */,

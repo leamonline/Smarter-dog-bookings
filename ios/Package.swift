@@ -23,12 +23,15 @@ let package = Package(
                 "SignInView.swift",
                 "RootView.swift",
                 "SmarterDogApp.swift",
+                "SupabaseHomeClient.swift",
+                "HomeView.swift",
             ],
             sources: [
                 "PhoneNumber.swift",
                 "AuthModels.swift",
                 "SessionClient.swift",
                 "AuthService.swift",
+                "HomeModels.swift",
             ]
         ),
         .testTarget(

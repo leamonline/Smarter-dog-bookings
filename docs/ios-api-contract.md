@@ -206,7 +206,7 @@ to `api.sandbox.push.apple.com`. TestFlight and App Store builds talk to
 
 ## Gaps (not this change)
 
-- Sign-in is in the app: `customer-phone-on-file`, password and SMS code, `link_customer_to_human`, and `staff_profiles`. Booking, dogs, contacts and `register-device-token` are not called yet.
+- Sign-in is in the app: `customer-phone-on-file`, password and SMS code, `link_customer_to_human`, and `staff_profiles`. Customer Home reads the customer's own `dogs` and `bookings` (today onwards) under RLS. Booking, dog and contact edits, and `register-device-token` are not called yet.
 - No messenger tables and no unified inbox beyond the website's WhatsApp / SMS / email thread.
 - No Square deposit charging.
 - Staff booking edits are still direct table writes under RLS.

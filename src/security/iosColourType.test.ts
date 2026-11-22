@@ -208,6 +208,10 @@ describe("iPhone fonts", () => {
 
     expect(postScriptName("ios/SmarterDog/Fonts/Poppins-Bold.ttf")).toBe("Poppins-Bold");
     expect(postScriptName("ios/SmarterDog/Fonts/Poppins-SemiBold.ttf")).toBe("Poppins-SemiBold");
+    // Flyer style board: Poppins Black for hero titles, Caveat Bold for one handwritten line.
+    expect(postScriptName("ios/SmarterDog/Fonts/Poppins-Black.ttf")).toBe("Poppins-Black");
+    expect(postScriptName("ios/SmarterDog/Fonts/Caveat-Bold.ttf")).toBe("Caveat-Bold");
+    expect(read("ios/SmarterDog/Fonts/OFL-Caveat.txt")).toContain("Caveat Project Authors");
 
     const licence = read("ios/SmarterDog/Fonts/OFL.txt");
     expect(licence).toContain("SIL Open Font License");
@@ -224,6 +228,8 @@ describe("iPhone fonts", () => {
     expect([...fontArray.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1])).toEqual([
       "Poppins-Bold.ttf",
       "Poppins-SemiBold.ttf",
+      "Poppins-Black.ttf",
+      "Caveat-Bold.ttf",
     ]);
     expect(project).not.toContain("INFOPLIST_KEY_UIAppFonts");
     expect(read("ios/SmarterDog/AppFont.swift")).toContain("CTFontManagerRegisterFontsForURL");
