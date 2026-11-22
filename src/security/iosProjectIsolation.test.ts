@@ -100,6 +100,37 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(project).toContain("minimumVersion = 2.55.7;");
     expect(project).toContain("kind = upToNextMajorVersion;");
     expect(project).toContain("productName = Supabase;");
+    // Xcode Cloud does not resolve packages itself. The lockfile has to be
+    // committed at the path Apple documents, with the Supabase product and
+    // the packages that product links.
+    const resolvedPath =
+      "ios/SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved";
+    expect(() =>
+      execFileSync("git", ["check-ignore", "-q", resolvedPath], { cwd: root, stdio: "ignore" }),
+    ).toThrow();
+    const resolved = JSON.parse(read(resolvedPath)) as {
+      version: number;
+      pins: { identity: string; state: { revision: string; version: string } }[];
+    };
+    expect(resolved.version).toBe(3);
+    const pins = new Map(resolved.pins.map((pin) => [pin.identity, pin.state]));
+    expect(pins.get("supabase-swift")).toEqual({
+      revision: "ed28cff9d3d246f54ebe75e52a7334e0a2f366de",
+      version: "2.55.7",
+    });
+    for (const identity of [
+      "swift-asn1",
+      "swift-clocks",
+      "swift-concurrency-extras",
+      "swift-crypto",
+      "swift-http-types",
+      "swift-issue-reporting",
+      "xctest-dynamic-overlay",
+    ]) {
+      const state = pins.get(identity);
+      expect(state, identity).toBeDefined();
+      expect(state!.revision, identity).toMatch(/^[0-9a-f]{40}$/);
+    }
     const swift = walk("ios/SmarterDog")
       .filter((file) => file.endsWith(".swift"))
       .map((file) => read(file))

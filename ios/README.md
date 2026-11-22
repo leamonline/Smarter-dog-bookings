@@ -64,7 +64,7 @@ Leave it if Apple accepts it. If Xcode says the identifier is already in use, ch
 
 The icon is the black square with the white dog, the same mark as the website. The name under it is Smarter Dog. You can type a phone number. Continue does nothing. Staff sign in does nothing. Nothing is sent anywhere.
 
-The first run downloads the Supabase package. The Mac needs to be online for that download. The app still does not call Supabase.
+The first run downloads the Supabase package. The Mac needs to be online for that download. The exact versions are already saved in the project, so Xcode Cloud builds those same copies rather than picking newer ones. The app still does not call Supabase.
 
 ## 5. Keys (you can skip this for now)
 
@@ -144,6 +144,7 @@ The committed `SmarterDog.xcodeproj` is the project Xcode Cloud builds. There is
 - iOS 18, iPhone only (`TARGETED_DEVICE_FAMILY = 1`), Swift 6 language mode, SwiftUI app lifecycle.
 - Automatic signing. `DEVELOPMENT_TEAM` is intentionally absent.
 - [`supabase-swift`](https://github.com/supabase/supabase-swift) product `Supabase`, from 2.55.7 up to the next major version. Version 3 is a breaking alpha and is not selected. The app names `SupabaseClient` so the package is linked. It does not construct a client.
+- `SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` is the lockfile Xcode Cloud requires. It pins 2.55.7 and the packages that product links (resolved with Swift 6.4.3). Do not gitignore it. After adding a package, resolve again and commit the updated file.
 - `Config.xcconfig` holds placeholders and optionally includes the gitignored local file (`#include?`). The two `INFOPLIST_KEY_` lines come after that include, so a local override wins. Xcode generates Info.plist. There is no checked-in Info.plist.
 - Home-screen icon is a byte copy of `public/app/icons/icon-1024.png` (1024×1024, no transparency). After that file changes, copy it again:
 
