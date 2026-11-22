@@ -1,9 +1,29 @@
+import CoreText
+import Foundation
 import SwiftUI
 
 /// Poppins for headings, SF Pro for everything else.
 /// PostScript names are the name-table IDs in the bundled files: `Poppins-Bold`
 /// and `Poppins-SemiBold`. `relativeTo` keeps Dynamic Type working.
 enum AppFont {
+    /// Filenames in `UIAppFonts` and in the app bundle. Each entry is its own
+    /// array item, not one space-separated string.
+    static let bundledFileNames = ["Poppins-Bold.ttf", "Poppins-SemiBold.ttf"]
+
+    /// Makes Poppins available before the first heading draws. `Info.plist`
+    /// lists the same files. Registering again is harmless if the system
+    /// already loaded them from that array.
+    static func registerBundledFonts() {
+        for name in bundledFileNames {
+            let file = URL(fileURLWithPath: name)
+            guard let url = Bundle.main.url(
+                forResource: file.deletingPathExtension().lastPathComponent,
+                withExtension: file.pathExtension
+            ) else { continue }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
+
     static func poppinsBold(relativeTo style: Font.TextStyle, size: CGFloat) -> Font {
         .custom("Poppins-Bold", size: size, relativeTo: style)
     }

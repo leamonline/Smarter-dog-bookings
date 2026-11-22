@@ -219,9 +219,15 @@ describe("iPhone fonts", () => {
     ).toBe("6be04893d770899a015649c7aa3b582f871b272f8747a92b78b17c3e5c8b2573");
 
     const project = read("SmarterDog.xcodeproj/project.pbxproj");
-    expect(project.match(/INFOPLIST_KEY_UIAppFonts = "Poppins-Bold.ttf Poppins-SemiBold.ttf";/g)).toHaveLength(
-      2,
-    );
+    const fontsPlist = read("ios/SmarterDog/Info.plist");
+    const fontArray = fontsPlist.split("<key>UIAppFonts</key>")[1]?.split("</array>")[0] ?? "";
+    expect([...fontArray.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1])).toEqual([
+      "Poppins-Bold.ttf",
+      "Poppins-SemiBold.ttf",
+    ]);
+    expect(project).not.toContain("INFOPLIST_KEY_UIAppFonts");
+    expect(read("ios/SmarterDog/AppFont.swift")).toContain("CTFontManagerRegisterFontsForURL");
+    expect(read("ios/SmarterDog/SmarterDogApp.swift")).toContain("AppFont.registerBundledFonts()");
     expect(project).toContain("Poppins-Bold.ttf in Resources");
     expect(project).toContain("Poppins-SemiBold.ttf in Resources");
     expect(project).toContain("OFL.txt in Resources");

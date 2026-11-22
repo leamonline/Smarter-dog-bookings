@@ -40,6 +40,7 @@
 		A10000000000000000000064 /* Poppins-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-Bold.ttf"; sourceTree = "<group>"; };
 		A10000000000000000000065 /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-SemiBold.ttf"; sourceTree = "<group>"; };
 		A10000000000000000000066 /* OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL.txt; sourceTree = "<group>"; };
+		A10000000000000000000067 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000016 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000000000000000000001C /* PhoneNumber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneNumber.swift; sourceTree = "<group>"; };
 		A1000000000000000000001D /* AuthModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthModels.swift; sourceTree = "<group>"; };
@@ -103,6 +104,7 @@
 				A1000000000000000000002D /* SupabaseSessionClient.swift */,
 				A1000000000000000000002A /* SecurityCheckView.swift */,
 				A1000000000000000000002B /* RootView.swift */,
+				A10000000000000000000067 /* Info.plist */,
 				A10000000000000000000016 /* Assets.xcassets */,
 				A10000000000000000000070 /* Fonts */,
 			);
@@ -283,8 +285,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/SmarterDog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";
-				INFOPLIST_KEY_UIAppFonts = "Poppins-Bold.ttf Poppins-SemiBold.ttf";
 				INFOPLIST_KEY_CFBundleName = "Smarter Dog";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
@@ -320,8 +322,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/SmarterDog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";
-				INFOPLIST_KEY_UIAppFonts = "Poppins-Bold.ttf Poppins-SemiBold.ttf";
 				INFOPLIST_KEY_CFBundleName = "Smarter Dog";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
