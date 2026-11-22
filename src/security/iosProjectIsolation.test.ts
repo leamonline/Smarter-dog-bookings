@@ -58,14 +58,15 @@ describe("root tooling ignores the iPhone skeleton", () => {
 });
 
 describe("the Xcode project is the committed skeleton", () => {
-  const projectPath = "ios/SmarterDog.xcodeproj/project.pbxproj";
-  const schemePath = "ios/SmarterDog.xcodeproj/xcshareddata/xcschemes/SmarterDog.xcscheme";
+  const projectPath = "SmarterDog.xcodeproj/project.pbxproj";
+  const schemePath = "SmarterDog.xcodeproj/xcshareddata/xcschemes/SmarterDog.xcscheme";
 
   it("has a shared scheme Xcode Cloud can archive", () => {
     expect(existsSync(join(root, projectPath))).toBe(true);
-    expect(existsSync(join(root, "ios/SmarterDog.xcodeproj/project.xcworkspace/contents.xcworkspacedata"))).toBe(
+    expect(existsSync(join(root, "SmarterDog.xcodeproj/project.xcworkspace/contents.xcworkspacedata"))).toBe(
       true,
     );
+    expect(existsSync(join(root, "ios/SmarterDog.xcodeproj"))).toBe(false);
     const scheme = read(schemePath);
     const project = read(projectPath);
     const target = project.match(
@@ -77,6 +78,11 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(scheme).toContain('buildForArchiving = "YES"');
     const archive = scheme.split("<ArchiveAction")[1]?.split("</ArchiveAction>")[0] ?? "";
     expect(archive).toContain('buildConfiguration = "Release"');
+    // Sources stay under ios/. The project file is at the repo root so Xcode
+    // Cloud's saved name, SmarterDog.xcodeproj, resolves.
+    expect(project).toContain('path = "ios/SmarterDog";');
+    expect(project).toContain('path = "ios/Config";');
+    expect(project).toContain('path = "ios/README.md";');
   });
 
   it("targets iOS 18, iPhone, Swift 6, and the placeholder bundle id", () => {
@@ -104,7 +110,7 @@ describe("the Xcode project is the committed skeleton", () => {
     // committed at the path Apple documents, with the Supabase product and
     // the packages that product links.
     const resolvedPath =
-      "ios/SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved";
+      "SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved";
     expect(() =>
       execFileSync("git", ["check-ignore", "-q", resolvedPath], { cwd: root, stdio: "ignore" }),
     ).toThrow();
@@ -157,8 +163,20 @@ describe("the Xcode project is the committed skeleton", () => {
 
     // The README names service_role so the owner does not paste it. A real key
     // (a JWT, or an sb_secret_ token) must not appear in any committed file.
-    const textFiles = walk("ios").filter((file) =>
-      /\.(swift|plist|json|md|xcconfig|pbxproj|xcscheme|xcworkspacedata|gitignore)$/.test(file),
+    // The Xcode project lives at the repo root, so this walk has to include it
+    // as well as ios/. Package.resolved has no dotted extension.
+    const textFiles = [...walk("ios"), ...walk("SmarterDog.xcodeproj")].filter(
+      (file) =>
+        file.endsWith("Package.resolved") ||
+        /\.(swift|plist|json|md|xcconfig|pbxproj|xcscheme|xcworkspacedata|gitignore)$/.test(file),
+    );
+    expect(textFiles).toEqual(
+      expect.arrayContaining([
+        "SmarterDog.xcodeproj/project.pbxproj",
+        "SmarterDog.xcodeproj/xcshareddata/xcschemes/SmarterDog.xcscheme",
+        "SmarterDog.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+        "SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+      ]),
     );
     for (const file of textFiles) {
       if (file.endsWith("Config.local.xcconfig")) continue;

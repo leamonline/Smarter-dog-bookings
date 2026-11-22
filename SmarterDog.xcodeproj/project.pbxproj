@@ -26,7 +26,7 @@
 		A10000000000000000000018 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000019 /* Config.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.local.xcconfig.example; sourceTree = "<group>"; };
 		A1000000000000000000001A /* SmarterDog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmarterDog.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1000000000000000000001B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A1000000000000000000001B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ios/README.md"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,7 +69,7 @@
 				A10000000000000000000015 /* SupabasePackage.swift */,
 				A10000000000000000000016 /* Assets.xcassets */,
 			);
-			path = SmarterDog;
+			path = "ios/SmarterDog";
 			sourceTree = "<group>";
 		};
 		A10000000000000000000025 /* Config */ = {
@@ -78,7 +78,7 @@
 				A10000000000000000000018 /* Config.xcconfig */,
 				A10000000000000000000019 /* Config.local.xcconfig.example */,
 			);
-			path = Config;
+			path = "ios/Config";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

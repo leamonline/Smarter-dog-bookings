@@ -26,8 +26,8 @@ The bundle ID is a placeholder. You can change it. If Apple says that ID is alre
 ## 1. Open the project
 
 1. Get this repository onto the Mac. GitHub’s green Code button → Download ZIP is enough, or use GitHub Desktop if you already have it.
-2. Unzip if you downloaded a ZIP. Open the `ios` folder.
-3. Double-click `SmarterDog.xcodeproj`. It opens in Xcode.
+2. Unzip if you downloaded a ZIP. Stay in the top folder (the one that also contains the website). Do not open the `ios` folder to find the project.
+3. Double-click `SmarterDog.xcodeproj` in that top folder. It opens in Xcode. The Swift files it builds still live in `ios/`.
 4. If Xcode asks to upgrade the project to the latest recommended settings, click Perform Changes. That only updates Xcode’s project file. It does not change the screen.
 
 The scheme is already called **SmarterDog**. If the scheme menu at the top does not say that, click it and choose SmarterDog.
@@ -103,13 +103,31 @@ Apple’s own guide, if a button has moved: [Distributing your Xcode Cloud build
    - Primary language: English (U.K.), if it asks
    - SKU, if it asks: `smarter-dog-ios` (customers never see this)
 4. If it asks which branch to build, you can use the pull-request branch to try a build before merging, or `main` after the files are on main.
-5. The product to build is the **SmarterDog** scheme. It is already shared in the project, which is what Xcode Cloud requires. If Xcode says there is no shared scheme, the checkout is missing `SmarterDog.xcodeproj/xcshareddata/xcschemes/SmarterDog.xcscheme`.
+5. The product to build is the **SmarterDog** scheme. It is already shared in the project, which is what Xcode Cloud requires. If Xcode says there is no shared scheme, the checkout is missing `SmarterDog.xcodeproj/xcshareddata/xcschemes/SmarterDog.xcscheme` in the top folder.
 6. In the workflow, set the **Archive** action’s deployment to **TestFlight (Internal Testing Only)**.
 7. If a **Test** action is included, turn it off. This skeleton has no tests. An archive is the build you want.
 8. Add a post-action: **TestFlight Internal Testing**. Add yourself (or the internal group). Internal testers are people already on the App Store Connect team.
 9. Start the build.
 
 You can also create the app record yourself before the workflow: App Store Connect → Apps → the **+** button → New App → iOS, with the same name and bundle ID.
+
+### If the build says the project does not exist at the root
+
+That message means the workflow is looking for `SmarterDog.xcodeproj` in the top folder of the GitHub repository. The project is there now. It used to be inside `ios`, which is why the first builds failed, and why typing `ios/SmarterDog.xcodeproj` into the workflow did not stick.
+
+Do this once, after this change is on `main`:
+
+1. On the Mac, get the latest code (GitHub Desktop → Fetch and Pull, or download a new ZIP). The top folder must contain `SmarterDog.xcodeproj`.
+2. Double-click that `SmarterDog.xcodeproj`.
+3. Open the workflow named **Internal TestFlight Build**. In Xcode: Report navigator (the speech-bubble icon) → **Cloud**, then the workflow. The **Integrate** menu → **Manage Workflows** is the same place.
+4. Open **General**.
+5. Set **Project or Workspace** to `SmarterDog.xcodeproj`. The name must not start with `ios/`. If a list shows more than one, pick the one in the top folder.
+6. Set **Scheme** to `SmarterDog`. Pick it again even if it already says that. The yellow warning next to the scheme clears when the project at the top of the repo is selected. If the warning stays, use the scheme menu at the top of the Xcode window, choose **SmarterDog**, then come back to this workflow and choose **SmarterDog** again.
+7. Leave the Archive action on **TestFlight (Internal Testing Only)**. If a Test action is listed, turn it off. This app has no tests.
+8. Save the workflow.
+9. Start a **new** build. Do not restart the failed one.
+
+If you also edit workflows in the browser, change the same two fields there so they match: App Store Connect → your app → **Xcode Cloud** → **Internal TestFlight Build** → edit → General → Project or Workspace `SmarterDog.xcodeproj`, Scheme `SmarterDog` → save, then start a new build.
 
 ### Install it
 
@@ -139,12 +157,12 @@ Merging does **not** put the iPhone app on the App Store, and it does not by its
 
 ## Notes for a developer
 
-The committed `SmarterDog.xcodeproj` is the project Xcode Cloud builds. There is no XcodeGen `project.yml`. It was written by hand so it could be committed from a machine without Xcode. Open it in Xcode to change settings. If Xcode rewrites the project file on open, that rewrite is safe to keep. Do not delete the `.xcodeproj`.
+`SmarterDog.xcodeproj` is at the repository root on purpose. Xcode Cloud’s workflow stores that file name with no folder in front of it, and it looks for the file in the top of the repository. The Swift sources, the icon and the config files stay in `ios/`. There is no XcodeGen `project.yml`. The project was written by hand so it could be committed from a machine without Xcode. Open it in Xcode to change settings. If Xcode rewrites the project file on open, that rewrite is safe to keep. Do not move the `.xcodeproj` back into `ios/`.
 
 - iOS 18, iPhone only (`TARGETED_DEVICE_FAMILY = 1`), Swift 6 language mode, SwiftUI app lifecycle.
 - Automatic signing. `DEVELOPMENT_TEAM` is intentionally absent.
 - [`supabase-swift`](https://github.com/supabase/supabase-swift) product `Supabase`, from 2.55.7 up to the next major version. Version 3 is a breaking alpha and is not selected. The app names `SupabaseClient` so the package is linked. It does not construct a client.
-- `SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` is the lockfile Xcode Cloud requires. It pins 2.55.7 and the packages that product links (resolved with Swift 6.4.3). Do not gitignore it. After adding a package, resolve again and commit the updated file.
+- `SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` (repository root, not inside `ios/`) is the lockfile Xcode Cloud reads when it opens that project. It pins 2.55.7 and the packages that product links (resolved with Swift 6.4.3). Do not gitignore it. After adding a package, resolve again and commit the updated file.
 - `Config.xcconfig` holds placeholders and optionally includes the gitignored local file (`#include?`). The two `INFOPLIST_KEY_` lines come after that include, so a local override wins. Xcode generates Info.plist. There is no checked-in Info.plist.
 - Home-screen icon is a byte copy of `public/app/icons/icon-1024.png` (1024×1024, no transparency). After that file changes, copy it again:
 
