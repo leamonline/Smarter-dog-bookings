@@ -42,7 +42,7 @@ insert into public.whatsapp_conversations (
    '26600000-0000-4000-8000-0000000000f0', now() - interval '5 hours', '266-fixture-wa-fran', 'inbound', 0),
   ('26600000-0000-4000-8000-000000000f12', '+447700900506', 'sms',
    '26600000-0000-4000-8000-0000000000f0', now() - interval '4 hours', '266-fixture-sms-fran', 'inbound', 2),
-  ('26600000-0000-4000-8000-000000000u11', '+447700900599', 'whatsapp',
+  ('26600000-0000-4000-8000-000000000b11', '+447700900599', 'whatsapp',
    null, now() - interval '1 hour', '266-fixture-wa-unlinked', 'inbound', 4);
 
 insert into public.whatsapp_messages (id, conversation_id, direction, role, content, channel, sent_at) values
@@ -54,7 +54,7 @@ insert into public.whatsapp_messages (id, conversation_id, direction, role, cont
    '266-fixture-wa-fran', 'whatsapp', now() - interval '5 hours'),
   ('26600000-0000-4000-8000-000000000f22', '26600000-0000-4000-8000-000000000f12', 'inbound', 'user',
    '266-fixture-sms-fran', 'sms', now() - interval '4 hours'),
-  ('26600000-0000-4000-8000-000000000u21', '26600000-0000-4000-8000-000000000u11', 'inbound', 'user',
+  ('26600000-0000-4000-8000-000000000b21', '26600000-0000-4000-8000-000000000b11', 'inbound', 'user',
    '266-fixture-wa-unlinked', 'whatsapp', now() - interval '1 hour');
 
 set local session_replication_role = default;
@@ -341,7 +341,7 @@ select set_config(
 );
 
 select is(
-  (select unread_count from public.mark_app_messages_read((select id from alice_app))),
+  (select out_unread_count from public.mark_app_messages_read((select id from alice_app))),
   0,
   'staff marking the thread read clears the staff unread count'
 );
@@ -377,7 +377,7 @@ select set_config(
 );
 
 select is(
-  (select unread_count from public.mark_app_messages_read((select id from alice_app))),
+  (select out_unread_count from public.mark_app_messages_read((select id from alice_app))),
   0,
   'the customer marking the thread read clears their unread count'
 );
@@ -464,7 +464,7 @@ select is(
 select ok(
   (select human_id is null and channels = array['whatsapp']::text[]
     from public.list_staff_unified_inbox()
-    where whatsapp_conversation_id = '26600000-0000-4000-8000-000000000u11'),
+    where whatsapp_conversation_id = '26600000-0000-4000-8000-000000000b11'),
   'a number with no customer record stays a WhatsApp thread of its own'
 );
 select is(
@@ -475,7 +475,7 @@ select is(
 );
 select is(
   (select string_agg(channel, ',' order by sent_at, id)
-    from public.list_staff_unified_thread(null, '26600000-0000-4000-8000-000000000u11')),
+    from public.list_staff_unified_thread(null, '26600000-0000-4000-8000-000000000b11')),
   'whatsapp',
   'the unlinked number''s thread is only its WhatsApp message'
 );

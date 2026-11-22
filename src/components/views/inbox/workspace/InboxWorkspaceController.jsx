@@ -204,14 +204,36 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   );
 
   const actions = useInboxActionHandlers({
-    inbox: appInbox.replyChannel === "app"
-      ? { ...inbox, sendManualReply: appInbox.sendAppReply }
-      : inbox,
+    inbox,
     selectedId,
     toast,
     clearDraft: workspaceActions.clearDraft,
     refetchCustomerContext: customerContext.refetch,
   });
+
+  const { replyChannel, replyNote, sendAppReply } = appInbox;
+  const sendReply = useCallback(async (opts) => {
+    if (replyChannel === "pending") {
+      return { ok: false, reason: replyNote || "Still checking where this reply will go." };
+    }
+    if (replyChannel === "app") {
+      const res = await sendAppReply(opts);
+      if (res?.ok) {
+        toast.show("Reply sent", "success");
+        if (selectedId) workspaceActions.clearDraft(selectedId);
+      }
+      return res;
+    }
+    return actions.sendDraft(opts);
+  }, [
+    actions,
+    replyChannel,
+    replyNote,
+    sendAppReply,
+    selectedId,
+    toast,
+    workspaceActions,
+  ]);
 
   const compose = useOutboundCompose({
     conversations: whatsappConversations,
@@ -222,8 +244,8 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   });
 
   useInboxDeepLinks({
-    conversations: whatsappConversations,
-    loadingList,
+    conversations,
+    loadingList: loadingList || !appInbox.listReady,
     selectedId,
     selectConversation,
     onFocusComposer: compose.focusComposer,
@@ -332,19 +354,16 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       dogNames={dogNames}
       loadingDetail={loadingDetail || appInbox.loadingThread}
       detailError={detailError || appInbox.threadError}
-      actionInFlight={actionInFlight}
+      actionInFlight={actionInFlight || appInbox.sending || appInbox.replyChannel === "pending"}
       draftValue={selectedWork.draft}
       onDraftChange={(value) => workspaceActions.setDraft(selectedId, value)}
-      onSend={actions.sendDraft}
+      onSend={sendReply}
       onRetryMessage={actions.retryMessage}
       onSendTemplate={sendTemplate}
       onGenerateReply={actions.generateReply}
       onRetryLoad={() => {
-        if (isAppThreadId(selectedId)) {
-          appInbox.refresh();
-          return;
-        }
-        selectConversation(selectedId);
+        appInbox.refresh();
+        if (!isAppThreadId(selectedId)) selectConversation(selectedId);
       }}
       onBack={workspaceActions.paneBack}
       onResolve={handleResolveConversation}

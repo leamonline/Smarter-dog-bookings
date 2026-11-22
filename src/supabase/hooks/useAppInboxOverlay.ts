@@ -69,6 +69,9 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
   const [thread, setThread] = useState<InboxMessage[] | null>(null);
   const [threadFor, setThreadFor] = useState<string | null>(null);
   const [threadError, setThreadError] = useState<string | null>(null);
+  const [listReady, setListReady] = useState(false);
+  const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
 
   const merged = useMemo(
     () => (active && unified ? applyUnifiedInbox(conversations, unified) : conversations),
@@ -80,8 +83,9 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
   );
 
   const loadList = useCallback(async () => {
-    if (!db) return;
+    if (!db || !enabled) return;
     const { data, error } = await db.rpc("list_staff_unified_inbox");
+    setListReady(true);
     if (error) {
       logger.warn("app inbox list failed; showing WhatsApp only", {
         tags: { hook: "useAppInboxOverlay", op: "list" },
@@ -90,14 +94,16 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
       return;
     }
     setUnified((data as UnifiedInboxRow[] | null) ?? []);
-  }, [db]);
+  }, [db, enabled]);
 
-  const loadThread = useCallback(async (conversationId: string | null | undefined) => {
-    if (!db || !conversationId) return;
-    const row = merged.find((item) => item.id === conversationId);
-    const humanId = row?.human_id ?? null;
-    const whatsappId = isAppThreadId(conversationId) ? null : conversationId;
+  const humanId = selectedRow?.human_id ?? null;
+  const whatsappId = isAppThreadId(selectedId) ? null : (selectedId ?? null);
+  const appConversationId = parseAppThreadId(selectedId) ?? selectedRow?.app_conversation_id ?? null;
+
+  const loadThread = useCallback(async () => {
+    if (!enabled || !db || !selectedId) return;
     if (!humanId && !whatsappId) return;
+    const requested = selectedId;
     const { data, error } = await db.rpc("list_staff_unified_thread", {
       p_human_id: humanId,
       p_whatsapp_conversation_id: whatsappId,
@@ -107,13 +113,13 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
         tags: { hook: "useAppInboxOverlay", op: "thread" },
         extra: { message: error.message },
       });
-      if (isAppThreadId(conversationId)) setThreadError("Couldn't load this conversation.");
+      setThreadError("Couldn't load this conversation.");
       return;
     }
     setThreadError(null);
     setThread(((data as UnifiedThreadMessage[] | null) ?? []).map(toInboxMessage));
-    setThreadFor(conversationId);
-  }, [db, merged]);
+    setThreadFor(requested);
+  }, [db, enabled, selectedId, humanId, whatsappId]);
 
   const loadListRef = useRef(loadList);
   const loadThreadRef = useRef(loadThread);
@@ -131,29 +137,45 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
     setThread(null);
     setThreadFor(null);
     setThreadError(null);
-    void loadThread(selectedId);
+    void loadThread();
     return undefined;
-  }, [active, selectedId, loadThread]);
+  }, [active, loadThread]);
 
   useEffect(() => {
-    if (!active || !db) return undefined;
-    const appConversationId = parseAppThreadId(selectedId) ?? selectedRow?.app_conversation_id ?? null;
-    if (!appConversationId) return undefined;
-    void db.rpc("mark_app_messages_read", { p_conversation_id: appConversationId });
-    return undefined;
-  }, [active, db, selectedId, selectedRow?.app_conversation_id]);
+    if (!active || !db || !appConversationId) return undefined;
+    let cancelled = false;
+    void (async () => {
+      const { error } = await db.rpc("mark_app_messages_read", {
+        p_conversation_id: appConversationId,
+      });
+      if (!cancelled && error) {
+        logger.warn("app inbox mark-read failed", {
+          tags: { hook: "useAppInboxOverlay", op: "markRead" },
+          extra: { message: error.message },
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active, db, appConversationId]);
 
   useEffect(() => {
     if (!active || !db) return undefined;
     let channel: OverlayChannel;
     try {
       channel = db.channel(uniqueChannelName(CHANNELS.appInbox));
+      const refreshBoth = () => {
+        void loadListRef.current();
+        void loadThreadRef.current();
+      };
       channel
-        .on("postgres_changes", { event: "*", schema: "public", table: "app_messages" }, () => {
-          void loadListRef.current();
-          void loadThreadRef.current(selectedId);
-        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "app_messages" }, refreshBoth)
         .on("postgres_changes", { event: "*", schema: "public", table: "app_conversations" }, () => {
+          void loadListRef.current();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_messages" }, refreshBoth)
+        .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => {
           void loadListRef.current();
         })
         .subscribe();
@@ -167,45 +189,69 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
     return () => {
       db.removeChannel(channel);
     };
-  }, [active, db, selectedId]);
+  }, [active, db]);
 
   const shownMessages = active && thread && threadFor === selectedId ? thread as unknown as M[] : messages;
   const appOnly = isAppThreadId(selectedId) || selectedRow?.channel === "app";
-  const replyChannel = !active
+  const mixed = Boolean(
+    active
+    && !appOnly
+    && selectedRow?.channels?.includes("app"),
+  );
+  const threadReady = threadFor === selectedId && thread != null;
+  const replyChannel: "app" | "pending" | null = !active
     ? null
-    : appOnly || (threadFor === selectedId && replyChannelForMessages(shownMessages as InboxMessage[]) === "app")
+    : appOnly
       ? "app"
-      : null;
+      : mixed && (!threadReady || threadError)
+        ? "pending"
+        : mixed && replyChannelForMessages(shownMessages as InboxMessage[]) === "app"
+          ? "app"
+          : null;
   const replyNote = replyChannel === "app"
     ? "This reply goes to their app, not WhatsApp."
-    : active && threadFor === selectedId && selectedRow?.channels?.includes("app")
-      ? "This reply goes on WhatsApp."
-      : null;
+    : replyChannel === "pending"
+      ? "Checking whether this reply goes in the app or on WhatsApp."
+      : active && threadReady && selectedRow?.channels?.includes("app")
+        ? "This reply goes on WhatsApp."
+        : null;
 
   const refresh = useCallback(() => {
     void loadList();
-    void loadThread(selectedId);
-  }, [loadList, loadThread, selectedId]);
+    void loadThread();
+  }, [loadList, loadThread]);
 
   const sendAppReply = useCallback(async ({ text }: { text?: string | null } = {}) => {
     if (!db) return { ok: false, reason: "Not connected" };
-    const result = await sendAppReplyWithClient(db, selectedRow?.human_id, text);
-    if (result.ok) {
-      await loadThread(selectedId);
-      await loadList();
+    if (sendingRef.current) return { ok: false, reason: "Already sending" };
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      const result = await sendAppReplyWithClient(db, selectedRow?.human_id, text);
+      if (result.ok) {
+        await loadThread();
+        await loadList();
+      }
+      return result;
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
-    return result;
-  }, [db, selectedRow?.human_id, loadThread, selectedId, loadList]);
+  }, [db, selectedRow?.human_id, loadThread, loadList]);
+
+  const loadingThread = Boolean((appOnly || mixed) && !threadReady && !threadError);
 
   if (!active) {
     return {
       conversations,
       messages,
       selectedConversation: null as C | null,
-      replyChannel: null as "app" | null,
+      replyChannel: null as "app" | "pending" | null,
       replyNote: null as string | null,
       loadingThread: false,
       threadError: null as string | null,
+      sending: false,
+      listReady: true,
       sendAppReply,
       refresh,
     };
@@ -217,8 +263,10 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
     selectedConversation: selectedRow,
     replyChannel,
     replyNote,
-    loadingThread: Boolean(appOnly && threadFor !== selectedId && !threadError),
-    threadError: appOnly ? threadError : null,
+    loadingThread,
+    threadError,
+    sending,
+    listReady,
     sendAppReply,
     refresh,
   };

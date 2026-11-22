@@ -4723,6 +4723,7 @@ export type Database = {
           staff_unread_count: number
           thread_key: string
           whatsapp_conversation_id: string | null
+          app_unread_count: number
         }[]
       }
       list_staff_unified_thread: {
@@ -4780,8 +4781,8 @@ export type Database = {
       mark_app_messages_read: {
         Args: { p_conversation_id: string }
         Returns: {
-          conversation_id: string
-          unread_count: number
+          out_conversation_id: string
+          out_unread_count: number
         }[]
       }
       mark_booking_visit_no_show: {
@@ -5065,12 +5066,12 @@ export type Database = {
       send_app_message: {
         Args: { p_body: string; p_human_id?: string }
         Returns: {
-          body: string
-          conversation_id: string
-          created_at: string
-          human_id: string
-          id: string
-          sender: string
+          out_body: string
+          out_conversation_id: string
+          out_created_at: string
+          out_human_id: string
+          out_id: string
+          out_sender: string
         }[]
       }
       set_ai_whatsapp_enabled: {

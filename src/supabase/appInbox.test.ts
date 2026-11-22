@@ -29,7 +29,7 @@ const aliceSms = {
   human_id: "alice",
   channel: "sms",
   phone_e164: "+447700900501",
-  unread_count: 2,
+  unread_count: 0,
   last_message_at: "2026-11-22T08:00:00.000Z",
   last_message_text: "By text",
   last_message_direction: "inbound",
@@ -81,6 +81,7 @@ describe("applyUnifiedInbox", () => {
       last_message_text: "From the app",
       last_message_direction: "inbound",
       staff_unread_count: 4,
+      app_unread_count: 3,
       phone_e164: "+447700900501",
       customer_name: "Alice",
       customer_surname: "A",
@@ -161,6 +162,73 @@ describe("applyUnifiedInbox", () => {
     expect(rows[0].last_message_text).toBe("On WhatsApp");
     expect(rows[0].reply_channel).toBe("whatsapp");
     expect(rows[0].app_conversation_id).toBe("app-alice");
+  });
+
+  it("keeps a second channel row that still has a draft or a failed send", () => {
+    const smsWithDraft = {
+      ...aliceSms,
+      has_pending_draft: true,
+      whatsapp_drafts: [{ id: "sms-draft" }],
+    };
+    const rows = applyUnifiedInbox([aliceWa, smsWithDraft], [{
+      thread_key: "human:alice",
+      human_id: "alice",
+      whatsapp_conversation_id: "wa-alice",
+      app_conversation_id: "app-alice",
+      channels: ["whatsapp", "sms", "app"],
+      last_channel: "whatsapp",
+      last_message_at: "2026-11-22T09:00:00.000Z",
+      last_message_text: "On WhatsApp",
+      last_message_direction: "inbound",
+      staff_unread_count: 1,
+      app_unread_count: 0,
+      phone_e164: "+447700900501",
+      customer_name: "Alice",
+      customer_surname: "A",
+    }]);
+    expect(rows.map((row) => row.id).sort()).toEqual(["sms-alice", "wa-alice"]);
+  });
+
+  it("puts a closed WhatsApp thread back in the active queue when a newer app message arrives", () => {
+    const closed = { ...aliceWa, closed_at: "2026-11-22T09:30:00.000Z", unread_count: 0 };
+    const rows = applyUnifiedInbox([closed], [{
+      thread_key: "human:alice",
+      human_id: "alice",
+      whatsapp_conversation_id: "wa-alice",
+      app_conversation_id: "app-alice",
+      channels: ["whatsapp", "app"],
+      last_channel: "app",
+      last_message_at: "2026-11-22T12:00:00.000Z",
+      last_message_text: "From the app",
+      last_message_direction: "inbound",
+      staff_unread_count: 1,
+      app_unread_count: 1,
+      phone_e164: "+447700900501",
+      customer_name: "Alice",
+      customer_surname: "A",
+    }]);
+    expect(rows[0].closed_at).toBeNull();
+    expect(rows[0].unread_count).toBe(1);
+  });
+
+  it("adds the app unread count on top of this WhatsApp row's own live count", () => {
+    const rows = applyUnifiedInbox([{ ...aliceWa, unread_count: 2 }], [{
+      thread_key: "human:alice",
+      human_id: "alice",
+      whatsapp_conversation_id: "wa-alice",
+      app_conversation_id: "app-alice",
+      channels: ["whatsapp", "app"],
+      last_channel: "whatsapp",
+      last_message_at: "2026-11-22T09:00:00.000Z",
+      last_message_text: "On WhatsApp",
+      last_message_direction: "inbound",
+      staff_unread_count: 99,
+      app_unread_count: 3,
+      phone_e164: "+447700900501",
+      customer_name: "Alice",
+      customer_surname: "A",
+    }]);
+    expect(rows[0].unread_count).toBe(5);
   });
 });
 

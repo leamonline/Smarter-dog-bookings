@@ -150,17 +150,18 @@ create or replace function public.send_app_message(
   p_human_id uuid default null
 )
 returns table (
-  id uuid,
-  conversation_id uuid,
-  human_id uuid,
-  sender text,
-  body text,
-  created_at timestamptz
+  out_id uuid,
+  out_conversation_id uuid,
+  out_human_id uuid,
+  out_sender text,
+  out_body text,
+  out_created_at timestamptz
 )
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+#variable_conflict use_column
 declare
   v_uid uuid := (select auth.uid());
   v_staff boolean := public.is_staff();
@@ -227,7 +228,7 @@ begin
     case when v_sender = 'customer' then 1 else 0 end,
     case when v_sender = 'staff' then 1 else 0 end
   )
-  on conflict (human_id) do update
+  on conflict on constraint app_conversations_human_id_key do update
   set
     last_message_at = excluded.last_message_at,
     last_message_text = excluded.last_message_text,
@@ -236,7 +237,7 @@ begin
       + case when excluded.last_message_sender = 'customer' then 1 else 0 end,
     customer_unread_count = c.customer_unread_count
       + case when excluded.last_message_sender = 'staff' then 1 else 0 end
-  returning id into v_conversation_id;
+  returning c.id into v_conversation_id;
 
   insert into public.app_messages (
     conversation_id,
@@ -281,13 +282,14 @@ grant execute on function public.send_app_message(text, uuid) to authenticated;
 -- not_found either way, so the answer does not reveal that it exists.
 create or replace function public.mark_app_messages_read(p_conversation_id uuid)
 returns table (
-  conversation_id uuid,
-  unread_count integer
+  out_conversation_id uuid,
+  out_unread_count integer
 )
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+#variable_conflict use_column
 declare
   v_uid uuid := (select auth.uid());
   v_staff boolean := public.is_staff();
@@ -381,7 +383,8 @@ returns table (
   staff_unread_count integer,
   phone_e164 text,
   customer_name text,
-  customer_surname text
+  customer_surname text,
+  app_unread_count integer
 )
 language plpgsql
 stable
@@ -476,12 +479,12 @@ begin
         )
       end as last_message_direction,
       (
-        coalesce((select sum(w.unread_count) from wa w where w.human_id = h.human_id), 0)
-        + coalesce(a.staff_unread_count, 0)
+        coalesce(wa_latest.unread_count, 0) + coalesce(a.staff_unread_count, 0)
       )::integer as staff_unread_count,
       coalesce(wa_latest.phone_e164, person.phone) as phone_e164,
       person.name as customer_name,
-      person.surname as customer_surname
+      person.surname as customer_surname,
+      coalesce(a.staff_unread_count, 0)::integer as app_unread_count
     from humans_involved h
     left join lateral (
       select w.*
@@ -506,7 +509,8 @@ begin
     p.staff_unread_count,
     p.phone_e164,
     p.customer_name,
-    p.customer_surname
+    p.customer_surname,
+    p.app_unread_count
   from per_human p
   union all
   select
@@ -530,7 +534,8 @@ begin
     w.unread_count,
     w.phone_e164,
     null::text,
-    null::text
+    null::text,
+    0
   from wa w
   where w.human_id is null;
 end;

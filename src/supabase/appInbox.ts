@@ -38,6 +38,7 @@ export interface UnifiedInboxRow {
   phone_e164: string | null;
   customer_name: string | null;
   customer_surname: string | null;
+  app_unread_count?: number | null;
 }
 
 export interface UnifiedThreadMessage {
@@ -109,13 +110,25 @@ function appIsLatest(waAt: string, unifiedAt: string | null): boolean {
 function decorate<T extends MergeConversation>(wa: T, unified: UnifiedInboxRow): T {
   const waAt = activityAt(wa);
   const latest = appIsLatest(waAt, unified.last_message_at);
+  const appUnread = unified.app_unread_count ?? 0;
   const next: T = {
     ...wa,
     channels: unified.channels ?? [],
     app_conversation_id: unified.app_conversation_id,
     reply_channel: unified.last_channel,
-    unread_count: unified.staff_unread_count ?? wa.unread_count ?? 0,
+    // Keep this row's own live WhatsApp unread and add only the app unread.
+    // A folded sibling keeps its own badge, so a stale sum cannot hide a
+    // message that arrived after the unified list was fetched.
+    unread_count: (wa.unread_count ?? 0) + appUnread,
   };
+  if (
+    wa.closed_at
+    && unified.app_conversation_id
+    && unified.last_message_at
+    && unified.last_message_at > wa.closed_at
+  ) {
+    next.closed_at = null;
+  }
   if (!latest) return next;
   next.last_message_at = unified.last_message_at;
   next.last_message_text = unified.last_message_text;
@@ -162,12 +175,21 @@ function syntheticAppThread(unified: UnifiedInboxRow): MergeConversation {
   } as MergeConversation;
 }
 
+function needsItsOwnRow(row: MergeConversation): boolean {
+  return Boolean(
+    (row.unread_count ?? 0) > 0
+    || row.has_pending_draft
+    || row.has_failed_message
+    || row.has_pending_booking_action
+    || row.needs_human_review
+  );
+}
+
 /**
- * One row per unified thread. A WhatsApp row keeps its id and its drafts
- * when it is the customer's latest WhatsApp conversation. Their other
- * WhatsApp/SMS rows are folded in (the thread RPC returns those messages).
- * App-only customers are added. Anything the merge did not mention is kept,
- * so a failed or partial read cannot hide a WhatsApp thread.
+ * One row per customer when every extra WhatsApp/SMS row is quiet.
+ * A row with unread messages, a draft, a failed send or a booking proposal
+ * stays on its own so staff can open the conversation that owns that work.
+ * App-only customers are added. Anything the merge did not mention is kept.
  */
 export function applyUnifiedInbox<T extends MergeConversation>(
   whatsappConversations: readonly T[],
@@ -205,7 +227,10 @@ export function applyUnifiedInbox<T extends MergeConversation>(
   );
   for (const wa of whatsappConversations) {
     if (usedWa.has(wa.id)) continue;
-    if (wa.human_id && representedHumans.has(wa.human_id)) continue;
+    // A quiet extra WhatsApp/SMS row is folded into the customer's thread.
+    // One that still has unread messages, a draft, a failed send or a booking
+    // proposal stays, so staff can open the conversation that owns that work.
+    if (wa.human_id && representedHumans.has(wa.human_id) && !needsItsOwnRow(wa)) continue;
     merged.push(wa);
   }
 
