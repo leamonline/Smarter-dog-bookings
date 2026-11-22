@@ -18,7 +18,7 @@ enum AppColor {
     static let oak = Color("Oak")
     /// Material. Not for text, and not a second action colour.
     static let brass = Color("Brass")
-    static let separator = Color("Separator")
+    static let separator = Color("AppSeparator")
     static let success = Color("Success")
     static let successSoft = Color("SuccessSoft")
     static let warning = Color("Warning")

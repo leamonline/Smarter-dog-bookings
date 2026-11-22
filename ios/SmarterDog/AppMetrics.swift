@@ -24,7 +24,7 @@ enum AppRadius {
 
 extension View {
     /// Warm card shadow from the colour spec. Light uses espresso at a low alpha.
-    /// Dark uses black. A 1pt `Separator` stroke still belongs on the card.
+    /// Dark uses black. A 1pt `AppSeparator` stroke still belongs on the card.
     func appCardShadow() -> some View {
         modifier(CardShadow())
     }

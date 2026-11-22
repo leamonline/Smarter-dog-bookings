@@ -278,8 +278,8 @@ describe("the Xcode project is the committed skeleton", () => {
     };
     expect(contents.info).toEqual({ author: "xcode", version: 1 });
     expect(contents.images.map((image) => image.filename)).toEqual([
-      "AppIcon.png",
-      "AppIcon-Dark.png",
+      "SmarterDog-iOS-Default-1024@1x.png",
+      "SmarterDog-iOS-Dark-1024@1x.png",
       "AppIcon-Tinted.png",
     ]);
     for (const image of contents.images) {
@@ -296,8 +296,8 @@ describe("the Xcode project is the committed skeleton", () => {
     // Colour type 2 is RGB with no alpha. Type 6 is RGBA. App Store rejects an
     // alpha channel on the light 1024 icon.
     const approved = [
-      ["AppIcon.png", 2, "4e7dc516c4f53afed8c79f484ae90145f54e48249dd998d828fc83137119fc46"],
-      ["AppIcon-Dark.png", 6, "debc5b0daa9701aa5869e2dc39dd7d98d5ada85dfa47b30f2e2465a5a5d5d30a"],
+      ["SmarterDog-iOS-Default-1024@1x.png", 2, "3221446cf17f3f9b8cca99dea964a806f0926696483dae973926c5032315cab5"],
+      ["SmarterDog-iOS-Dark-1024@1x.png", 6, "9ae9093586eb58e103dac507749fef75fa945639f1a6e1313627d3d4e51d132b"],
       ["AppIcon-Tinted.png", 2, "bbe53a8f9e9f73ba7c5283d9b4dfb02c85c3d5fd896bdd29ee26931c291d5a76"],
     ] as const;
     for (const [name, colourType, sha256] of approved) {
@@ -313,7 +313,9 @@ describe("the Xcode project is the committed skeleton", () => {
     const composer = "ios/SmarterDog/SmarterDog.icon";
     expect(existsSync(join(root, composer, "icon.json"))).toBe(true);
     expect(existsSync(join(root, composer, "Assets/dog.svg"))).toBe(true);
-    expect(existsSync(join(root, composer, "Assets/dog.png"))).toBe(true);
+    // icon.json names dog.svg. dog.png is not part of this package.
+    expect(read(`${composer}/icon.json`)).toContain('"image-name" : "dog.svg"');
+    expect(read(`${composer}/icon.json`)).not.toContain("dog.png");
     const iconDocument = JSON.parse(read(`${composer}/icon.json`)) as {
       groups?: unknown[];
       "supported-platforms"?: { squares?: string[] };
