@@ -13,7 +13,7 @@ import { safeGet, safeSet } from "../../../lib/storage";
 import { buildHumanMapEntry, isRawHumanCacheRow } from "./helpers";
 import type { HumanCacheEntry, HumanEntry, HumanRowLike, HumansByIdMap, HumansMap } from "./helpers";
 import type { Database } from "../../database.types";
-import type { RealtimePostgresDeletePayload } from "@supabase/supabase-js";
+import type { RealtimePostgresDeletePayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
 
 type HumanRow = Database["public"]["Tables"]["humans"]["Row"];
 
@@ -256,7 +256,7 @@ export function useHumansData({
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "humans" },
-        (payload: { new?: HumanRow | null }) => {
+        (payload: RealtimePostgresUpdatePayload<HumanRow>) => {
           // A no-show turns the deposit on in the database, not through the
           // customer form. The directory refetch below only rewrites page 0,
           // so an owner loaded from Today (or any later page) would keep the
@@ -264,7 +264,7 @@ export function useHumansData({
           // clear a deposit, write it on again. Fold this row into whatever
           // cache already holds them. Page 0 is still refetched for the grid.
           const row = payload.new;
-          if (row?.id && Object.prototype.hasOwnProperty.call(row, "deposit_required")) {
+          if (row?.id) {
             const tag = {
               depositRequired: row.deposit_required === true,
               depositRequiredReason: row.deposit_required_reason ?? null,
