@@ -288,7 +288,7 @@ select throws_ok(
   $$select public.staff_waive_booking_deposit('26600000-0000-4000-8000-000000000108', 'please')$$,
   '42501', null, 'a customer cannot waive a deposit');
 select throws_ok(
-  $$select public.staff_refund_booking_deposit('26600000-0000-4000-8000-000000000306', 'please')$$,
+  $$select public.staff_refund_booking_deposit('26600000-0000-4000-8000-000000000106', 'please')$$,
   '42501', null, 'a customer cannot refund a deposit');
 reset role;
 
@@ -306,19 +306,19 @@ select is(
   false,
   'waiving clears the deposit requirement on that booking only');
 select throws_ok(
-  $$select public.staff_waive_booking_deposit('26600000-0000-4000-8000-000000000306', 'too late')$$,
+  $$select public.staff_waive_booking_deposit('26600000-0000-4000-8000-000000000106', 'too late')$$,
   'P0001', null, 'staff cannot waive a deposit Square has already taken');
 select throws_ok(
   $$select public.staff_waive_booking_deposit('26600000-0000-4000-8000-000000000107', 'too soon')$$,
   'P0001', null, 'staff cannot waive a deposit while Square has not answered');
 select ok(
   (select (public.staff_refund_booking_deposit(
-    '26600000-0000-4000-8000-000000000306', 'the dog was ill'))->>'status' = 'refund_due'),
+    '26600000-0000-4000-8000-000000000106', 'the dog was ill'))->>'status' = 'refund_due'),
   'staff can refund a deposit the rules had kept');
 select is(
   (select refund_idempotency_key from public.deposit_payments where id = '26600000-0000-4000-8000-000000000306'),
   (select (public.staff_refund_booking_deposit(
-    '26600000-0000-4000-8000-000000000306', 'the dog was ill'))->>'refund_idempotency_key'),
+    '26600000-0000-4000-8000-000000000106', 'the dog was ill'))->>'refund_idempotency_key'),
   'repeating the refund keeps the same Square idempotency key');
 reset role;
 
