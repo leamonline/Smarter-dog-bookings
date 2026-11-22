@@ -89,14 +89,16 @@ private struct TurnstileWebView: UIViewRepresentable {
             self.onEvent = onEvent
         }
 
-        func userContentController(
+        nonisolated func userContentController(
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
             let body = message.body as? [String: Any]
             let event = body?["event"] as? String ?? ""
             let token = body?["token"] as? String ?? ""
-            deliver(event: event, token: token)
+            Task { @MainActor [weak self] in
+                self?.deliver(event: event, token: token)
+            }
         }
 
         private func deliver(event: String, token: String) {

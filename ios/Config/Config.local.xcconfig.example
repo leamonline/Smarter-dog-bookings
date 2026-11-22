@@ -8,5 +8,5 @@
 // Leave the :/$()/ spelling. A normal https:// is treated as a comment in this
 // file. Xcode turns :/$()/ back into ://.
 
-SUPABASE_URL = https:/$()/nlzhllhkigmsvrzduefz.supabase.co
-SUPABASE_PUBLISHABLE_KEY = sb_publishable_-Uyblq9H8Ji_qbeZHwOZTw_9YIW6Mfk
+SUPABASE_URL = https:/$()/YOUR_PROJECT_REF.supabase.co
+SUPABASE_PUBLISHABLE_KEY = YOUR_PUBLISHABLE_KEY

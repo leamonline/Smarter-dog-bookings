@@ -39,7 +39,7 @@ const paints: Record<string, Paint> = {
   DashNavy: { light: "1B3654", dark: "8AA4C4" },
   Oak: { light: "C19654", dark: "C9A56B" },
   Brass: { light: "C5B05C", dark: "D4C078" },
-  Separator: { light: "E5D6C6", dark: "4A3C32" },
+  AppSeparator: { light: "E5D6C6", dark: "4A3C32" },
   Success: { light: "3A5538", dark: "9CB890" },
   SuccessSoft: { light: "E6EEE4", dark: "2F4034" },
   Warning: { light: "6B4A18", dark: "D8B878" },
