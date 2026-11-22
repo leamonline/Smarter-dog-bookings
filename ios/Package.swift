@@ -25,6 +25,8 @@ let package = Package(
                 "SmarterDogApp.swift",
                 "SupabaseHomeClient.swift",
                 "HomeView.swift",
+                "SupabaseDogsClient.swift",
+                "DogsView.swift",
             ],
             sources: [
                 "PhoneNumber.swift",
@@ -32,6 +34,7 @@ let package = Package(
                 "SessionClient.swift",
                 "AuthService.swift",
                 "HomeModels.swift",
+                "DogsModels.swift",
             ]
         ),
         .testTarget(
