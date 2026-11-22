@@ -454,9 +454,10 @@ export function CustomerLoginPage({
             </h1>
             {stage === "phone" && (
               <>
-                {/* The sign-in hero's one handwritten line: the salon's flyer slogan. */}
+                {/* The sign-in hero's one handwritten line, taken from the flyer
+                    (owner sign-off, 22 November 2026). */}
                 <p className="font-handwriting font-bold text-2xl text-center text-brand-cyan -rotate-2 mb-3">
-                  Come scruffy. Leave gorgeous.
+                  Book your groom online
                 </p>
                 <p className="text-sm text-center text-[var(--color-ink-soft)] mb-4 leading-relaxed">
                   Book grooms, see past visits, and keep your details up to date.

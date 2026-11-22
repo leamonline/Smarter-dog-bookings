@@ -1,7 +1,7 @@
 # Flyer visual language for the web app
 
 Status: Active (step 1 merged in #1259; step 2 in review)
-Issue: None yet. Raise one before step 2 opens a pull request that changes screens.
+Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
 Last verified: 2026-11-22
 Owners: `docs/ux/**`, `src/index.css`, `src/customer-portal.css`, `src/constants/statusPalette.ts`, `src/components/ui/**`, `src/components/customer/**`, `src/components/auth/**`, `public/app/fonts/**`, `.design-sync/**`
@@ -334,14 +334,16 @@ here rather than rewriting the outline above:
   (`BookingWizard.bookedMoment.component.test.tsx`).
 - **Motion.** The loop of floating paws on the booked and waitlist screens is
   removed: the approved motion is three single moves, and nothing keeps going.
-  The sign-in page's slowly drifting silhouettes are left as they are, for the
-  owner to decide.
+  The sign-in page's slowly drifting silhouettes stay: the owner chose to keep
+  them moving (22 November 2026), a deliberate exception for that screen. They
+  already stand still under reduced motion.
 - **Progress dots.** Done steps in the wizard's stepper move from yellow to brand
   blue: they show progress, not something to press.
-- **Hero copy shipped for review.** "Come scruffy. Leave gorgeous." in Caveat on
-  sign-in, the salon slogan in Caveat on the dashboard, and "See you soon!" on
-  the booked moment. Existing titles are unchanged. The owner signs these off
-  in the step 2 review.
+- **Hero copy, signed off by the owner on 22 November 2026.** "Book your groom
+  online" in Caveat on sign-in (first shipped as "Come scruffy. Leave
+  gorgeous."; the owner chose the flyer's other line), the salon slogan in
+  Caveat on the dashboard, and "See you soon!" on the booked moment. Existing
+  titles are unchanged.
 
 ### Step 3: staff dashboard
 
