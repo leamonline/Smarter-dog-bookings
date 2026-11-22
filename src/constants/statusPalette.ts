@@ -40,37 +40,32 @@ export interface StatusTone {
 }
 
 /**
- * Status → tone, taken from the salon-day-view prototype.
+ * Status → tone. Re-tuned on 22 November 2026 to the flyer visual language
+ * (docs/plans/active/2026-11-22-flyer-visual-language.md, decision 6): one hue
+ * per status in the flyer's flatter, warmer print style, so the tones sit on
+ * cream like the mascot circles. Every pairing was measured before the swap.
  *
- * The five live hues are deliberate and were corrected against that file rather
- * than derived here:
+ *   Expected     warm cream with neutral ink. The resting state recedes.
+ *   Unconfirmed  coral-orange; its pill inverts so it reads as a job to chase.
+ *   Confirmed    periwinkle, deliberately off the brand blue, which now marks
+ *                a selected item: a confirmed booking must never read as
+ *                "selected". Reconfirmed shares it; the word tells them apart.
+ *   Arrived      a fresher teal-green, clear of the Large-dog navy.
+ *   Ready        sunny gold, softer than the action yellow and never a control.
+ *   No-show      brick red; Cancelled shares it.
+ *   Collected    cool grey, so a finished day settles down.
  *
- *   Expected     near-neutral grey-blue with NEUTRAL ink, not blue ink. This is
- *                the resting state and it should recede.
- *   Arrived      brand teal.
- *   In the bath  OLIVE green, not mint. Mint sits too close to the teal beside
- *                it; the olive separates the two states that are adjacent in
- *                the progression and therefore adjacent on the screen.
- *   Ready        brand GOLD, not yellow. It is the brand colour and the only
- *                warm thing on the page, so it has to be the right warm.
- *   No-show      red, not pink.
- *
- * The two states that have left the stack fall back to slate so a finished day
- * settles down rather than staying loud.
- *
- * Light values only. The prototype also carries a dark theme; the app has no
- * dark mode and adding one is a separate project, so those values are not
- * ported here.
+ * Light values only; the app has no dark mode.
  */
 export const STATUS_TONES: Record<StatusToneKey, StatusTone> = {
   // Expected now means "nothing to wait for yet": no reminder is due, or
   // staff booked it with confirmation off. It should recede.
   expected: {
     label: "Expected",
-    tint: "#E8ECF0",
-    ink: "#2C353F",
-    meta: "#4C5863",
-    edge: "#97A6B5",
+    tint: "#F1E9DC",
+    ink: "#3B3226",
+    meta: "#5E5242",
+    edge: "#B8A68A",
     inStack: true,
   },
   // Unconfirmed: we asked and have no answer, or the reminder never reached
@@ -80,20 +75,20 @@ export const STATUS_TONES: Record<StatusToneKey, StatusTone> = {
   // word carries the meaning.
   unconfirmed: {
     label: "Unconfirmed",
-    tint: "#FFD9BF",
-    ink: "#5A2100",
-    meta: "#7A3000",
-    edge: "#C2500A",
+    tint: "#FFDDC9",
+    ink: "#5C2408",
+    meta: "#7A3410",
+    edge: "#E0662B",
     inStack: true,
   },
   // Confirmed: the owner answered the reminder. The same informational blue
   // as Reconfirmed, because it is the same news: they are coming.
   confirmed: {
     label: "Confirmed",
-    tint: "#DBEAFE",
-    ink: "#12315E",
-    meta: "#1D4A8F",
-    edge: "#3B82F6",
+    tint: "#E4E4FB",
+    ink: "#26266A",
+    meta: "#3D3D8F",
+    edge: "#7C80DC",
     inStack: true,
   },
   // Reconfirmed: informational blue. It is news, not activity — the dog is
@@ -101,10 +96,10 @@ export const STATUS_TONES: Record<StatusToneKey, StatusTone> = {
   // from the green of one that has actually walked through the door.
   reconfirmed: {
     label: "Reconfirmed",
-    tint: "#DBEAFE",
-    ink: "#12315E",
-    meta: "#1D4A8F",
-    edge: "#3B82F6",
+    tint: "#E4E4FB",
+    ink: "#26266A",
+    meta: "#3D3D8F",
+    edge: "#7C80DC",
     inStack: true,
   },
   // Arrived keeps the teal that "Arrived" had: the dog is here, and the
@@ -112,29 +107,28 @@ export const STATUS_TONES: Record<StatusToneKey, StatusTone> = {
   // to separate it from "In the bath" is retired with that status.
   arrived: {
     label: "Arrived",
-    tint: "#D3EAE4",
-    ink: "#123C33",
-    meta: "#1D5F51",
-    edge: "#2E8B76",
+    tint: "#D5EFE5",
+    ink: "#0F3F2E",
+    meta: "#1C5E46",
+    edge: "#2E9D78",
     inStack: true,
   },
   ready: {
-    // Dark brown-gold ink on a pale gold tint. This is the pairing the brief
-    // singles out: the gold is a background and an edge colour only, never a
-    // text colour, and never a fill behind white.
+    // Dark brown-gold ink on a sunny gold tint. The gold is a background and an
+    // edge colour only, never a text colour, and never a fill behind white.
     label: "Ready",
-    tint: "#F7E6BE",
-    ink: "#4A3403",
-    meta: "#6B4C06",
-    edge: "#B8860B",
+    tint: "#FCEAB0",
+    ink: "#4A3500",
+    meta: "#6B4D00",
+    edge: "#D49A00",
     inStack: true,
   },
   noShow: {
     label: "No-show",
-    tint: "#F2D9D9",
-    ink: "#4A1414",
-    meta: "#7A2222",
-    edge: "#B33A3A",
+    tint: "#F7D9D2",
+    ink: "#5C1A10",
+    meta: "#80281A",
+    edge: "#C4442D",
     inStack: false,
   },
   cancelled: {
@@ -142,18 +136,18 @@ export const STATUS_TONES: Record<StatusToneKey, StatusTone> = {
     // fact to the eye — this dog is not coming — and a sixth hue for it would
     // buy nothing the word does not already say.
     label: "Cancelled",
-    tint: "#F2D9D9",
-    ink: "#4A1414",
-    meta: "#7A2222",
-    edge: "#B33A3A",
+    tint: "#F7D9D2",
+    ink: "#5C1A10",
+    meta: "#80281A",
+    edge: "#C4442D",
     inStack: false,
   },
   collected: {
     label: "Collected",
-    tint: "#F1F5F9",
-    ink: "#40506B",
-    meta: "#5A666F",
-    edge: "#94A3B8",
+    tint: "#ECEDEF",
+    ink: "#34383E",
+    meta: "#575C63",
+    edge: "#8E939A",
     inStack: false,
   },
 };

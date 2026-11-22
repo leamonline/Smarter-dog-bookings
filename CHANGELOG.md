@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — flyer visual language, step 3: the staff dashboard
+
+- **Status colours are new** (staff need telling before this goes live): one hue per status in the flyer's print style. Expected is warm cream, Unconfirmed coral-orange, Confirmed and Reconfirmed periwinkle, Arrived green, Ready gold, No-show and Cancelled brick red, Collected grey. The words are unchanged and always shown.
+- **Dog sizes**: Small and Medium are neutral letter chips; only Large is coloured (navy), on its chip, its calendar card's top edge and the modals that took their colour from the size. Reports charts use a light-to-dark blue scale.
+- Brand blue marks the active tab and pressed chips; the flyer stripe runs across the top of every staff screen; every staff screen sits on the cream paper; staff sign-in gets the heavy hero titles and stripe; the empty Dogs and Customers directories show a mascot.
+- See the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md) for what is left for a follow-up.
+
 ## Unreleased — new wording on the booking confirm step
 
 - The confirm step now says "Need to change your appointment?" and "We'll keep you in the loop!" in the owner's words (signed off 22 November 2026). The notice period comes from the salon's setting (24 hours by default) through the server, so the page never promises a deadline the system does not enforce. Under any other deadline rule, or before the server has answered, the server's own sentence shows, as before.

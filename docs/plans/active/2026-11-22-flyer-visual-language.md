@@ -1,6 +1,6 @@
 # Flyer visual language for the web app
 
-Status: Active (step 1 merged in #1259; step 2 in review)
+Status: Active (steps 1 and 2 merged in #1259 and #1261; step 3 in review)
 Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
 Last verified: 2026-11-22
@@ -352,6 +352,31 @@ here rather than rewriting the outline above:
 - Stripe header and blue active tab in `AppToolbar`, title swash, staff sign-in,
   empty and done states, cream page on the calendar.
 - Tell the team about the new status colours before merge.
+
+**As built (22 November 2026).** Added here rather than rewriting the outline:
+
+- Status values swapped in place in `statusPalette.ts`; the pinned-value test
+  now pins the approved palette and also checks Confirmed stays off every brand
+  blue.
+- Sizes: `SizeDot` (white chip, charcoal outline and letter for S and M; navy
+  for L), `SIZE_THEME` (one neutral theme for S and M, navy for L; `primary`
+  and `gradient` stay fills under white text, because Reschedule and Chain
+  booking put text on them), the calendar card's top edge (Large only), and
+  the `--color-size-*` tokens. Reports charts get an ordered blue scale, since a
+  chart must tell all three sizes apart.
+- Selection: `--color-border-accent` and `ToggleChip`'s default pressed tone are
+  brand blue; focus stays charcoal.
+- Chrome: the stripe above the desktop toolbar and under the phone top bar
+  (clear of the safe area); the active tab is blue on desktop and phone.
+- Cream page: `body` and `--color-surface-page` are paper on every staff screen.
+- Staff sign-in: the hero stripe and Poppins Black titles. No new copy.
+- Empty states: `EmptyState mark="mascot"` (puppy mascot, hero title) on the
+  true-empty Dogs and Customers directories.
+- **Not done in this step, for a follow-up:** the swash under staff page titles
+  (the calendar's date title component was not changed), the mini calendar's
+  yellow "Selected" date, and other hand-written selected states outside the
+  shared controls. Some staff panels keep a cool slate-50 fill on the cream
+  page.
 
 ### Step 4: website, iPhone app, emails
 
