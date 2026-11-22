@@ -84,11 +84,10 @@
   src: url("/app/fonts/montserrat-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
-/* Poppins (headings — matches the wordmark) and Barlow Condensed (hero lines
-   only). Both SIL OFL 1.1; woff2 subsets and unicode-ranges taken from
-   @fontsource/poppins and @fontsource/barlow-condensed 5.3.0, vendored here
-   rather than imported so nothing new is fetched at runtime. The latin-ext
-   file is only downloaded when a glyph needs it (Zoë, Łukasz, Renée). */
+/* Poppins (headings — matches the wordmark). SIL OFL 1.1; woff2 subsets and
+   unicode-ranges taken from @fontsource/poppins 5.3.0, vendored here rather
+   than imported so nothing new is fetched at runtime. The latin-ext file is
+   only downloaded when a glyph needs it (Zoë, Łukasz, Renée). */
 @font-face {
   font-family: "Poppins";
   font-style: normal;
@@ -121,20 +120,26 @@
   src: url("/app/fonts/poppins-700-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* Poppins 900 for hero lines only (flyer visual language, step 2;
+   docs/plans/active/2026-11-22-flyer-visual-language.md). Same package and
+   licence as above. Registered under its own family name on purpose: added to
+   "Poppins" it would win the font match for every heading already set to 800
+   or 900 (font-extrabold, font-black) and silently re-weight about fifteen
+   staff headings. Only text that opts in with font-hero gets it. */
 @font-face {
-  font-family: "Barlow Condensed";
+  font-family: "Poppins Black";
   font-style: normal;
-  font-weight: 800;
+  font-weight: 900;
   font-display: swap;
-  src: url("/app/fonts/barlow-condensed-800.woff2") format("woff2");
+  src: url("/app/fonts/poppins-900.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Barlow Condensed";
+  font-family: "Poppins Black";
   font-style: normal;
-  font-weight: 800;
+  font-weight: 900;
   font-display: swap;
-  src: url("/app/fonts/barlow-condensed-800-latin-ext.woff2") format("woff2");
+  src: url("/app/fonts/poppins-900-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -160,12 +165,14 @@
   --breakpoint-wide: 90rem;
 
   /* Typography — Montserrat for body/UI, Poppins for headings (the wordmark's
-     face), Barlow Condensed for the occasional hero line on auth and portal
-     screens only (brand reskin step 4). Tailwind v4 emits font-display and
-     font-hero utilities from these. */
+     face), Poppins Black for hero lines (sign-in, step titles, confirmations,
+     true empty and done states) and Caveat 700 for the one handwritten line a
+     hero screen may carry. Tailwind v4 emits font-display, font-hero and
+     font-handwriting utilities from these. Use font-hero with font-black so a
+     fallback Poppins renders at its heaviest real face. */
   --font-sans: "Montserrat", system-ui, -apple-system, sans-serif;
   --font-display: "Poppins", "Montserrat", sans-serif;
-  --font-hero: "Barlow Condensed", "Poppins", "Montserrat", sans-serif;
+  --font-hero: "Poppins Black", "Poppins", "Montserrat", sans-serif;
   --font-handwriting: "Caveat", cursive;
 
   /* Primary brand scale — accessible sky (brand reskin step 2, 2026-09-20;
@@ -1574,4 +1581,64 @@ button.human-empty-pack:hover {
   .human-directory-card {
     transition: none;
   }
+}
+
+/* ── Flyer visual language: shared motifs ───────────────────────
+   docs/plans/active/2026-11-22-flyer-visual-language.md. Shared by the
+   customer portal (step 2) and the staff dashboard (step 3), so they live here
+   rather than in either app's own stylesheet. */
+
+/* Segmented stripe (BrandStripe). Decorative frame, never inside content. */
+.brand-stripe {
+  display: flex;
+  gap: 6px;
+  height: 16px;
+}
+.brand-stripe--bar {
+  gap: 4px;
+  height: 7px;
+}
+.brand-stripe__seg {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 5px;
+  background: var(--color-brand-cyan-light);
+}
+.brand-stripe--bar .brand-stripe__seg { border-radius: 3px; }
+.brand-stripe__seg--wide { flex-grow: 2.1; }
+.brand-stripe__seg--yellow { background: var(--color-brand-yellow); }
+.brand-stripe__seg--navy { background: var(--color-brand-cyan-dark); }
+
+/* Service mascot (ServiceMascot): a white ring and a soft lift, as on the flyer. */
+.service-mascot {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 3px solid var(--color-surface-card);
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-sd-card);
+  object-fit: cover;
+}
+
+/* The three hero-moment moves (decision 10). Used together at most, only on a
+   hero moment, and removed under reduced motion: the finished frame shows. */
+.scribble-underline--draw path {
+  animation: sd-swash-draw 420ms cubic-bezier(0.3, 0.7, 0.4, 1) 160ms both;
+}
+.service-mascot--bounce {
+  animation: sd-mascot-bounce 600ms cubic-bezier(0.3, 0.6, 0.3, 1) 260ms both;
+}
+@keyframes sd-swash-draw {
+  from { stroke-dasharray: 1; stroke-dashoffset: 1; }
+  to { stroke-dasharray: 1; stroke-dashoffset: 0; }
+}
+@keyframes sd-mascot-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-16px); }
+  70% { transform: translateY(0); }
+  85% { transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scribble-underline--draw path,
+  .service-mascot--bounce { animation: none; }
 }

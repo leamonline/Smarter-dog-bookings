@@ -28,8 +28,9 @@ values:
 | Motion | `duration-[var(--duration-base)]` (180ms — the standard interactive-transition speed) |
 
 Fonts: **Montserrat** is body/UI (`font-sans`), **Poppins** is
-display/headings (`font-display`), **Barlow Condensed** is for selected hero lines
-(`font-hero`), Caveat is a retained legacy font token, not a default for new work.
+display/headings (`font-display`), **Poppins Black** (Poppins 900 under its own
+family name) is for hero lines only (`font-hero` with `font-black`), and **Caveat**
+(`font-handwriting`) is the one short handwritten line a hero screen may carry.
 Rebuild this bundle after token/font changes. Don't
 introduce a different font family for new text.
 

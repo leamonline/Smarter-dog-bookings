@@ -1,8 +1,8 @@
 # Flyer visual language for the web app
 
-Status: Active (step 1 of 4 in progress)
+Status: Active (step 1 merged in #1259; step 2 in review)
 Issue: None yet. Raise one before step 2 opens a pull request that changes screens.
-Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248)
+Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
 Last verified: 2026-11-22
 Owners: `docs/ux/**`, `src/index.css`, `src/customer-portal.css`, `src/constants/statusPalette.ts`, `src/components/ui/**`, `src/components/customer/**`, `src/components/auth/**`, `public/app/fonts/**`, `.design-sync/**`
 Dependencies: None in-repo. Builds on the [brand reskin](2026-09-20-brand-reskin.md) palette and the [design-system components and tokens](2026-10-25-design-system-components-and-tokens.md) work.
@@ -274,6 +274,12 @@ offline sample data (`src/data/sample.js`), never real customers.
   rules in `src/index.css`: `.human-directory-card__name`,
   `.human-pack-roster__label` and `.human-directory-card__profile > button`. Search again and decide each one deliberately in step 2. Montserrat 800 requests are unaffected because no
   heavier Montserrat face exists.
+  **Resolved in step 2 (22 November 2026).** The search found about fifteen
+  staff headings set to `font-extrabold` or `font-black` on Poppins, not four.
+  Rather than edit each, Poppins 900 is registered under its own family name,
+  `Poppins Black`, which only `--font-hero` names. The `Poppins` family keeps
+  its 600 and 700 faces, so none of those headings changes;
+  `src/designTokens.integrity.test.ts` pins both halves.
 - **Mascot resolution.** 250px files are only sharp to about 120px. A larger use
   needs the original artwork from the owner.
 - **Release risk.** `main` deploys the booking app and the marketing site
@@ -287,7 +293,7 @@ rollback or a revert ([rollback](../../rollback.md)).
 
 ## Implementation sequence
 
-### Step 1: rules and values (this pull request)
+### Step 1: rules and values (merged, #1259)
 
 - Rewrite the rules in `docs/ux/design-system.md` and `docs/ux/warm-colours.md`
   that the approved language contradicts, marked with the step that ships each.
@@ -311,6 +317,31 @@ lands with its first use, in place, in the step below that ships it.
   copies, per ADR 009).
 - Portal: stripe frame, hero titles, mascots in the service picker, selected
   state in blue, polaroids, the booked moment, Caveat lines, hero copy.
+
+**As built (22 November 2026).** Decisions and findings during the build, added
+here rather than rewriting the outline above:
+
+- `BrandStripe`, `ServiceMascot` and a `draw` option on `ScribbleUnderline` are
+  shared components in `src/components/ui/`; their styles and the three motion
+  keyframes live at the end of `src/index.css` so step 3 can reuse them. The
+  existing taped polaroid and title underline were reused, not rebuilt.
+- **Polaroids.** The dashboard's dogs card is a list, so its photo avatars stay as
+  they are (decision 9: never in lists). The dog's own photo becomes a polaroid on
+  the booked moment.
+- **A bug found on the way.** The wizard copied only some of each dog's fields,
+  so the booked screen could never have shown the dog's photo. It now carries
+  `photoPath`, with a regression test that fails without the fix
+  (`BookingWizard.bookedMoment.component.test.tsx`).
+- **Motion.** The loop of floating paws on the booked and waitlist screens is
+  removed: the approved motion is three single moves, and nothing keeps going.
+  The sign-in page's slowly drifting silhouettes are left as they are, for the
+  owner to decide.
+- **Progress dots.** Done steps in the wizard's stepper move from yellow to brand
+  blue: they show progress, not something to press.
+- **Hero copy shipped for review.** "Come scruffy. Leave gorgeous." in Caveat on
+  sign-in, the salon slogan in Caveat on the dashboard, and "See you soon!" on
+  the booked moment. Existing titles are unchanged. The owner signs these off
+  in the step 2 review.
 
 ### Step 3: staff dashboard
 

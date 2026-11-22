@@ -1,10 +1,9 @@
 import { getServicePriceLabel } from "../../../engine/bookingRules";
 import { getAllowedServicesForSize } from "../../../engine/bookingRules";
-import { SERVICE_ICON_NAMES } from "../dashboardConstants.js";
 import type { WizardDog, ServiceId } from "../../../types/index";
-import { ArrowRight, Sparkles, Scissors, Droplets, Wind, PawPrint } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { WizardTick } from "./WizardTick";
-import type { ComponentType, SVGProps } from "react";
+import { ServiceMascot } from "../../ui/ServiceMascot.jsx";
 
 interface ServiceSelectionProps {
   selectedDogs: WizardDog[];
@@ -20,18 +19,6 @@ const SERVICE_DESCRIPTIONS: Record<string, string> = {
   "bath-and-deshed": "Bath, blow-dry, and de-shedding treatment",
   "puppy-groom": "A gentle introduction to grooming for pups under 6 months",
 };
-
-const ICON_COMPONENTS: Record<string, ComponentType<SVGProps<SVGSVGElement> & { size?: number }>> = {
-  Scissors,
-  Droplets,
-  Wind,
-  PawPrint,
-};
-
-function ServiceIcon({ name, color }: { name: string; color: string }) {
-  const Component = ICON_COMPONENTS[name] ?? Scissors;
-  return <Component aria-hidden="true" width={20} height={20} style={{ color, marginTop: 2, flexShrink: 0 }} />;
-}
 
 function getPriceLabel(serviceId: string, size: string): string {
   return getServicePriceLabel(serviceId, size);
@@ -94,7 +81,6 @@ export function ServiceSelection({
             <div className="flex flex-col gap-2">
               {allowed.map((svc) => {
                 const selected = services[dog.dogId] === svc.id;
-                const iconName = SERVICE_ICON_NAMES[svc.id as keyof typeof SERVICE_ICON_NAMES] ?? "Scissors";
                 return (
                   <button
                     key={svc.id}
@@ -103,7 +89,8 @@ export function ServiceSelection({
                     onClick={() => onSelect(dog.dogId, svc.id as ServiceId)}
                     className={`wizard-option wizard-service-tile${selected ? " is-selected" : ""}`}
                   >
-                    <ServiceIcon name={iconName} color={selected ? "var(--color-ink)" : "var(--color-brand-cyan-dark)"} />
+                    {/* The flyer's mascot for this service (decorative; the name sits beside it). */}
+                    <ServiceMascot serviceId={svc.id} size={52} />
                     <div className="wizard-service-body">
                       <span className="font-display text-[15px] font-bold">{svc.name}</span>
                       {SERVICE_DESCRIPTIONS[svc.id] && (
