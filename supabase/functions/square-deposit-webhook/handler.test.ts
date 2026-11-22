@@ -47,7 +47,7 @@ Deno.test("a signed payment.updated completes a pending £10 deposit", async () 
   const deps: WebhookDeps = {
     makeAdminClient: () => ({
       rpc: (fn, args) => {
-        if (fn === "deposit_payment_by_square_id") {
+        if (fn === "deposit_payment_for_square_event") {
           return Promise.resolve({
             data: { deposit_payment_id: "row-1", status: row.status, square_payment_id: row.squarePaymentId },
             error: null,
@@ -77,7 +77,7 @@ Deno.test("a signed refund.updated records the refund id", async () => {
   const deps: WebhookDeps = {
     makeAdminClient: () => ({
       rpc: (fn, args) => {
-        if (fn === "deposit_payment_by_square_id") {
+        if (fn === "deposit_payment_for_square_event") {
           return Promise.resolve({
             data: { deposit_payment_id: "row-1", status: row.status },
             error: null,

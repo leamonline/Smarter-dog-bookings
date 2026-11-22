@@ -50,7 +50,7 @@ export async function executeDepositRefund(
   const settled = await admin.rpc("settle_square_deposit_refund", {
     p_payment_id: paymentId,
     p_square_refund_id: sent.id ?? "",
-    p_square_status: sent.status ?? "",
+    p_square_status: sent.status,
     p_error: sent.error ?? "",
   });
   if (settled.error || !settled.data) {

@@ -11,7 +11,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 
 interface AdminClientLike {
   rpc(
-    fn: "deposit_payment_by_square_id" | "settle_square_deposit_charge" | "settle_square_deposit_refund",
+    fn: "deposit_payment_for_square_event" | "settle_square_deposit_charge" | "settle_square_deposit_refund",
     args: Record<string, unknown>,
   ): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
 }
@@ -73,12 +73,20 @@ export function createSquareDepositWebhookHandler(deps: WebhookDeps = defaultDep
     if (type === "payment.updated" || type === "payment.created") {
       const payment = asRecord(object?.payment);
       const squareId = typeof payment?.id === "string" ? payment.id : "";
-      if (!squareId) return json({ ok: true, ignored: true });
-      const found = await admin.rpc("deposit_payment_by_square_id", { p_square_payment_id: squareId });
+      const referenceId = typeof payment?.reference_id === "string" ? payment.reference_id : "";
+      if (!squareId && !referenceId) return json({ ok: true, ignored: true });
+      const found = await admin.rpc("deposit_payment_for_square_event", {
+        p_square_payment_id: squareId,
+        p_reference_id: referenceId,
+      });
+      if (found.error) return json({ ok: false, reason: "could not record the payment" }, 500);
       const paymentId = found.data?.deposit_payment_id;
-      if (!paymentId || found.data?.status !== "pending") return json({ ok: true, ignored: true });
+      const status = found.data?.status;
+      if (!paymentId || (status !== "pending" && status !== "waived")) {
+        return json({ ok: true, ignored: true });
+      }
       const money = asRecord(payment?.amount_money);
-      await admin.rpc("settle_square_deposit_charge", {
+      const settled = await admin.rpc("settle_square_deposit_charge", {
         p_payment_id: paymentId,
         p_square_payment_id: squareId,
         p_square_status: typeof payment?.status === "string" ? payment.status : "",
@@ -86,6 +94,7 @@ export function createSquareDepositWebhookHandler(deps: WebhookDeps = defaultDep
         p_currency: typeof money?.currency === "string" ? money.currency : "",
         p_error: "",
       });
+      if (settled.error) return json({ ok: false, reason: "could not record the payment" }, 500);
       return json({ ok: true });
     }
 
@@ -93,18 +102,23 @@ export function createSquareDepositWebhookHandler(deps: WebhookDeps = defaultDep
       const refund = asRecord(object?.refund);
       const squarePaymentId = typeof refund?.payment_id === "string" ? refund.payment_id : "";
       if (!squarePaymentId) return json({ ok: true, ignored: true });
-      const found = await admin.rpc("deposit_payment_by_square_id", { p_square_payment_id: squarePaymentId });
+      const found = await admin.rpc("deposit_payment_for_square_event", {
+        p_square_payment_id: squarePaymentId,
+        p_reference_id: "",
+      });
+      if (found.error) return json({ ok: false, reason: "could not record the refund" }, 500);
       const paymentId = found.data?.deposit_payment_id;
       const status = found.data?.status;
       if (!paymentId || (status !== "refund_pending" && status !== "refund_due")) {
         return json({ ok: true, ignored: true });
       }
-      await admin.rpc("settle_square_deposit_refund", {
+      const settled = await admin.rpc("settle_square_deposit_refund", {
         p_payment_id: paymentId,
         p_square_refund_id: typeof refund?.id === "string" ? refund.id : "",
         p_square_status: typeof refund?.status === "string" ? refund.status : "",
         p_error: "",
       });
+      if (settled.error) return json({ ok: false, reason: "could not record the refund" }, 500);
       return json({ ok: true });
     }
 

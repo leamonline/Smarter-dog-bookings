@@ -1,6 +1,8 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { createSquareDepositStaffHandler, handleSquareDepositStaff, type StaffDeps } from "./handler.ts";
 
+type UserClient = ReturnType<StaffDeps["makeUserClient"]>;
+
 Deno.env.set("SUPABASE_URL", "http://localhost:54321");
 Deno.env.set("SUPABASE_ANON_KEY", "test-anon");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test-service");
@@ -57,13 +59,9 @@ function staffDeps(staff: boolean): { deps: StaffDeps; row: () => Row } {
   const deps: StaffDeps = {
     makeUserClient: () => ({
       auth: { getUser: () => Promise.resolve({ data: { user: { id: "staff-user" } }, error: null }) },
-      rpc: (fn) => {
-        if (fn !== "is_staff") return Promise.resolve({ data: null, error: { message: "no" } });
-        return Promise.resolve({ data: staff, error: null });
-      },
-    }),
-    makeAdminClient: () => ({
-      rpc: (fn, args) => {
+      rpc: (fn: string) => {
+        if (fn === "is_staff") return Promise.resolve({ data: staff, error: null });
+        if (!staff) return Promise.resolve({ data: null, error: { message: "staff only", code: "42501" } });
         if (fn === "staff_waive_booking_deposit") {
           row.status = "waived";
           row.depositRequired = false;
@@ -83,6 +81,11 @@ function staffDeps(staff: boolean): { deps: StaffDeps; row: () => Row } {
             error: null,
           });
         }
+        return Promise.resolve({ data: null, error: { message: "unexpected" } });
+      },
+    } as UserClient),
+    makeAdminClient: () => ({
+      rpc: (fn, args) => {
         if (fn === "begin_square_deposit_refund") {
           row.status = "refund_pending";
           return Promise.resolve({

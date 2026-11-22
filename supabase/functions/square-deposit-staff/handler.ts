@@ -29,6 +29,7 @@ const KNOWN = new Set([
   "refund_reason_must_be_1_to_500_characters",
   "booking_not_found",
   "deposit_already_taken",
+  "deposit_charge_in_progress",
   "deposit_not_refundable",
 ]);
 
@@ -56,7 +57,11 @@ interface UserClientLike {
   auth: {
     getUser(): Promise<{ data: { user: { id: string } | null } | null; error: unknown }>;
   };
-  rpc(fn: "is_staff"): Promise<{ data: unknown; error: { message: string } | null }>;
+  rpc(fn: "is_staff"): Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
+  rpc(
+    fn: "staff_waive_booking_deposit" | "staff_refund_booking_deposit",
+    args: Record<string, unknown>,
+  ): Promise<{ data: Record<string, unknown> | null; error: { message: string; code?: string } | null }>;
 }
 
 interface AdminClientLike extends RefundAdmin {
@@ -137,7 +142,7 @@ export function createSquareDepositStaffHandler(deps: StaffDeps = defaultDeps) {
     const admin = deps.makeAdminClient();
 
     if (input.value.action === "waive") {
-      const waived = await admin.rpc("staff_waive_booking_deposit", {
+      const waived = await userClient.rpc("staff_waive_booking_deposit", {
         p_booking_id: input.value.bookingId,
         p_reason: input.value.reason,
       });
@@ -149,7 +154,7 @@ export function createSquareDepositStaffHandler(deps: StaffDeps = defaultDeps) {
       return json(req, { ok: true, status: "waived", bookingId: input.value.bookingId });
     }
 
-    const marked = await admin.rpc("staff_refund_booking_deposit", {
+    const marked = await userClient.rpc("staff_refund_booking_deposit", {
       p_booking_id: input.value.bookingId,
       p_reason: input.value.reason,
     });

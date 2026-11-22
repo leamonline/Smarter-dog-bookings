@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(53);
 
 \ir fixtures/ensure_local_vault_secrets.psql
 
@@ -176,7 +176,10 @@ insert into public.deposit_payments (
    1000, 'GBP', 'forfeited', 'idem-306', 'sq-306'),
   ('26600000-0000-4000-8000-000000000401', '26600000-0000-4000-8000-000000000201',
    '26600000-0000-4000-8000-000000000201', '26600000-0000-4000-8000-000000000020',
-   1000, 'GBP', 'completed', 'idem-401', 'sq-401');
+   1000, 'GBP', 'completed', 'idem-401', 'sq-401'),
+  ('26600000-0000-4000-8000-000000000307', '26600000-0000-4000-8000-000000000107',
+   '26600000-0000-4000-8000-000000000107', '26600000-0000-4000-8000-000000000010',
+   1000, 'GBP', 'pending', 'idem-307', null);
 set local session_replication_role = default;
 
 -- Triggers: in-time cancel refunds; a pending charge is left alone; no-show keeps it.
@@ -199,6 +202,15 @@ select is(
   (select status from public.deposit_payments where id = '26600000-0000-4000-8000-000000000302'),
   'pending',
   'a charge Square has not confirmed yet is not forfeited or refunded by the cancel');
+select is(
+  (select deferred_outcome from public.deposit_payments where id = '26600000-0000-4000-8000-000000000302'),
+  'refund_due',
+  'the in-time cancellation is remembered for when Square confirms the charge');
+select is(
+  (public.settle_square_deposit_charge(
+    '26600000-0000-4000-8000-000000000302', 'sq-late-ok', 'COMPLETED', 1000, 'GBP', null))->>'status',
+  'refund_due',
+  'a charge confirmed after an in-time cancellation is refunded, not kept');
 
 update public.bookings
    set status = 'No-show'
@@ -296,6 +308,9 @@ select is(
 select throws_ok(
   $$select public.staff_waive_booking_deposit('26600000-0000-4000-8000-000000000306', 'too late')$$,
   'P0001', null, 'staff cannot waive a deposit Square has already taken');
+select throws_ok(
+  $$select public.staff_waive_booking_deposit('26600000-0000-4000-8000-000000000107', 'too soon')$$,
+  'P0001', null, 'staff cannot waive a deposit while Square has not answered');
 select ok(
   (select (public.staff_refund_booking_deposit(
     '26600000-0000-4000-8000-000000000306', 'the dog was ill'))->>'status' = 'refund_due'),
@@ -389,6 +404,54 @@ select is(
   (select payment from public.bookings where id = '26600000-0000-4000-8000-000000000110'),
   'Due at Pick-up',
   'the wrong amount does not mark the booking deposit paid');
+
+-- A waiver that beats the Square response must still send the money back.
+update public.deposit_payments
+   set status = 'waived'
+ where id = '26600000-0000-4000-8000-000000000307';
+select is(
+  (public.settle_square_deposit_charge(
+    '26600000-0000-4000-8000-000000000307', 'sq-waived-capture', 'COMPLETED', 1000, 'GBP', null))->>'status',
+  'refund_due',
+  'a charge that captures after a waiver is refunded');
+select is(
+  (select square_payment_id from public.deposit_payments where id = '26600000-0000-4000-8000-000000000307'),
+  'sq-waived-capture',
+  'the captured Square id is kept so the refund can be sent');
+
+-- Refunding a deposit that was already marked paid removes that credit.
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"26600000-0000-4000-8000-000000000001","role":"authenticated"}',
+  true);
+set local role authenticated;
+select is(
+  (public.staff_refund_booking_deposit(
+    '26600000-0000-4000-8000-000000000111', 'paid in error'))->>'status',
+  'refund_due',
+  'staff can refund a deposit on an appointment that is still booked');
+reset role;
+select is(
+  (public.settle_square_deposit_refund(
+    (select id from public.deposit_payments
+      where booking_id = '26600000-0000-4000-8000-000000000111' and status = 'refund_due'),
+    'sq-refund-111', 'COMPLETED', null))->>'status',
+  'refunded',
+  'Square confirming the refund stores it');
+select is(
+  (select payment from public.bookings where id = '26600000-0000-4000-8000-000000000111'),
+  'Due at Pick-up',
+  'refunding the deposit removes the Deposit Paid credit from the booking');
+
+-- Merging a customer moves their deposit onto the surviving person.
+update public.dogs
+   set human_id = '26600000-0000-4000-8000-000000000010'
+ where id = '26600000-0000-4000-8000-000000000021';
+delete from public.humans where id = '26600000-0000-4000-8000-000000000020';
+select is(
+  (select human_id from public.deposit_payments where id = '26600000-0000-4000-8000-000000000401'),
+  '26600000-0000-4000-8000-000000000010'::uuid,
+  'deleting a merged customer keeps the deposit on the surviving person');
 
 select * from finish();
 rollback;
