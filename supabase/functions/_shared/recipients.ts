@@ -332,6 +332,8 @@ export async function fetchHumansByIds(
 }
 
 export type NotifyChannel = "whatsapp" | "sms" | "email";
+/** Reminders only. Confirmations stay on NotifyChannel. */
+export type ReminderChannel = NotifyChannel | "apns";
 
 // Can this customer be reached on a specific channel right now, for an ESSENTIAL
 // (operational) message? The rule lives in channelPolicy.ts and is shared with
@@ -351,7 +353,18 @@ export function channelAvailableFor(
 // customer has opted out of (PECR). null means no usable channel. WhatsApp is
 // only "available" for a customer whose preferred method of contact is WhatsApp
 // (humans.whatsapp); one who prefers SMS is texted.
-export function pickChannel(human: RecipientHuman): NotifyChannel | null {
+//
+// Reminders pass `{ apns: true }` only after IOS_PUSH_ENABLED is on and the
+// customer has a fresh, notifications-on device token. That prefers the iPhone
+// app to WhatsApp. Every other caller omits the option and cannot receive
+// "apns" — confirmations and cancellations are unchanged.
+export function pickChannel(human: RecipientHuman, options?: { apns?: false }): NotifyChannel | null;
+export function pickChannel(human: RecipientHuman, options: { apns: true }): "apns";
+export function pickChannel(
+  human: RecipientHuman,
+  options?: { apns?: boolean },
+): ReminderChannel | null {
+  if (options?.apns === true) return "apns";
   if (channelAvailableFor(human, "whatsapp")) return "whatsapp";
   if (channelAvailableFor(human, "sms")) return "sms";
   if (channelAvailableFor(human, "email")) return "email";

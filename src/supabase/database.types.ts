@@ -2766,6 +2766,8 @@ export type Database = {
           created_at: string | null
           customer_user_id: string | null
           deposit_required: boolean
+          deposit_required_reason: string | null
+          deposit_required_set_at: string | null
           email: string | null
           email_opted_out: boolean
           email_opted_out_at: string | null
@@ -2810,6 +2812,8 @@ export type Database = {
           created_at?: string | null
           customer_user_id?: string | null
           deposit_required?: boolean
+          deposit_required_reason?: string | null
+          deposit_required_set_at?: string | null
           email?: string | null
           email_opted_out?: boolean
           email_opted_out_at?: string | null
@@ -2854,6 +2858,8 @@ export type Database = {
           created_at?: string | null
           customer_user_id?: string | null
           deposit_required?: boolean
+          deposit_required_reason?: string | null
+          deposit_required_set_at?: string | null
           email?: string | null
           email_opted_out?: boolean
           email_opted_out_at?: string | null

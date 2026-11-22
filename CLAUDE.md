@@ -26,12 +26,13 @@ history per [ADR 009](docs/architecture/decisions/009-independent-applications-i
 Root lint, test and build discovery exclude it; use the `website:*` scripts (`npm run website:test` etc.). Its CI is
 `.github/workflows/website.yml`.
 
-**Also in this repository:** `ios/` is a SwiftUI iPhone skeleton (home-screen name Smarter Dog)
-so Xcode Cloud can produce a first TestFlight build. The Xcode project itself is
-`SmarterDog.xcodeproj` at the repository root, because Xcode Cloud looks for that name there;
-the sources stay in `ios/`. It is not part of the booking programme, does not call Supabase,
-and is not in the web build. Root lint, Vitest and the docs link check ignore `ios/`. There is
-no iOS job in CI (Linux runners cannot compile it). Instructions: [ios/README.md](ios/README.md).
+**Also in this repository:** `ios/` is the SwiftUI iPhone app (home-screen name Smarter Dog).
+The Xcode project is `SmarterDog.xcodeproj` at the repository root, because Xcode Cloud looks
+for that name there; the sources stay in `ios/`. It signs customers and staff in through the
+same Supabase project as the website. What it may call beyond sign-in is
+[docs/ios-api-contract.md](docs/ios-api-contract.md). It is not part of the web build. Root lint,
+Vitest and the docs link check ignore `ios/`. Linux CI runs the sign-in tests and does not
+compile the app. Instructions: [ios/README.md](ios/README.md).
 
 **What actually publishes smarterdog.co.uk:** since the [domain cutover](docs/superpowers/runbooks/2026-09-11-smarterdog-domain-cutover.md)
 on 11 September 2026 the domain points at **Vercel**, so the live site is the combined build

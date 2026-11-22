@@ -331,6 +331,17 @@ On a closed day the database's closed-day guard refuses the revival (`SCL03`)
 unless the visit has an open closure-rearrangement task, exactly as it does
 for a revived cancellation (migration `20260927204500`).
 
+Marking the booking `No-show` also turns on **Deposit required** for that
+customer (migration `20261122160000`). The tag stays on if staff later press
+**They turned up**. A cancellation does not turn it on, and nothing turns it
+off except staff, on the customer card. While the tag is on, the card shows
+the appointment that turned it on, for example "Deposit required after a
+no-show: Pepper on 22 Nov 2026". Customers who no-showed before this change
+are not tagged by the migration. The list of who that would be, and the
+update Leam would have to ask for, is
+[`scripts/no-show-deposit-backfill.sql`](../scripts/no-show-deposit-backfill.sql).
+That file is not a migration and nothing runs it on its own.
+
 ### The old board
 
 The four-zone board that the stack replaced was **deleted in October 2026**

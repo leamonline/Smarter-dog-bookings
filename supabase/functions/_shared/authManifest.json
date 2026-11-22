@@ -4,8 +4,8 @@
     "",
     "WHY THIS EXISTS: CI deploys every function with --no-verify-jwt, so the",
     "Supabase gateway performs NO authentication. Each function's in-function",
-    "check IS the security boundary. That boundary is distributed across 27",
-    "entrypoints, so it can drift silently. This manifest makes it explicit and",
+    "check IS the security boundary. That boundary is distributed across every",
+    "deployable entrypoint, so it can drift silently. This manifest makes it explicit and",
     "machine-checked.",
     "",
     "It is enforced by scripts/check-edge-function-auth.mjs (npm run check:edge-auth),",
@@ -63,6 +63,17 @@
       ],
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "The bearer branch is guarded by !!WEBHOOK_SECRET; when it is unset the request falls through to the staff-JWT branch rather than being admitted."
+    },
+    "authenticated-jwt": {
+      "description": "Any signed-in Supabase user, customer or staff. The session JWT is verified via auth.getUser(). is_staff() is not a gate: it only decides the role stored on the caller's own row.",
+      "requiredPrimitives": [
+        "auth.getUser"
+      ],
+      "unauthorizedStatuses": [
+        401
+      ],
+      "failsClosedOnEmptySecret": true,
+      "emptySecretRationale": "No shared secret. A missing Authorization header or a JWT auth.getUser() rejects returns 401 before a service-role client is built."
     },
     "staff-jwt": {
       "description": "The staff member's own Supabase session JWT, verified against GoTrue via auth.getUser(), then authorised by the is_staff() RPC executed under that same user token.",
@@ -166,6 +177,20 @@
     }
   },
   "functions": {
+    "apns-send": {
+      "authFamily": "internal-secret",
+      "authSource": "handler.ts",
+      "caller": "notify-booking-reminder and reminder-send, service-to-service",
+      "role": "service",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": null,
+      "replayDefence": "none at the transport; a dead device token is deleted so a repeat does not keep calling Apple for it",
+      "unauthorizedResponse": "401 unauthorized",
+      "emptySecretBehaviour": "closed — timingSafeEqualHeader rejects when SEND_INTERNAL_SECRET is empty",
+      "notes": "Sends one alert through APNs with the .p8 provider token. IOS_PUSH_ENABLED defaults off and the function returns fallback:true without contacting Apple. index.ts is a serve() shim; the handler and its gate live in handler.ts."
+    },
     "apply-customer-confirm": {
       "authFamily": "internal-secret",
       "authSource": "handler.ts",
@@ -347,6 +372,20 @@
       "unauthorizedResponse": "400 invalid search or legacy postcode, 429 rate-limited, 500 when GEOAPIFY_API_KEY is unset, 502 on upstream failure",
       "emptySecretBehaviour": "closed for the upstream call — returns 500 rather than calling Geoapify without a key. The caller check itself uses no secret.",
       "notes": "Proxies UK Geoapify address suggestions; rate limits protect the free credit allowance. Returns address suggestions only, never customer records. No paid-provider fallback."
+    },
+    "register-device-token": {
+      "authFamily": "authenticated-jwt",
+      "authSource": "handler.ts",
+      "caller": "the iPhone app, after a customer or staff member has signed in",
+      "role": "customer or staff",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": null,
+      "replayDefence": "upsert on the APNs token; a repeat refreshes last_seen_at and can move the token to the signed-in user",
+      "unauthorizedResponse": "401 unauthorized",
+      "emptySecretBehaviour": "closed — a missing or rejected JWT returns 401 before the service-role client is built",
+      "notes": "Native app, so there is no browser Origin. The stored role comes from is_staff() under the caller token, not from the body. Registration is allowed while IOS_PUSH_ENABLED is off. index.ts is a serve() shim; the handler and its gate live in handler.ts."
     },
     "reminder-send": {
       "authFamily": "staff-jwt-or-internal-secret",

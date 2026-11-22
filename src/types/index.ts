@@ -52,6 +52,13 @@ export interface Human {
   preferredSlots?: string[];
   blockedSlots?: string[];
   depositRequired?: boolean;
+  /**
+   * Why the deposit tag was last turned on by a no-show. Null when staff
+   * turned it on themselves. Shown only while the tag is on.
+   */
+  depositRequiredReason?: string | null;
+  /** When a no-show last turned the deposit tag on. */
+  depositRequiredSetAt?: string | null;
   /** Staff-managed opt-out for AI-initiated WhatsApp messages. */
   aiWhatsappAllowed?: boolean;
   /**

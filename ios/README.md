@@ -1,8 +1,10 @@
 # Smarter Dog for iPhone
 
-This folder is a small iPhone app. It shows a sign-in screen and nothing else. Continue and Staff sign in do not sign anyone in, and the app does not talk to the salon’s booking system yet.
+This folder is the iPhone app. A customer signs in with their mobile number, then either their password or a code by text. The salon team signs in with email and password. The app remembers that sign-in until they tap Sign out. After sign-in it opens a simple home for customers or for staff, or a waiting screen if a new customer is not approved yet.
 
-It is here so you can connect Apple’s Xcode Cloud and get a first TestFlight build. The website and the staff dashboard are unchanged.
+The website and the staff dashboard in the browser are unchanged. The iPhone app uses the same sign-in system as the website.
+
+What the app may call after sign-in, including booking and iPhone notifications, is written in `docs/ios-api-contract.md` (in the folder above this one).
 
 You need a Mac. The rest of this repository can be worked on from other computers. The iPhone app cannot.
 
@@ -62,27 +64,33 @@ Leave it if Apple accepts it. If Xcode says the identifier is already in use, ch
 4. The first time, the iPhone often asks for Developer Mode. On the phone: Settings → Privacy & Security → Developer Mode → turn it on, and restart when asked. Then press play in Xcode again.
 5. If the phone says the developer is untrusted: Settings → General → VPN & Device Management → your Apple ID → Trust.
 
-The icon is the black square with the white dog, the same mark as the website. The name under it is Smarter Dog. You can type a phone number. Continue does nothing. Staff sign in does nothing. Nothing is sent anywhere.
+The icon is a yellow square with the dark dog. On a phone set to Dark Mode the dog is yellow and the corners are clear, so the dark home screen shows through. If the phone is using tinted icons, the dog is grey. The name under it is Smarter Dog.
 
-The first run downloads the Supabase package. The Mac needs to be online for that download. The exact versions are already saved in the project, so Xcode Cloud builds those same copies rather than picking newer ones. The app still does not call Supabase.
+The first run downloads the Supabase package. The Mac needs to be online for that download. The exact versions are already saved in the project, so Xcode Cloud builds those same copies rather than picking newer ones.
 
-## 5. Keys (you can skip this for now)
+Sign-in is already connected to the salon. A normal Xcode Cloud build uses that connection. You do not add `SUPABASE_URL` or `SUPABASE_PUBLISHABLE_KEY` to the workflow.
 
-The app builds without any Supabase key. The committed file `Config/Config.xcconfig` holds obvious placeholders. Xcode Cloud uses those placeholders, which is what we want while nothing on the screen connects.
+## 5. The salon connection
 
-When a later version actually signs people in:
+The shared file [Config/Config.xcconfig](Config/Config.xcconfig) holds the project address and the publishable key. Both are public. The website already ships the same key in the browser. The database still decides what each signed-in person is allowed to see.
+
+Do **not** put the **service_role** key in the app, in Xcode Cloud, or in a file you commit. That key is a secret. The build refuses it if it is pasted in by mistake.
+
+You only need a local override if you want a different Supabase project on your Mac:
 
 1. In this folder, duplicate [Config/Config.local.xcconfig.example](Config/Config.local.xcconfig.example) and name the copy `Config.local.xcconfig` (same folder).
-2. In Supabase, open the project, then Project Settings → API.
-3. Paste the project URL and the **publishable** key into that copy.
-4. Do not paste the **service_role** key. That key is a secret and must not go in the app.
-5. Keep the odd spelling `:/$()/`. This kind of settings file treats `//` as a comment, and Xcode turns that spelling back into `://`.
+2. Paste the other project URL and its publishable key into that copy.
+3. Keep the odd spelling `:/$()/`. This kind of settings file treats `//` as a comment, and Xcode turns that spelling back into `://`.
 
-`Config.local.xcconfig` is ignored by Git. Do not commit it, and do not paste a real key into `Config.xcconfig` or the example file.
+`Config.local.xcconfig` is ignored by Git. Do not commit it.
+
+If a TestFlight build must point somewhere else, set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` on the Xcode Cloud workflow. Those override the values in the project. Leave them unset for the normal salon build.
+
+The same config file also holds the public security-check key the website uses (Cloudflare Turnstile). That key is not a secret. Do not add the Turnstile **secret** key anywhere in the app.
 
 ## 6. First TestFlight build with Xcode Cloud
 
-TestFlight is Apple’s app for installing a build that is not on the public App Store yet. Internal testing means only people on your developer team. Use internal testing for this placeholder. Do not send it to outside testers. That path needs an App Review, and this screen is not the real app.
+TestFlight is Apple’s app for installing a build that is not on the public App Store yet. Internal testing means only people on your developer team. Keep this build on internal testing. It signs people in and shows a simple home. It does not book appointments yet, so it is not ready for outside testers.
 
 Apple’s own guide, if a button has moved: [Distributing your Xcode Cloud builds through TestFlight](https://developer.apple.com/documentation/xcode/distributing-your-xcode-cloud-builds-through-testflight). A shorter start is [Getting started with Xcode Cloud](https://developer.apple.com/documentation/xcode/getting-started-with-xcode-cloud).
 
@@ -133,15 +141,24 @@ If you also edit workflows in the browser, change the same two fields there so t
 
 1. On the iPhone, install Apple’s **TestFlight** app from the App Store.
 2. When the build finishes, open TestFlight and accept the invite if one appears. The first processing step at Apple can take a while after Xcode Cloud goes green.
-3. If App Store Connect asks whether the app uses encryption, answer **No**. The project already records that the app does not add its own encryption. Sign-in will later use the normal secure connection built into the phone.
+3. If App Store Connect asks whether the app uses encryption, answer **No**. The project already records that the app does not add its own encryption. Sign-in uses the normal secure connection built into the phone.
 
 One archive is enough to prove the pipeline. Apple includes a number of Xcode Cloud hours with the developer programme.
 
+## What you should see when it is connected
+
+- A customer types their mobile number and taps Continue. A number with a password asks for the password. A number that is on file but has no password offers a text code. A number the salon does not know yet is sent to Join the Pack on the website. No text is sent to that number.
+- Before a password or a text, the same security check as the website has to finish. Sometimes it completes on its own. Sometimes it asks you to tick a box.
+- The salon team uses Staff sign in, with the email and password they already use on the dashboard.
+- Closing the app does not sign you out. Sign out does.
+- An approved customer sees a Home tab with their name and the word Customer. Staff see their name and Owner or Staff.
+- A new customer who has finished Join the Pack but is not approved yet sees a waiting screen, with Check again and Sign out. They do not see the customer home.
+
 ## What merging does not do
 
-Merging these files to `main` publishes the website, because that is what a merge always does. This change does not alter the website, the booking screens, or Supabase.
+Merging these files to `main` publishes the website, because that is what a merge always does. This change does not alter the website or the booking screens.
 
-Merging does **not** put the iPhone app on the App Store, and it does not by itself upload a TestFlight build. The upload happens only when the Xcode Cloud workflow runs (or when you archive by hand from Xcode). Customers cannot see this placeholder unless you add them as testers.
+Merging does **not** put the iPhone app on the App Store. A TestFlight build is uploaded only when the Xcode Cloud workflow runs (or when you archive by hand from Xcode). After this version is on `main`, start a new Internal TestFlight build. Sign-in is already connected. You do not add the Supabase values to the workflow.
 
 ## If something goes wrong
 
@@ -154,6 +171,8 @@ Merging does **not** put the iPhone app on the App Store, and it does not by its
 | Cloud build fails on signing | In the workflow, keep automatic signing on and choose the same team as on the Mac. The team ID does not have to be committed. |
 | Test action failed and there are no tests | Edit the workflow and remove the Test action. Keep Archive. |
 | The phone will not install the app | Developer Mode, then Trust the developer certificate. The phone must be on iOS 18 or later. |
+| The app says it isn't connected | A local override or an Xcode Cloud variable has replaced the public salon connection with a placeholder. Remove that override, or put the public project URL and publishable key back, then start a new build. |
+| The security check never finishes | Check the phone is online. The check is the same one as the website. Do not turn it off in Supabase, and do not put the Turnstile secret key in the app. |
 
 ## Notes for a developer
 
@@ -161,14 +180,11 @@ Merging does **not** put the iPhone app on the App Store, and it does not by its
 
 - iOS 18, iPhone only (`TARGETED_DEVICE_FAMILY = 1`), Swift 6 language mode, SwiftUI app lifecycle.
 - Automatic signing. `DEVELOPMENT_TEAM` is intentionally absent.
-- [`supabase-swift`](https://github.com/supabase/supabase-swift) product `Supabase`, from 2.55.7 up to the next major version. Version 3 is a breaking alpha and is not selected. The app names `SupabaseClient` so the package is linked. It does not construct a client.
+- [`supabase-swift`](https://github.com/supabase/supabase-swift) product `Supabase`, from 2.55.7 up to the next major version. Version 3 is a breaking alpha and is not selected. `SalonClient` constructs `SupabaseClient` with the 2.55.7 calls (`signIn(phone:password:captchaToken:)`, `signInWithOTP(phone:channel:shouldCreateUser:captchaToken:)`, `verifyOTP(phone:token:type:)`, `functions.invoke`, `rpc`, `from`). The library's default storage is the Keychain, which is what keeps the session. `Config.xcconfig` commits the public project URL and publishable key. `ci_scripts/ci_post_clone.sh` (repository root, next to the xcodeproj) writes `Config.local.xcconfig` only when `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are both set, and that file overrides the committed values. It still refuses a service-role key.
 - `SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` (repository root, not inside `ios/`) is the lockfile Xcode Cloud reads when it opens that project. It pins 2.55.7 and the packages that product links (resolved with Swift 6.4.3). Do not gitignore it. After adding a package, resolve again and commit the updated file.
-- `Config.xcconfig` holds placeholders and optionally includes the gitignored local file (`#include?`). The two `INFOPLIST_KEY_` lines come after that include, so a local override wins. Xcode generates Info.plist. There is no checked-in Info.plist.
-- Home-screen icon is a byte copy of `public/app/icons/icon-1024.png` (1024×1024, no transparency). After that file changes, copy it again:
-
-```bash
-cp public/app/icons/icon-1024.png ios/SmarterDog/Assets.xcassets/AppIcon.appiconset/AppIcon.png
-```
+- `Config.xcconfig` holds the public Supabase URL and publishable key, the public Turnstile site key, and optionally includes the gitignored local file (`#include?`). The `INFOPLIST_KEY_` lines come after that include, so a local or Xcode Cloud override wins. Xcode generates Info.plist. There is no checked-in Info.plist.
+- Home-screen icon is `ios/SmarterDog/Assets.xcassets/AppIcon.appiconset`, a single 1024×1024 iOS set. `AppIcon.png` is opaque RGB (no alpha). `AppIcon-Dark.png` has a clear background. `AppIcon-Tinted.png` is greyscale. Both the Debug and Release configurations set `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`, which is the name Xcode’s App Icon field reads. Do not copy `public/app/icons/icon-1024.png` over it.
+- `ios/SmarterDog/SmarterDog.icon` is the Icon Composer package (hand-written `icon.json`, plus `Assets/dog.svg` and `Assets/dog.png`). It is not a member of the Xcode target, so the Internal TestFlight Build does not compile it. The inspectors to check are in `ios/SmarterDog/ICON-COMPOSER-SETTINGS.md`. Apple’s documentation says adding a `.icon` replaces the asset-catalog icon and Xcode generates the older-OS fallbacks itself. Leave this file out of the target until Icon Composer has re-saved it.
 
 - Colours match `src/index.css`: ink `#1F1F1F`, paper `#F7EFE6`, yellow `#FECC13`, cyan-dark `#1F4E8C`.
-- Root lint, Vitest and the docs link check ignore `ios/`. Nothing here is built by the Vercel deploy. Linux CI cannot compile this target, so there is no iOS job.
+- Root lint, Vitest and the docs link check ignore `ios/`. Nothing here is built by the Vercel deploy. Linux CI cannot compile the iPhone app. It can run the sign-in decisions, which do not use the iPhone UI: `swift test --package-path ios`. The Xcode scheme still has no test action, so leave that action off in Xcode Cloud.

@@ -107,6 +107,8 @@ These files remain authoritative for their bounded topics:
   channel, STOP, and the audit of existing customers.
 - [`app-inbox.md`](app-inbox.md) — in-app messages beside WhatsApp, the staff
   inbox flag, and what has to be applied on staging before anyone tries it.
+- [`ios-api-contract.md`](ios-api-contract.md) — what the iPhone app may call,
+  and the dark-launched APNs path for booking reminders.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
