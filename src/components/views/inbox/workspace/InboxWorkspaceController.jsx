@@ -57,6 +57,9 @@ import { useInboxDeepLinks } from "./useInboxDeepLinks";
 import { useInboxListState } from "./useInboxListState";
 import { useInboxWorkspaceState } from "./useInboxWorkspaceState.js";
 import { useOutboundCompose } from "./useOutboundCompose";
+import { isAppInboxEnabled } from "../../../../lib/appInboxFlag";
+import { isAppThreadId } from "../../../../supabase/appInbox";
+import { useAppInboxOverlay } from "../../../../supabase/hooks/useAppInboxOverlay";
 
 function toLocalDateStr(date) {
   return [
@@ -69,12 +72,12 @@ function toLocalDateStr(date) {
 export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) {
   const inbox = useWhatsAppInbox({ includeBookingWorkspaceData: true });
   const {
-    conversations,
+    conversations: whatsappConversations,
     loadingList,
     listError,
     selectedId,
-    selectedConversation,
-    messages,
+    selectedConversation: whatsappSelectedConversation,
+    messages: whatsappMessages,
     draft,
     bookingActions,
     attachedActions,
@@ -89,6 +92,17 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
     actionInFlight,
     refreshList,
   } = inbox;
+  // Off unless VITE_APP_INBOX_ENABLED=1. Then the same list also holds in-app
+  // threads, and a reply follows the channel the customer last wrote on.
+  const appInbox = useAppInboxOverlay({
+    enabled: isAppInboxEnabled(),
+    conversations: whatsappConversations,
+    messages: whatsappMessages,
+    selectedId,
+  });
+  const conversations = appInbox.conversations;
+  const messages = appInbox.messages;
+  const selectedConversation = appInbox.selectedConversation ?? whatsappSelectedConversation;
   const toast = useToast();
   const navigate = useNavigate();
   const [failedFocus, setFailedFocus] = useState(null);
@@ -197,8 +211,32 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
     refetchCustomerContext: customerContext.refetch,
   });
 
+  const { replyChannel, replyNote, sendAppReply } = appInbox;
+  const sendReply = useCallback(async (opts) => {
+    if (replyChannel === "pending") {
+      return { ok: false, reason: replyNote || "Still checking where this reply will go." };
+    }
+    if (replyChannel === "app") {
+      const res = await sendAppReply(opts);
+      if (res?.ok) {
+        toast.show("Reply sent", "success");
+        if (selectedId) workspaceActions.clearDraft(selectedId);
+      }
+      return res;
+    }
+    return actions.sendDraft(opts);
+  }, [
+    actions,
+    replyChannel,
+    replyNote,
+    sendAppReply,
+    selectedId,
+    toast,
+    workspaceActions,
+  ]);
+
   const compose = useOutboundCompose({
-    conversations,
+    conversations: whatsappConversations,
     selectConversation,
     sendOutboundTemplate,
     sendOutboundSMS,
@@ -207,7 +245,7 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
 
   useInboxDeepLinks({
     conversations,
-    loadingList,
+    loadingList: loadingList || !appInbox.listReady,
     selectedId,
     selectConversation,
     onFocusComposer: compose.focusComposer,
@@ -219,6 +257,10 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
   completionQueueRef.current = { selectedId, conversations: list.displayedConversations };
 
   const handleResolveConversation = useCallback(async () => {
+    if (isAppThreadId(selectedId)) {
+      toast.show("In-app conversations stay in the inbox. A WhatsApp thread can still be closed on its own.", "info");
+      return { ok: false };
+    }
     const targetId = selectedId;
     // Capture the visible order before realtime removes the completed row.
     const queue = list.displayedConversations;
@@ -236,15 +278,20 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       workspaceActions.selectConversation(next?.id ?? null);
     }
     return res;
-  }, [actions, list.displayedConversations, selectedId, workspaceActions]);
+  }, [actions, list.displayedConversations, selectedId, workspaceActions, toast]);
 
   const { selectedIds, clearSelection } = list;
   const { bulkClose } = actions;
   const handleBulkClose = useCallback(async () => {
-    const res = await bulkClose([...selectedIds]);
+    const ids = [...selectedIds].filter((id) => !isAppThreadId(id));
+    if (ids.length === 0) {
+      toast.show("In-app conversations stay in the inbox.", "info");
+      return undefined;
+    }
+    const res = await bulkClose(ids);
     if (res?.ok) clearSelection();
     return res;
-  }, [bulkClose, selectedIds, clearSelection]);
+  }, [bulkClose, selectedIds, clearSelection, toast]);
 
   // Fill from the shell's real top edge to the viewport bottom rather
   // than guessing the top chrome with a magic number — robust to the
@@ -305,16 +352,19 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       attachedActions={attachedActions}
       dogNamesById={dogNamesById}
       dogNames={dogNames}
-      loadingDetail={loadingDetail}
-      detailError={detailError}
-      actionInFlight={actionInFlight}
+      loadingDetail={loadingDetail || appInbox.loadingThread}
+      detailError={(isAppThreadId(selectedId) ? null : detailError) || appInbox.threadError}
+      actionInFlight={actionInFlight || appInbox.sending || appInbox.replyChannel === "pending"}
       draftValue={selectedWork.draft}
       onDraftChange={(value) => workspaceActions.setDraft(selectedId, value)}
-      onSend={actions.sendDraft}
+      onSend={sendReply}
       onRetryMessage={actions.retryMessage}
       onSendTemplate={sendTemplate}
       onGenerateReply={actions.generateReply}
-      onRetryLoad={() => selectConversation(selectedId)}
+      onRetryLoad={() => {
+        appInbox.refresh();
+        if (!isAppThreadId(selectedId)) selectConversation(selectedId);
+      }}
       onBack={workspaceActions.paneBack}
       onResolve={handleResolveConversation}
       onReopen={actions.reopenConversation}
@@ -337,6 +387,8 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       }
       onFailedFocusHandled={clearFailedFocus}
       onOpenHuman={onOpenHuman}
+      replyInApp={appInbox.replyChannel === "app"}
+      replyNote={appInbox.replyNote}
       onWhatsappReenabled={(result) => {
         onWhatsappReenabled?.(result.humanIds);
         // A re-enable that only touched customer records emits no

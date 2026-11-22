@@ -54,6 +54,8 @@ export function ThreadPane({
   // status with no buttons.
   onWhatsappReenabled,
   onOpenHuman,
+  replyInApp = false,
+  replyNote = null,
 }) {
   const threadScrollRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -156,7 +158,11 @@ export function ThreadPane({
     }
     chronology.push(
       item.kind === "message" ? (
-        <MessageBubble key={item.key} message={item.data} onRetry={onRetryMessage} />
+        <MessageBubble
+          key={item.key}
+          message={item.data}
+          onRetry={item.data?.retry_elsewhere ? undefined : onRetryMessage}
+        />
       ) : (
         <BookingCreatedCard
           key={item.key}
@@ -245,7 +251,7 @@ export function ThreadPane({
         onOpenHuman={onOpenHuman}
       />
       {/* A refused number needs permission, not a template: no 24-hour banner. */}
-      {!isThreadWhatsappStopped(conversation) && <WindowClosedBanner conversation={conversation} />}
+      {!replyInApp && !isThreadWhatsappStopped(conversation) && <WindowClosedBanner conversation={conversation} />}
 
       <div
         ref={threadScrollRef}
@@ -284,6 +290,7 @@ export function ThreadPane({
             onApprove={onApproveDraft}
             onReject={onRejectDraft}
             inFlight={actionInFlight}
+            sendOnWhatsApp={replyInApp}
           />
         )}
         <BookingActionPanel
@@ -308,6 +315,9 @@ export function ThreadPane({
         hideTemplateBanner
         autoFocusSignal={autoFocusSignal}
         textareaRef={textareaRef}
+        forceFreeText={replyInApp}
+        replyNote={replyNote}
+        allowGenerate={!replyInApp}
       />
     </div>
   );

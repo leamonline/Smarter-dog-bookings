@@ -60,6 +60,7 @@ import type {
   UpdateNotesResponse,
 } from "./inbox/inboxTypes";
 import { fetchConversationDetail, fetchConversationsList, type Client } from "./inbox/inboxFetchers";
+import { isAppThreadId } from "../appInbox";
 
 // The shapes and pure helpers moved to ./inbox/ (Debt 6); they stay exported
 // from here so existing importers and tests are unchanged.
@@ -292,7 +293,9 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
 
   // ── Detail: load on selection + realtime ───────────────────
   const refreshDetail = useCallback(async (conversationId: string | null | undefined) => {
-    if (!conversationId) return;
+    // An in-app thread id is not a WhatsApp row. Resume, reconnect and
+    // realtime refreshes must not query WhatsApp with it; the overlay loads it.
+    if (!conversationId || isAppThreadId(conversationId)) return;
     const client = requireClient();
     const controller = new AbortController();
     let timeoutId: number | undefined;
@@ -341,6 +344,13 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
     setDogNames([]);
     setDogNamesById({});
     setDetailError(null);
+
+    // An in-app thread has no WhatsApp row. The overlay loads it. Marking
+    // a WhatsApp conversation read with this id would be a missed call.
+    if (isAppThreadId(conversationId)) {
+      setLoadingDetail(false);
+      return;
+    }
 
     if (!conversationId || !supabase) {
       if (conversationId && !supabase) {
@@ -418,7 +428,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
 
   // Realtime for the currently-selected conversation
   useEffect(() => {
-    if (!supabase || !selectedId) return;
+    if (!supabase || !selectedId || isAppThreadId(selectedId)) return;
     const client = supabase;
     const channel = client
       .channel(`${CHANNELS.whatsappInboxDetail}-${selectedId}`)
