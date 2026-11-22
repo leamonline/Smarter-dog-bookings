@@ -11,7 +11,11 @@ let package = Package(
             path: "SmarterDog",
             exclude: [
                 "Assets.xcassets",
-                "Brand.swift",
+                "Fonts",
+                "AppColor.swift",
+                "AppFont.swift",
+                "AppMetrics.swift",
+                "Decorations.swift",
                 "SupabaseConfig.swift",
                 "SalonClient.swift",
                 "SupabaseSessionClient.swift",

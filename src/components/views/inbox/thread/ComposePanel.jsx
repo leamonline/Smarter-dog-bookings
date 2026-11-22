@@ -36,6 +36,11 @@ export function ComposePanel({
   // template picker is shown).
   autoFocusSignal = null,
   textareaRef: externalTextareaRef,
+  // An in-app reply has no Meta 24-hour window. The box stays a free-text
+  // reply, and replyNote says where it will go.
+  forceFreeText = false,
+  replyNote = null,
+  allowGenerate = true,
 }) {
   const [error, setError] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -94,8 +99,8 @@ export function ComposePanel({
     return () => cancelAnimationFrame(raf);
   }, [autoFocusSignal]);
 
-  const windowOpen = isWindowOpen(lastInboundAt, nowMs);
-  const countdown = windowOpen ? windowCountdown(lastInboundAt, nowMs) : null;
+  const windowOpen = forceFreeText || isWindowOpen(lastInboundAt, nowMs);
+  const countdown = !forceFreeText && windowOpen ? windowCountdown(lastInboundAt, nowMs) : null;
 
   async function handleSend() {
     const trimmed = value.trim();
@@ -141,6 +146,9 @@ export function ComposePanel({
     // instead of overflowing the detail pane.
     return (
       <div className="compose-fields min-h-0 p-3 bg-white border-t border-slate-200 max-h-[60%] overflow-y-auto">
+        {replyNote && (
+          <p className="mb-2 text-xs font-semibold text-ink-muted">{replyNote}</p>
+        )}
         <TemplatePicker
           conversation={conversation}
           dogNames={dogNames ?? []}
@@ -153,6 +161,9 @@ export function ComposePanel({
 
   return (
     <div className="compose-fields shrink-0 p-3 bg-white border-t border-slate-200">
+      {replyNote && (
+        <p className="mb-2 text-xs font-semibold text-ink-muted">{replyNote}</p>
+      )}
       {error && (
         <div role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-2">
           {error}
@@ -179,12 +190,14 @@ export function ComposePanel({
           className="box-border max-h-[clamp(24px,calc(var(--fill-visible-height,600px)*0.25),138px)] w-full sm:flex-1 min-w-0 text-sm p-2 bg-white border border-slate-200 rounded-tile font-[inherit] resize-none disabled:opacity-50 focus:outline-none focus:border-brand-yellow"
         />
         <div className="flex min-h-9 gap-2 justify-end shrink-0 sm:self-stretch">
-          <GenerateReplyButton
-            hasPendingDraft={hasPendingDraft}
-            hasInbound={hasInbound}
-            inFlight={inFlight}
-            onGenerate={handleGenerate}
-          />
+          {allowGenerate !== false && (
+            <GenerateReplyButton
+              hasPendingDraft={hasPendingDraft}
+              hasInbound={hasInbound}
+              inFlight={inFlight}
+              onGenerate={handleGenerate}
+            />
+          )}
           <button
             onClick={handleSend}
             disabled={inFlight || !value.trim()}

@@ -14,6 +14,7 @@ import {
 } from "../helpers.js";
 import { getConversationPresentation } from "../workspace/inboxWorkspaceModel.js";
 import { previewMessageText } from "../thread/messageContent";
+import { channelMarkerLabel } from "../../../../supabase/appInbox";
 
 const STATUS_TONES = {
   danger: "border-rose-200 bg-rose-50 text-rose-800",
@@ -36,7 +37,8 @@ export function ConversationListItem({
   const isClosed = !!conv.closed_at;
   const presentation = getConversationPresentation(conv);
   const rowStatus = presentation.workflow;
-  const windowBadge = inboxWindowBadge(conv);
+  const windowBadge = conv.reply_channel === "app" ? null : inboxWindowBadge(conv);
+  const channelMarker = channelMarkerLabel(conv.channels);
 
   // Preview the last message in EITHER direction (first line only). Falls
   // back to last_customer_text so a pre-migration front-end still works.
@@ -130,6 +132,16 @@ export function ConversationListItem({
           )}
 
           <div className="flex shrink-0 items-center gap-1">
+            {channelMarker && (
+              <span
+                className="inline-flex h-5 items-center whitespace-nowrap rounded-full border border-brand-ink/20 bg-brand-yellow/40 px-1.5 text-xs font-semibold text-brand-ink"
+                title={channelMarker === "App"
+                  ? "This conversation is in the app"
+                  : "This customer has messages on WhatsApp and in the app"}
+              >
+                {channelMarker}
+              </span>
+            )}
             {rowStatus && (
               <span
                 className={`inline-flex h-5 items-center whitespace-nowrap rounded-full border px-1.5 text-xs font-semibold ${

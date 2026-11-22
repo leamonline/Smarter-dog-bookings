@@ -1299,3 +1299,39 @@ export function updateStaffBookingVisit(
     p_reason: params.reason,
   });
 }
+
+// In-app messages (migration 20261122170000). Customers omit humanId.
+// Staff pass the customer's human id. Replying here does not send WhatsApp.
+
+export function sendAppMessage(
+  client: SupabaseClient,
+  params: { body: string; humanId?: string | null },
+) {
+  return client.rpc("send_app_message", {
+    p_body: params.body,
+    p_human_id: params.humanId ?? undefined,
+  });
+}
+
+export function markAppMessagesRead(
+  client: SupabaseClient,
+  conversationId: string,
+) {
+  return client.rpc("mark_app_messages_read", {
+    p_conversation_id: conversationId,
+  });
+}
+
+export function listStaffUnifiedInbox(client: SupabaseClient) {
+  return client.rpc("list_staff_unified_inbox");
+}
+
+export function listStaffUnifiedThread(
+  client: SupabaseClient,
+  params: { humanId?: string | null; whatsappConversationId?: string | null },
+) {
+  return client.rpc("list_staff_unified_thread", {
+    p_human_id: params.humanId ?? undefined,
+    p_whatsapp_conversation_id: params.whatsappConversationId ?? undefined,
+  });
+}

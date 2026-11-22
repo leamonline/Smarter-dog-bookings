@@ -328,3 +328,26 @@ it("shows unavailable instead of guessed waiting time", () => {
   render(<ConversationListItem conv={baseConversation()} waitingLabel="Waiting time unavailable" onSelect={vi.fn()} />);
   expect(screen.getByText("Waiting time unavailable")).toBeInTheDocument();
 });
+
+it("marks a thread that includes the app, and does not ask for a WhatsApp template when the reply goes in-app", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-12T10:00:00Z"));
+  try {
+    render(
+      <ConversationListItem
+        conv={baseConversation({
+          channels: ["whatsapp", "app"],
+          reply_channel: "app",
+          last_inbound_at: "2026-06-10T10:00:00Z",
+          last_outbound_at: "2026-06-10T09:00:00Z",
+        })}
+        isSelected={false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("WhatsApp · App")).toBeInTheDocument();
+    expect(screen.queryByText("Template needed")).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
