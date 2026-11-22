@@ -28,6 +28,7 @@ import { InboundMediaImage } from "./InboundMediaImage.jsx";
 const CHANNEL_LABEL = {
   whatsapp: "WhatsApp",
   sms: "SMS",
+  app: "App",
 };
 
 export function MessageBubble({ message, onRetry }) {
@@ -47,6 +48,7 @@ export function MessageBubble({ message, onRetry }) {
   const isInbound = message.direction === "inbound";
   const channel = message.channel ?? "whatsapp";
   const isSMS = channel === "sms";
+  const isApp = channel === "app";
   const isFailed = !isInbound && message.status === "failed";
 
   // Reminder confirmation — the customer tapped "Confirm" on the
@@ -96,9 +98,11 @@ export function MessageBubble({ message, onRetry }) {
   const visibleStatus = !isInbound && message.status && message.status !== "sent" ? message.status : null;
   const outboundColor = isAutomated
     ? "border border-brand-paper-line bg-brand-paper text-brand-ink rounded-br-sm"
-    : isSMS
-      ? "bg-sky-100 text-slate-800 rounded-br-sm"
-      : "bg-green-100 text-slate-800 rounded-br-sm";
+    : isApp
+      ? "bg-brand-yellow/50 text-brand-ink rounded-br-sm"
+      : isSMS
+        ? "bg-sky-100 text-slate-800 rounded-br-sm"
+        : "bg-green-100 text-slate-800 rounded-br-sm";
 
   async function handleConfirmedRetry() {
     setRetryState("sending");

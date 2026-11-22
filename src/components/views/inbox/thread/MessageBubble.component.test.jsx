@@ -384,4 +384,14 @@ describe("MessageBubble — special message rendering", () => {
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
   });
+
+  it("labels an in-app message as App", () => {
+    const { container } = render(
+      <MessageBubble
+        message={{ ...base, channel: "app", direction: "inbound", content: "Hello from the app" }}
+      />,
+    );
+    expect(container.textContent).toContain("App");
+    expect(container.textContent).toContain("Hello from the app");
+  });
 });

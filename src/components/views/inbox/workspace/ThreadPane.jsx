@@ -54,6 +54,8 @@ export function ThreadPane({
   // status with no buttons.
   onWhatsappReenabled,
   onOpenHuman,
+  replyInApp = false,
+  replyNote = null,
 }) {
   const threadScrollRef = useRef(null);
   const isNearBottomRef = useRef(true);
@@ -245,7 +247,7 @@ export function ThreadPane({
         onOpenHuman={onOpenHuman}
       />
       {/* A refused number needs permission, not a template: no 24-hour banner. */}
-      {!isThreadWhatsappStopped(conversation) && <WindowClosedBanner conversation={conversation} />}
+      {!replyInApp && !isThreadWhatsappStopped(conversation) && <WindowClosedBanner conversation={conversation} />}
 
       <div
         ref={threadScrollRef}
@@ -308,6 +310,9 @@ export function ThreadPane({
         hideTemplateBanner
         autoFocusSignal={autoFocusSignal}
         textareaRef={textareaRef}
+        forceFreeText={replyInApp}
+        replyNote={replyNote}
+        allowGenerate={!replyInApp}
       />
     </div>
   );

@@ -60,6 +60,7 @@ import type {
   UpdateNotesResponse,
 } from "./inbox/inboxTypes";
 import { fetchConversationDetail, fetchConversationsList, type Client } from "./inbox/inboxFetchers";
+import { isAppThreadId } from "../appInbox";
 
 // The shapes and pure helpers moved to ./inbox/ (Debt 6); they stay exported
 // from here so existing importers and tests are unchanged.
@@ -341,6 +342,13 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
     setDogNames([]);
     setDogNamesById({});
     setDetailError(null);
+
+    // An in-app thread has no WhatsApp row. The overlay loads it. Marking
+    // a WhatsApp conversation read with this id would be a missed call.
+    if (isAppThreadId(conversationId)) {
+      setLoadingDetail(false);
+      return;
+    }
 
     if (!conversationId || !supabase) {
       if (conversationId && !supabase) {

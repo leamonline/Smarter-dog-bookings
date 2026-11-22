@@ -25,8 +25,8 @@ function redactPii(value) {
 //
 // The keys below are the schema's actual customer-data columns rather than a
 // generic guess: humans (name, surname, address, notes, fb/insta/tiktok,
-// history_flag), dogs (name, groom_notes, alerts) and whatsapp_messages
-// (content, "plain-text body of the message"). This is why bare `name` is
+// history_flag), dogs (name, groom_notes, alerts), whatsapp_messages
+// (content) and app_messages (body). This is why bare `name` is
 // listed — in a Supabase request body it is a person's or a dog's name.
 //
 // Losing `name` from diagnostics costs little, because Sentry tags are not

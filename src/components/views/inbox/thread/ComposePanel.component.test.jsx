@@ -203,4 +203,23 @@ describe("ComposePanel", () => {
     expect(textarea.style.height).toBe("118px");
     expect(textarea.style.overflowY).toBe("auto");
   });
+
+  it("keeps a free-text box for an in-app reply after the WhatsApp window has closed", () => {
+    render(
+      <ControlledComposePanel
+        forceFreeText
+        replyNote="This reply goes to their app, not WhatsApp."
+        allowGenerate={false}
+        conversation={{
+          id: "app-1",
+          last_inbound_at: "2020-01-01T00:00:00.000Z",
+          humans: { name: "Dora" },
+        }}
+        onSend={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Write a reply")).toBeInTheDocument();
+    expect(screen.getByText("This reply goes to their app, not WhatsApp.")).toBeInTheDocument();
+    expect(screen.queryByText(/template/i)).not.toBeInTheDocument();
+  });
 });
