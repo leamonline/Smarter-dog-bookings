@@ -64,7 +64,7 @@ Leave it if Apple accepts it. If Xcode says the identifier is already in use, ch
 4. The first time, the iPhone often asks for Developer Mode. On the phone: Settings → Privacy & Security → Developer Mode → turn it on, and restart when asked. Then press play in Xcode again.
 5. If the phone says the developer is untrusted: Settings → General → VPN & Device Management → your Apple ID → Trust.
 
-The icon is the black square with the white dog, the same mark as the website. The name under it is Smarter Dog.
+The icon is a yellow square with the dark dog. On a phone set to Dark Mode the dog is yellow and the corners are clear, so the dark home screen shows through. If the phone is using tinted icons, the dog is grey. The name under it is Smarter Dog.
 
 The first run downloads the Supabase package. The Mac needs to be online for that download. The exact versions are already saved in the project, so Xcode Cloud builds those same copies rather than picking newer ones.
 
@@ -183,11 +183,8 @@ Merging does **not** put the iPhone app on the App Store. A TestFlight build is 
 - [`supabase-swift`](https://github.com/supabase/supabase-swift) product `Supabase`, from 2.55.7 up to the next major version. Version 3 is a breaking alpha and is not selected. `SalonClient` constructs `SupabaseClient` with the 2.55.7 calls (`signIn(phone:password:captchaToken:)`, `signInWithOTP(phone:channel:shouldCreateUser:captchaToken:)`, `verifyOTP(phone:token:type:)`, `functions.invoke`, `rpc`, `from`). The library's default storage is the Keychain, which is what keeps the session. `Config.xcconfig` commits the public project URL and publishable key. `ci_scripts/ci_post_clone.sh` (repository root, next to the xcodeproj) writes `Config.local.xcconfig` only when `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are both set, and that file overrides the committed values. It still refuses a service-role key.
 - `SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` (repository root, not inside `ios/`) is the lockfile Xcode Cloud reads when it opens that project. It pins 2.55.7 and the packages that product links (resolved with Swift 6.4.3). Do not gitignore it. After adding a package, resolve again and commit the updated file.
 - `Config.xcconfig` holds the public Supabase URL and publishable key, the public Turnstile site key, and optionally includes the gitignored local file (`#include?`). The `INFOPLIST_KEY_` lines come after that include, so a local or Xcode Cloud override wins. Xcode generates Info.plist. There is no checked-in Info.plist.
-- Home-screen icon is a byte copy of `public/app/icons/icon-1024.png` (1024×1024, no transparency). After that file changes, copy it again:
-
-```bash
-cp public/app/icons/icon-1024.png ios/SmarterDog/Assets.xcassets/AppIcon.appiconset/AppIcon.png
-```
+- Home-screen icon is `ios/SmarterDog/Assets.xcassets/AppIcon.appiconset`, a single 1024×1024 iOS set. `AppIcon.png` is opaque RGB (no alpha). `AppIcon-Dark.png` has a clear background. `AppIcon-Tinted.png` is greyscale. Both the Debug and Release configurations set `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`, which is the name Xcode’s App Icon field reads. Do not copy `public/app/icons/icon-1024.png` over it.
+- `ios/SmarterDog/SmarterDog.icon` is the Icon Composer package (hand-written `icon.json`, plus `Assets/dog.svg` and `Assets/dog.png`). It is not a member of the Xcode target, so the Internal TestFlight Build does not compile it. The inspectors to check are in `ios/SmarterDog/ICON-COMPOSER-SETTINGS.md`. Apple’s documentation says adding a `.icon` replaces the asset-catalog icon and Xcode generates the older-OS fallbacks itself. Leave this file out of the target until Icon Composer has re-saved it.
 
 - Colours match `src/index.css`: ink `#1F1F1F`, paper `#F7EFE6`, yellow `#FECC13`, cyan-dark `#1F4E8C`.
 - Root lint, Vitest and the docs link check ignore `ios/`. Nothing here is built by the Vercel deploy. Linux CI cannot compile the iPhone app. It can run the sign-in decisions, which do not use the iPhone UI: `swift test --package-path ios`. The Xcode scheme still has no test action, so leave that action off in Xcode Cloud.
