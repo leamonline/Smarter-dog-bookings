@@ -163,8 +163,20 @@ describe("the Xcode project is the committed skeleton", () => {
 
     // The README names service_role so the owner does not paste it. A real key
     // (a JWT, or an sb_secret_ token) must not appear in any committed file.
-    const textFiles = walk("ios").filter((file) =>
-      /\.(swift|plist|json|md|xcconfig|pbxproj|xcscheme|xcworkspacedata|gitignore)$/.test(file),
+    // The Xcode project lives at the repo root, so this walk has to include it
+    // as well as ios/. Package.resolved has no dotted extension.
+    const textFiles = [...walk("ios"), ...walk("SmarterDog.xcodeproj")].filter(
+      (file) =>
+        file.endsWith("Package.resolved") ||
+        /\.(swift|plist|json|md|xcconfig|pbxproj|xcscheme|xcworkspacedata|gitignore)$/.test(file),
+    );
+    expect(textFiles).toEqual(
+      expect.arrayContaining([
+        "SmarterDog.xcodeproj/project.pbxproj",
+        "SmarterDog.xcodeproj/xcshareddata/xcschemes/SmarterDog.xcscheme",
+        "SmarterDog.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+        "SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+      ]),
     );
     for (const file of textFiles) {
       if (file.endsWith("Config.local.xcconfig")) continue;
