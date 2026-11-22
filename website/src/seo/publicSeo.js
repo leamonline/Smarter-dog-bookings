@@ -150,6 +150,13 @@ const STATIC_ROUTES = {
     canonical: '/terms',
     robots: 'index,follow',
   },
+  '/support': {
+    title: 'App support — Smarter Dog Grooming',
+    description:
+      'Contact Smarter Dog Grooming about the iPhone app or a booking. Email, WhatsApp and the salon address in Ashton-under-Lyne.',
+    canonical: '/support',
+    robots: 'index,follow',
+  },
   '/matted-coat-policy': {
     title: formatDocumentTitle('Matted Coat Policy'),
     description:

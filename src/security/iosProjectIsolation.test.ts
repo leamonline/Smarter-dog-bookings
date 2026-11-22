@@ -98,7 +98,19 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(project).toContain("CODE_SIGN_STYLE = Automatic;");
     expect(project).not.toContain("DEVELOPMENT_TEAM");
     expect(project).toContain("GENERATE_INFOPLIST_FILE = YES;");
-    expect(project).not.toMatch(/(?<!GENERATE_)INFOPLIST_FILE\b/);
+    // A fonts-only plist is merged into the generated one. It must not replace
+    // generation, and it must not be copied as a second resource.
+    expect(project.match(/INFOPLIST_FILE = ios\/SmarterDog\/Info\.plist;/g)).toHaveLength(2);
+    expect(project).not.toContain("INFOPLIST_KEY_UIAppFonts");
+    expect(project).not.toContain("Info.plist in Resources");
+    const fontsPlist = read("ios/SmarterDog/Info.plist");
+    const fontArray = fontsPlist.split("<key>UIAppFonts</key>")[1]?.split("</array>")[0] ?? "";
+    expect([...fontArray.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1])).toEqual([
+      "Poppins-Bold.ttf",
+      "Poppins-SemiBold.ttf",
+    ]);
+    expect(fontsPlist.match(/<key>/g)).toHaveLength(1);
+    expect(fontsPlist).not.toContain("Supabase");
   });
 
   it("links supabase-swift 2.x and signs in with that client", () => {

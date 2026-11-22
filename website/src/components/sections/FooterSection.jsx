@@ -201,45 +201,52 @@ const FooterSection = () => {
                 </div>
 
                 <div
-                    className="pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4 body-font text-base"
+                    className="pt-8 border-t flex flex-col gap-4 body-font text-base"
                     style={{ borderColor: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)' }}
                 >
-                    <div className="flex flex-col md:flex-row items-center gap-2 md:gap-6">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <p>© {new Date().getFullYear()} Smarter Dog Grooming Salon. All rights reserved.</p>
-                        <span className="hidden md:inline" style={{ color: 'rgba(255,255,255,0.4)' }}>|</span>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm opacity-70">Legal:</span>
-                            <Link
-                                to="/terms"
-                                className="underline hover:opacity-70 transition-opacity"
-                                style={{ color: 'rgba(255,255,255,0.8)' }}
-                            >
-                                Terms
-                            </Link>
-                            <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
-                            <Link
-                                to="/matted-coat-policy"
-                                className="underline hover:opacity-70 transition-opacity"
-                                style={{ color: 'rgba(255,255,255,0.8)' }}
-                            >
-                                Matted coats
-                            </Link>
-                            <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
-                            <Link
-                                to="/privacy"
-                                className="underline hover:opacity-70 transition-opacity"
-                                style={{ color: 'rgba(255,255,255,0.8)' }}
-                            >
-                                Privacy
-                            </Link>
-                        </div>
+                        <p
+                            className="handwriting text-lg"
+                            style={{ color: 'rgba(255,255,255,0.9)' }}
+                        >
+                            Made with 🐾 in Ashton-under-Lyne
+                        </p>
                     </div>
-                    <p
-                        className="handwriting text-lg"
-                        style={{ color: 'rgba(255,255,255,0.9)' }}
-                    >
-                        Made with 🐾 in Ashton-under-Lyne
-                    </p>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1">
+                        <span className="text-sm opacity-70">Legal:</span>
+                        <Link
+                            to="/terms"
+                            className="underline hover:opacity-70 transition-opacity whitespace-nowrap"
+                            style={{ color: 'rgba(255,255,255,0.8)' }}
+                        >
+                            Terms
+                        </Link>
+                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
+                        <Link
+                            to="/matted-coat-policy"
+                            className="underline hover:opacity-70 transition-opacity whitespace-nowrap"
+                            style={{ color: 'rgba(255,255,255,0.8)' }}
+                        >
+                            Matted coats
+                        </Link>
+                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
+                        <Link
+                            to="/privacy"
+                            className="underline hover:opacity-70 transition-opacity whitespace-nowrap"
+                            style={{ color: 'rgba(255,255,255,0.8)' }}
+                        >
+                            Privacy
+                        </Link>
+                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
+                        <Link
+                            to="/support"
+                            className="underline hover:opacity-70 transition-opacity whitespace-nowrap"
+                            style={{ color: 'rgba(255,255,255,0.8)' }}
+                        >
+                            Support
+                        </Link>
+                    </div>
                 </div>
             </div>
         </footer>

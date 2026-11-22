@@ -1,7 +1,7 @@
 # Current design-system rules
 
 Status: Active
-Last verified: 2026-11-14
+Last verified: 2026-11-22
 Scope: Shared staff controls, customer action semantics and exported-kit guidance
 
 ## Source of truth
@@ -16,19 +16,57 @@ a working-tree snapshot: do not assign it one invented immutable revision.
 
 ## One identity, distinct surfaces
 
-Use charcoal ink, warm paper, sky surfaces and sun-yellow lead actions.
-Staff navigation is currently light; a charcoal-header description in an old
-export is not authority to repaint it. Keep staff and portal CSS separate.
-Montserrat is body/UI, Poppins is headings, Barlow Condensed is a limited hero
-face. The Quicksand descriptions are historical. Caveat is a retained legacy
-font token, not a default accent. Do not introduce checkerboard decoration,
-extra illustration or branded loading effects in this consistency slice.
+Use charcoal ink, warm paper, sky blue and sun yellow, taken from the salon's
+printed flyer. On 22 November 2026 the owner approved the
+[flyer visual language](../plans/active/2026-11-22-flyer-visual-language.md),
+which brings the flyer's character into both the staff dashboard and the
+customer portal at the same level of boldness. It rolls out in steps; where a
+rule below names a step, today's rendering holds until that step ships, and the
+plan holds the exact values.
+
+Staff navigation stays light; a charcoal-header description in an old export is
+not authority to repaint it. Keep staff and portal CSS separate. Every page sits
+on warm paper with white rounded cards (the staff calendar moves to paper in
+step 3).
+
+Montserrat is body/UI and Poppins is headings; staff page titles stay Poppins
+700. Hero lines (sign-in, step titles, confirmations, true empty and done
+states) move to Poppins 900 in step 2, replacing Barlow Condensed. Caveat 700 is
+the handwritten accent: at most one short line per hero screen, in blue or ink,
+never carrying a name, date, price or instruction. The Quicksand descriptions
+are historical.
+
+Flyer motifs are allowed by role, and each has a place it never goes:
+
+- The segmented stripe frames the top of a screen. Never inside content.
+- The yellow swash underlines a page or step title, or sits behind one or two
+  words on a hero moment. Never behind a figure staff act on, never shaped like
+  a button.
+- Service mascots appear beside their bookable service and on true empty or done
+  states. Never as decoration on a failed or filtered result.
+- A taped polaroid frames a dog's own photo where it is the hero. Never in lists.
+
+Calendar rows, day-stack strips, inbox threads and side panels carry no
+decoration. No checkerboard anywhere. No branded loading effects: skeletons stay
+neutral and still. Motion is limited to hero moments (the swash drawing in, a
+polaroid settling, one mascot bounce) and is removed under
+`prefers-reduced-motion`.
 
 ## Actions and controls
 
 - Yellow is the lead-action colour in staff and customer products, including
-  booking confirmation. Charcoal is strong secondary. Success and WhatsApp
-  keep their existing green meanings; status, dog-size and safety colours are frozen.
+  booking confirmation, and means only "press this". Charcoal is strong
+  secondary. Success and WhatsApp keep their existing green meanings.
+- Brand blue (`--color-brand-cyan`) is the brand partner: links, the active tab,
+  and the ring and tick on a selected item, over the sky tint. Selection moves
+  from charcoal to blue in step 2 (portal) and step 3 (staff); a tick or check
+  stays, so colour is never the only signal. The brighter flyer blue
+  (`--color-brand-cyan-light`) is decoration only and never text.
+- Safety colours are frozen. Status and dog-size colours change once, in step 3,
+  to the approved values in the plan: one hue per status, Confirmed in periwinkle
+  so it never reads as selected, and only Large dogs coloured (navy). Outside that
+  change they are frozen too. The status word and the size letter are always
+  shown.
 - Use `Button` and `IconButton`. `PageHeaderAction` delegates to `Button`, defaults
   to `strong`, and accepts `variant="primary"` for a screen's lead. Buttons are
   pills; inputs and segmented-control frames use 10px `radius-control`.
@@ -50,6 +88,10 @@ extra illustration or branded loading effects in this consistency slice.
 
 ## Feedback and copy
 
+Hero lines may carry the flyer's wit ("Come scruffy. Leave gorgeous.", "All
+groomed."). Everything else stays plain: labels, buttons, instructions, errors and
+anything with a consequence.
+
 Staff copy is calm and specific: name what failed, then the recovery action.
 ErrorBanner's generic fallback is only for an unknown operation; supply a title
 and operation-specific retry label at real call sites. Retry and dismiss use
@@ -61,7 +103,8 @@ Loading, failure and successfully empty results are separate states. Skeletons
 remain neutral and follow the destination layout; the old ceiling-grid claim
 is not the current implementation. EmptyState defaults to no icon (`null`).
 Prefer text or the existing silhouette where justified; do not add emoji merely
-to decorate an empty result. “Nothing booked. Blue skies.” belongs only to a
+to decorate an empty result. From steps 2 and 3 a true empty or done state may
+show a service mascot instead of the silhouette, under the same conditions. “Nothing booked. Blue skies.” belongs only to a
 confirmed empty result, never a failed request or a narrowed search.
 `EmptyState` takes `mark="dog"` (the salon silhouette, decorative) only for a true
 "nothing here yet"; a search or filter with no matches gets plain words and a
