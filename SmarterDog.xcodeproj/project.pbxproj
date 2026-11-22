@@ -32,7 +32,7 @@
 		A10000000000000000000018 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000019 /* Config.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.local.xcconfig.example; sourceTree = "<group>"; };
 		A1000000000000000000001A /* SmarterDog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmarterDog.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1000000000000000000001B /* ios/README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ios/README.md; sourceTree = "<group>"; };
+		A1000000000000000000001B /* ios/README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ios/README.md"; sourceTree = "<group>"; };
 		A1000000000000000000001C /* PhoneNumber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneNumber.swift; sourceTree = "<group>"; };
 		A1000000000000000000001D /* AuthModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthModels.swift; sourceTree = "<group>"; };
 		A1000000000000000000001E /* SalonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalonClient.swift; sourceTree = "<group>"; };
@@ -90,7 +90,7 @@
 				A1000000000000000000002B /* RootView.swift */,
 				A10000000000000000000016 /* Assets.xcassets */,
 			);
-			path = ios/SmarterDog;
+			path = "ios/SmarterDog";
 			sourceTree = "<group>";
 		};
 		A10000000000000000000025 /* ios/Config */ = {
@@ -99,7 +99,7 @@
 				A10000000000000000000018 /* Config.xcconfig */,
 				A10000000000000000000019 /* Config.local.xcconfig.example */,
 			);
-			path = ios/Config;
+			path = "ios/Config";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -305,7 +305,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ML5PLXXF9R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";
@@ -342,7 +341,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = ML5PLXXF9R;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";
