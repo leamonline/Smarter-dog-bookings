@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — flyer visual language: approved rules and plan
+
+- Records the owner's approval (22 November 2026) of a visual language taken from the salon's printed flyer, for both the staff dashboard and the customer portal: the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md) holds the 13 decisions, the exact values with their contrast evidence, and the four rollout steps.
+- Rewrites the design-system rules that the new language contradicts ([design-system.md](docs/ux/design-system.md), [warm-colours.md](docs/ux/warm-colours.md)): brand blue for selection and the active tab, flyer motifs allowed by role, Poppins 900 hero lines, Caveat as the handwritten accent, and the one planned change to status and size colours. Each rule names the step that ships it.
+- Documentation only. No code, token or screen changes.
+
 ## Unreleased — iPhone API contract and reminder push groundwork
 
 - Documents which existing calls the iPhone app should use for customers and staff ([docs/ios-api-contract.md](docs/ios-api-contract.md)). The website is unchanged.

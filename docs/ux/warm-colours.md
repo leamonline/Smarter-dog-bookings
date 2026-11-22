@@ -39,3 +39,21 @@ a separate clean-up.
 
 Colours that carry operational meaning (`status-*`, `color-size-*`, `size-*`)
 stay frozen. This page is about not borrowing them, not about changing them.
+
+## Approved change, step 3 of the flyer visual language
+
+The owner approved the
+[flyer visual language](../plans/active/2026-11-22-flyer-visual-language.md) on
+22 November 2026. Its step 3 makes the one planned change to these frozen
+colours, and it tightens the rule above rather than loosening it:
+
+- **Small dog stops being yellow.** Small and Medium become neutral letter chips,
+  and only Large is coloured (navy). The yellow family loses a job, so "yellow
+  means do this" becomes easier to keep.
+- **Ready becomes a sunnier gold:** tint `#FCEAB0`, ink `#4A3500`, edge
+  `#D49A00`. It stays softer than the action yellow and is never a fill for a
+  control.
+- The action yellow, its hover, the mustard waitlist family and the unknown
+  status tone do not change.
+
+Until step 3 ships, the table above describes what renders.
