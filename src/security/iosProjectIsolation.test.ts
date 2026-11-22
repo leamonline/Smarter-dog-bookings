@@ -4,7 +4,8 @@
 // It does not, and cannot, run xcodebuild.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { excludedMarkdownPrefixes } from "../../scripts/check-doc-links.mjs";
@@ -100,7 +101,7 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(project).not.toMatch(/(?<!GENERATE_)INFOPLIST_FILE\b/);
   });
 
-  it("links supabase-swift 2.x and does not construct a client", () => {
+  it("links supabase-swift 2.x and signs in with that client", () => {
     const project = read(projectPath);
     expect(project).toContain('repositoryURL = "https://github.com/supabase/supabase-swift.git";');
     expect(project).toContain("minimumVersion = 2.55.7;");
@@ -137,17 +138,70 @@ describe("the Xcode project is the committed skeleton", () => {
       expect(state, identity).toBeDefined();
       expect(state!.revision, identity).toMatch(/^[0-9a-f]{40}$/);
     }
-    const swift = walk("ios/SmarterDog")
-      .filter((file) => file.endsWith(".swift"))
-      .map((file) => read(file))
-      .join("\n");
-    expect(swift).toContain("SupabaseClient.self");
-    expect(swift).not.toContain("SupabaseClient(");
+    const swiftFiles = walk("ios/SmarterDog").filter((file) => file.endsWith(".swift"));
+    for (const file of swiftFiles) {
+      const name = file.split("/").pop();
+      expect(project, name).toContain(`${name} in Sources`);
+    }
+    const swift = swiftFiles.map((file) => read(file)).join("\n");
+    expect(swift).toContain("SupabaseClient(");
     expect(swift).not.toContain("URLSession");
     expect(swift).toContain('Text("Smarter Dog")');
-    expect(swift).toContain('Text("Continue")');
-    expect(swift).toContain('Text("Staff sign in")');
+    expect(swift).toContain("Continue");
+    expect(swift).toContain("Staff sign in");
     expect(swift).toContain("Phone number");
+    expect(swift).toContain("Sign out");
+    expect(swift).toContain("link_customer_to_human");
+    expect(swift).toContain('from("staff_profiles")');
+    expect(swift).toContain("customer-phone-on-file");
+    expect(swift).toContain('staff.role == "owner" || staff.role == "staff"');
+    expect(swift).toContain("approved_at");
+    expect(swift).toContain("signup_submitted_at");
+  });
+
+  it("fills the public Supabase config on Xcode Cloud without committing it", () => {
+    const scriptPath = "ci_scripts/ci_post_clone.sh";
+    expect(existsSync(join(root, scriptPath))).toBe(true);
+    const script = read(scriptPath);
+    expect(script).toContain("SUPABASE_URL");
+    expect(script).toContain("SUPABASE_PUBLISHABLE_KEY");
+    expect(script).toContain("ios/Config/Config.local.xcconfig");
+    expect(script).not.toContain("supabase.co");
+    expect(script).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}/);
+    expect(script).not.toMatch(/sb_secret_/);
+    expect(script).toContain("jwt_payload_has_service_role");
+  });
+
+  it("refuses a service-role JWT and keeps a public anon JWT", () => {
+    const directory = mkdtempSync(join(tmpdir(), "sdb-ios-config-"));
+    mkdirSync(join(directory, "ios", "Config"), { recursive: true });
+    const script = join(root, "ci_scripts/ci_post_clone.sh");
+    const token = (payload: object) => {
+      const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+      return `${part({ alg: "none" })}.${part(payload)}.sig`;
+    };
+    const env = {
+      ...process.env,
+      CI_PRIMARY_REPOSITORY_PATH: directory,
+      SUPABASE_URL: "https://example.invalid",
+    };
+    expect(() =>
+      execFileSync(script, {
+        env: { ...env, SUPABASE_PUBLISHABLE_KEY: token({ role: "service_role" }) },
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(existsSync(join(directory, "ios", "Config", "Config.local.xcconfig"))).toBe(false);
+
+    const anon = token({ role: "anon" });
+    execFileSync(script, {
+      env: { ...env, SUPABASE_PUBLISHABLE_KEY: anon },
+      stdio: "pipe",
+    });
+    const written = readFileSync(join(directory, "ios", "Config", "Config.local.xcconfig"), "utf8");
+    expect(written).toContain(anon);
+    expect(written).not.toContain("service_role");
+    rmSync(directory, { recursive: true, force: true });
   });
 
   it("keeps secrets out of the committed config and uses the brand icon", () => {
