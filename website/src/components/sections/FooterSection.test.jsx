@@ -54,5 +54,6 @@ describe('FooterSection', () => {
     expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
     expect(screen.getByRole('link', { name: 'Matted coats' })).toHaveAttribute('href', '/matted-coat-policy');
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', '/support');
   });
 });

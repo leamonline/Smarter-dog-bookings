@@ -95,6 +95,28 @@ try {
   if ((nervous.match(new RegExp(FAQ_SCRIPT_ID, 'g')) || []).length !== 1) {
     throw new Error('prerendered nervous-dog page should have one FAQPage script');
   }
+  const support = readFileSync(join(distDir, 'support/index.html'), 'utf8');
+  if (!support.includes('<title>App support — Smarter Dog Grooming</title>')) {
+    throw new Error('prerendered /support is missing its title');
+  }
+  if (!support.includes('rel="canonical" href="https://smarterdog.co.uk/support"')) {
+    throw new Error('prerendered /support is missing its canonical');
+  }
+  if (!support.includes('https://wa.me/447873329440')) {
+    throw new Error('prerendered /support is missing the WhatsApp link');
+  }
+  if (!support.includes('messages only — there is no phone line')) {
+    throw new Error('prerendered /support is missing the WhatsApp-only note');
+  }
+  if (!support.includes('To delete your customer account, email or message us and we will help.')) {
+    throw new Error('prerendered /support is missing the account-deletion sentence');
+  }
+  if (/tel:/i.test(support) || support.includes('In-app path') || support.includes('go to Settings, then Delete account')) {
+    throw new Error('prerendered /support includes a phone link or the unpublished deletion placeholder');
+  }
+  if (/"telephone"/.test(support)) {
+    throw new Error('prerendered /support publishes a telephone property');
+  }
   console.log(`prerendered ${PRERENDER_PATHS.length} marketing routes plus 404.html`);
 } finally {
   await vite.close();

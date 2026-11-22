@@ -10,6 +10,7 @@ import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
 import OurApproachPage from './components/pages/OurApproachPage';
 import FAQPage from './components/pages/FAQPage';
 import TermsPage from './components/pages/TermsPage';
+import SupportPage from './components/pages/SupportPage';
 import MattedCoatPolicyPage from './components/pages/MattedCoatPolicyPage';
 import CommunityPage from './components/pages/CommunityPage';
 import NotFoundPage from './components/pages/NotFoundPage';
@@ -44,6 +45,7 @@ export function MarketingApp() {
         <Route path="/approach" element={<OurApproachPage onBookClick={goToBooking} />} />
         <Route path="/faq" element={<FAQPage onBookClick={goToBooking} />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/matted-coat-policy" element={<MattedCoatPolicyPage />} />
         <Route path="/book" element={<ExternalRedirect to={BOOKING_URL} />} />
         <Route path="/community" element={<CommunityPage />} />
