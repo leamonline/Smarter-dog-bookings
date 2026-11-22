@@ -42,6 +42,8 @@ export interface DbHumanRow {
   preferred_slots?: string[] | null;
   blocked_slots?: string[] | null;
   deposit_required?: boolean | null;
+  deposit_required_reason?: string | null;
+  deposit_required_set_at?: string | null;
   ai_whatsapp_allowed?: boolean | null;
 }
 
@@ -294,6 +296,9 @@ export function dbHumansToMap(
       address: row.address || "",
       notes: row.notes || "",
       historyFlag: row.history_flag || "",
+      depositRequired: row.deposit_required === true,
+      depositRequiredReason: row.deposit_required_reason ?? null,
+      depositRequiredSetAt: row.deposit_required_set_at ?? null,
       reminderHours: row.reminder_hours ?? 24,
       reminderChannels: row.reminder_channels || ["whatsapp"],
       aiWhatsappAllowed: row.ai_whatsapp_allowed !== false,

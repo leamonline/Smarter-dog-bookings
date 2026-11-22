@@ -12,7 +12,9 @@ export const SAMPLE_HUMANS = {
   // Said STOP on WhatsApp: shows the profile's "WhatsApp is off" notice and
   // header badge offline (the re-enable dialog itself needs the live database).
   "Jenny Taylor": { id: "h6", fullName: "Jenny Taylor", name: "Jenny", surname: "Taylor", phone: "07700 900116", sms: false, whatsapp: false, email: "jenny@example.com", fb: "", insta: "", tiktok: "", address: "303 Oak St", notes: "", trustedIds: [], whatsappOptedOut: true, whatsappOptedOutAt: "2026-10-03T13:05:00.000000+00:00", whatsappOptedOutReason: "asked_on_whatsapp" },
-  "Mark Johnson": { id: "h7", fullName: "Mark Johnson", name: "Mark", surname: "Johnson", phone: "07700 900117", sms: true, whatsapp: true, email: "mark@example.com", fb: "", insta: "", tiktok: "", address: "404 Pine St", notes: "", trustedIds: [] },
+  // Pepper is a no-show in the sample week, so Mark is already on a deposit.
+  // The sentence is the one the database writes; the sample week has no fixed date.
+  "Mark Johnson": { id: "h7", fullName: "Mark Johnson", name: "Mark", surname: "Johnson", phone: "07700 900117", sms: true, whatsapp: true, email: "mark@example.com", fb: "", insta: "", tiktok: "", address: "404 Pine St", notes: "", trustedIds: [], depositRequired: true, depositRequiredReason: "Deposit required after a no-show: Pepper on 22 Nov 2026" },
   // The owners of the dogs on the demo day stack, so a lifted card shows what
   // a real one does: WhatsApp, Call and the owner's file (November 2026).
   "Priya Raman": { id: "h8", fullName: "Priya Raman", name: "Priya", surname: "Raman", phone: "07700 900118", sms: true, whatsapp: true, email: "priya@example.com", fb: "", insta: "", tiktok: "", address: "505 Birch Rd", notes: "", trustedIds: [] },
