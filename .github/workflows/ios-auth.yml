@@ -1,0 +1,25 @@
+name: iPhone auth
+
+# The sign-in decisions have no UIKit dependency, so Linux can run them.
+# This does not compile the iPhone app. Xcode Cloud still does that.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-auth-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  auth-core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0.3"
+      - name: Test sign-in decisions
+        run: swift test --package-path ios

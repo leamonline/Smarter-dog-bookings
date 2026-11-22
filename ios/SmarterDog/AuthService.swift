@@ -1,39 +1,40 @@
 import Foundation
 import Observation
-import Supabase
 
 /// One signed-in session for the phone.
 ///
-/// Staff are an email login with a `staff_profiles` row whose role is `owner`
-/// or `staff` — the same check as `is_staff()` on the website.
-/// Customers are a phone login. After sign-in, `link_customer_to_human` binds
-/// the login to their record. Approval is then read from that record the same
-/// way the website does: `approved_at` set means they can come in,
-/// `signup_submitted_at` set means Join the Pack is waiting for the salon,
-/// and neither means the rest of Join the Pack is still on the website.
+/// Staff are an email login with a staff profile whose role is owner or staff,
+/// the same check as `is_staff()` on the website. Customers are a phone login.
+/// After sign-in, the client links that login to the customer record. Approval
+/// is then read the same way the website does: an approval time means they can
+/// come in, a submitted Join the Pack form means they are waiting, and neither
+/// means the rest of the form is still on the website.
 @MainActor
 @Observable
 final class AuthService {
     private(set) var phase: SessionPhase
-    private let client: SupabaseClient?
+    private let client: (any SalonSessionClient)?
+    private let restoreTimeout: Duration
     private var listenTask: Task<Void, Never>?
     private var resolveGeneration = 0
-    private var signedInUser: User?
+    private var signedInUser: SalonAccount?
+
     private var normalisedPhone = ""
 
-    init() {
-        if let client = SalonClient.make() {
-            self.client = client
+    init(client: (any SalonSessionClient)?, restoreTimeout: Duration = .seconds(8)) {
+        self.client = client
+        self.restoreTimeout = restoreTimeout
+        if client != nil {
             phase = .restoring
-            listen(to: client)
+            listen()
         } else {
-            client = nil
             phase = .needsConfiguration
         }
     }
 
     init(previewPhase: SessionPhase) {
         client = nil
+        restoreTimeout = .seconds(8)
         phase = previewPhase
     }
 
@@ -45,24 +46,21 @@ final class AuthService {
         let client = try requireClient()
         let display = PhoneNumber.nationalDisplay(from: normalised)
         do {
-            let result: PhoneLookupResult = try await client.functions.invoke(
-                "customer-phone-on-file",
-                options: FunctionInvokeOptions(body: PhoneLookupBody(phone: normalised))
-            )
-            guard result.on_file else {
+            let result = try await client.phoneOnFile(normalised)
+            guard result.onFile else {
                 normalisedPhone = ""
                 return .unknown(display: display)
             }
             normalisedPhone = normalised
-            if result.has_password == true {
+            if result.hasPassword {
                 return .password(display: display)
             }
             return .textCode(display: display)
         } catch let failure as SignInFailure {
             throw failure
         } catch {
-            throw SignInFailure(message: Self.friendly(
-                error,
+            throw SignInFailure(message: message(
+                for: error,
                 fallback: "We couldn't check that number. Please try again.",
                 wrongSecret: "We couldn't check that number. Please try again."
             ))
@@ -75,14 +73,10 @@ final class AuthService {
             throw SignInFailure(message: "Enter your mobile number again, then your password.")
         }
         do {
-            _ = try await client.auth.signIn(
-                phone: normalisedPhone,
-                password: password,
-                captchaToken: captchaToken
-            )
+            try await client.signIn(phone: normalisedPhone, password: password, captchaToken: captchaToken)
         } catch {
-            throw SignInFailure(message: Self.friendly(
-                error,
+            throw SignInFailure(message: message(
+                for: error,
                 fallback: "We couldn't sign you in. Please try again.",
                 wrongSecret: "That number and password don't match. Try again, or get a code by text."
             ))
@@ -95,15 +89,10 @@ final class AuthService {
             throw SignInFailure(message: "Enter your mobile number again, then ask for a new code.")
         }
         do {
-            try await client.auth.signInWithOTP(
-                phone: normalisedPhone,
-                channel: .sms,
-                shouldCreateUser: true,
-                captchaToken: captchaToken
-            )
+            try await client.sendCode(phone: normalisedPhone, captchaToken: captchaToken)
         } catch {
-            throw SignInFailure(message: Self.friendly(
-                error,
+            throw SignInFailure(message: message(
+                for: error,
                 fallback: "Could not send your login code. Please check your number and try again.",
                 wrongSecret: "Could not send your login code. Please check your number and try again."
             ))
@@ -120,19 +109,15 @@ final class AuthService {
             throw SignInFailure(message: "Enter your mobile number again, then ask for a new code.")
         }
         do {
-            let response = try await client.auth.verifyOTP(
-                phone: normalisedPhone,
-                token: code,
-                type: .sms
-            )
-            guard response.session != nil else {
+            let signedIn = try await client.verifyCode(phone: normalisedPhone, code: code)
+            guard signedIn else {
                 throw SignInFailure(message: "That code did not sign you in. Please ask for a new one.")
             }
         } catch let failure as SignInFailure {
             throw failure
         } catch {
-            throw SignInFailure(message: Self.friendly(
-                error,
+            throw SignInFailure(message: message(
+                for: error,
                 fallback: "That code did not work. Please check it and try again.",
                 wrongSecret: "That code did not work. Please check it and try again."
             ))
@@ -147,14 +132,10 @@ final class AuthService {
             throw SignInFailure(message: "Please enter the email address you use for the salon.")
         }
         do {
-            _ = try await client.auth.signIn(
-                email: email,
-                password: password,
-                captchaToken: captchaToken
-            )
+            try await client.signIn(email: email, password: password, captchaToken: captchaToken)
         } catch {
-            throw SignInFailure(message: Self.friendly(
-                error,
+            throw SignInFailure(message: message(
+                for: error,
                 fallback: "We couldn't sign you in. Please try again.",
                 wrongSecret: "That email and password don't match. Please try again."
             ))
@@ -171,24 +152,26 @@ final class AuthService {
         signedInUser = nil
         normalisedPhone = ""
         phase = .signedOut
-        try? await client?.auth.signOut()
+        await client?.signOut()
     }
 
-    private func requireClient() throws -> SupabaseClient {
+    private func requireClient() throws -> any SalonSessionClient {
         guard let client else {
             throw SignInFailure(message: "This copy of the app isn't connected to the salon yet.")
         }
         return client
     }
 
-    private func listen(to client: SupabaseClient) {
+    private func listen() {
+        guard let client else { return }
         listenTask = Task { [weak self] in
-            for await (event, session) in client.auth.authStateChanges {
-                self?.handle(event: event, session: session)
+            for await event in client.events {
+                self?.handle(event)
             }
         }
+        let timeout = restoreTimeout
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(8))
+            try? await Task.sleep(for: timeout)
             self?.giveUpRestoring()
         }
     }
@@ -199,28 +182,26 @@ final class AuthService {
         }
     }
 
-    /// The auth listener must return before any other Supabase call, or the
-    /// client can stall. Role lookup is started in a separate task.
-    private func handle(event: AuthChangeEvent, session: Session?) {
+    /// Role lookup starts in a separate task so the session listener can return
+    /// before the next salon call. Holding the listener open can stall sign-in.
+    private func handle(_ event: SalonAuthEvent) {
         switch event {
-        case .initialSession, .signedIn:
-            guard let session else {
+        case .session(let account):
+            guard let account else {
                 signedInUser = nil
                 phase = .signedOut
                 return
             }
-            beginResolve(user: session.user)
-        case .signedOut, .userDeleted:
+            beginResolve(user: account)
+        case .signedOut:
             signedInUser = nil
             if phase != .needsConfiguration {
                 phase = .signedOut
             }
-        case .tokenRefreshed, .userUpdated, .passwordRecovery, .mfaChallengeVerified:
-            break
         }
     }
 
-    private func beginResolve(user: User) {
+    private func beginResolve(user: SalonAccount) {
         resolveGeneration += 1
         let generation = resolveGeneration
         signedInUser = user
@@ -230,22 +211,16 @@ final class AuthService {
         }
     }
 
-    private func resolve(user: User, generation: Int) async {
+    private func resolve(user: SalonAccount, generation: Int) async {
         guard let client else { return }
         do {
-            let staff: StaffRow? = try await client
-                .from("staff_profiles")
-                .select("role,display_name")
-                .eq("user_id", value: user.id)
-                .maybeSingle()
-                .execute()
-                .value
+            let staff = try await client.staffProfile(userId: user.id)
             guard generation == resolveGeneration else { return }
 
             if let staff, staff.role == "owner" || staff.role == "staff" {
                 let fallback = user.email ?? "Staff"
                 phase = .staff(AccountCard(
-                    name: PersonName.joined(name: staff.display_name, surname: nil, fallback: fallback),
+                    name: PersonName.joined(name: staff.displayName, surname: nil, fallback: fallback),
                     roleLabel: staff.role == "owner" ? "Owner" : "Staff"
                 ))
                 return
@@ -257,25 +232,14 @@ final class AuthService {
                 return
             }
 
-            let linked: [LinkedHuman] = try await client
-                .rpc("link_customer_to_human")
-                .execute()
-                .value
+            let human = try await client.linkHuman()
             guard generation == resolveGeneration else { return }
-            guard let human = linked.first else {
+            guard let human else {
                 phase = .accountMissing
                 return
             }
 
-            // Column names stay snake_case: supabase-swift 2.55.7's database
-            // decoder does not rename JSON keys.
-            let signup: SignupRow? = try await client
-                .from("humans")
-                .select("approved_at,signup_submitted_at,claims_human_id")
-                .eq("id", value: human.id)
-                .maybeSingle()
-                .execute()
-                .value
+            let signup = try await client.signupState(humanId: human.id)
             guard generation == resolveGeneration else { return }
 
             let name = PersonName.joined(
@@ -290,16 +254,15 @@ final class AuthService {
                 phase = .customer(AccountCard(name: name, roleLabel: "Customer"))
                 return
             }
-            if let approved = signup.approved_at, !approved.isEmpty {
+            if let approved = signup.approvedAt, !approved.isEmpty {
                 phase = .customer(AccountCard(name: name, roleLabel: "Customer"))
                 return
             }
-            if let submitted = signup.signup_submitted_at, !submitted.isEmpty {
-                let claims = signup.claims_human_id?.isEmpty == false
+            if let submitted = signup.submittedAt, !submitted.isEmpty {
                 phase = .pending(PendingAccount(
                     name: name,
                     showsName: showsName,
-                    hold: claims ? .claimsExisting : .waiting
+                    hold: signup.claimsExisting ? .claimsExisting : .waiting
                 ))
                 return
             }
@@ -314,67 +277,8 @@ final class AuthService {
         }
     }
 
-    private static func friendly(_ error: Error, fallback: String, wrongSecret: String) -> String {
-        if let auth = error as? AuthError, case .api(let message, let code, _, _) = auth {
-            if code == .captchaFailed || message.localizedStandardContains("captcha") {
-                return "The security check didn't pass. Please try it again."
-            }
-            if code == .invalidCredentials || message.localizedStandardContains("invalid login credentials") {
-                return wrongSecret
-            }
-            if code == .otpExpired {
-                return "That code has expired. Please ask for a new one."
-            }
-            if code == .overRequestRateLimit || code == .overSMSSendRateLimit || code == .overEmailSendRateLimit {
-                return "Too many attempts. Please wait a minute and try again."
-            }
-            if code == .smsSendFailed {
-                return "Could not send your login code. Please check your number and try again."
-            }
-        }
-        if let functions = error as? FunctionsError {
-            if case .httpError(_, let data) = functions,
-               let body = try? JSONDecoder().decode(FunctionErrorBody.self, from: data),
-               body.error == "rate_limited" {
-                return "Too many attempts. Please wait a minute and try again."
-            }
-            if case .httpError(let status, _) = functions, status == 404 {
-                return "Login service isn't available right now. Please contact the salon."
-            }
-            if case .relayError = functions {
-                return "Login service isn't available right now. Please contact the salon."
-            }
-        }
-        return fallback
+    private func message(for error: Error, fallback: String, wrongSecret: String) -> String {
+        guard let salon = error as? SalonClientError else { return fallback }
+        return signInFailureMessage(salon, wrongSecret: wrongSecret)
     }
-}
-
-private struct PhoneLookupBody: Encodable {
-    let phone: String
-}
-
-private struct PhoneLookupResult: Decodable {
-    let on_file: Bool
-    let has_password: Bool?
-}
-
-private struct FunctionErrorBody: Decodable {
-    let error: String?
-}
-
-private struct StaffRow: Decodable {
-    let role: String
-    let display_name: String?
-}
-
-private struct LinkedHuman: Decodable {
-    let id: String
-    let name: String?
-    let surname: String?
-}
-
-private struct SignupRow: Decodable {
-    let approved_at: String?
-    let signup_submitted_at: String?
-    let claims_human_id: String?
 }

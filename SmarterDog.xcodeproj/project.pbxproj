@@ -18,6 +18,8 @@
 		A1000000000000000000000B /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001F /* AuthService.swift */; };
 		A1000000000000000000000C /* SecurityCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002A /* SecurityCheckView.swift */; };
 		A1000000000000000000000D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* RootView.swift */; };
+		A1000000000000000000000E /* SessionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* SessionClient.swift */; };
+		A1000000000000000000000F /* SupabaseSessionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002D /* SupabaseSessionClient.swift */; };
 		A10000000000000000000007 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000042 /* Supabase */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +35,8 @@
 		A1000000000000000000001F /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		A1000000000000000000002A /* SecurityCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCheckView.swift; sourceTree = "<group>"; };
 		A1000000000000000000002B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A1000000000000000000002C /* SessionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionClient.swift; sourceTree = "<group>"; };
+		A1000000000000000000002D /* SupabaseSessionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseSessionClient.swift; sourceTree = "<group>"; };
 		A10000000000000000000018 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000019 /* Config.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.local.xcconfig.example; sourceTree = "<group>"; };
 		A1000000000000000000001A /* SmarterDog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmarterDog.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -80,6 +84,8 @@
 				A1000000000000000000001D /* AuthModels.swift */,
 				A1000000000000000000001E /* SalonClient.swift */,
 				A1000000000000000000001F /* AuthService.swift */,
+				A1000000000000000000002C /* SessionClient.swift */,
+				A1000000000000000000002D /* SupabaseSessionClient.swift */,
 				A1000000000000000000002A /* SecurityCheckView.swift */,
 				A1000000000000000000002B /* RootView.swift */,
 				A10000000000000000000016 /* Assets.xcassets */,
@@ -181,6 +187,8 @@
 				A10000000000000000000009 /* AuthModels.swift in Sources */,
 				A1000000000000000000000A /* SalonClient.swift in Sources */,
 				A1000000000000000000000B /* AuthService.swift in Sources */,
+				A1000000000000000000000E /* SessionClient.swift in Sources */,
+				A1000000000000000000000F /* SupabaseSessionClient.swift in Sources */,
 				A1000000000000000000000C /* SecurityCheckView.swift in Sources */,
 				A1000000000000000000000D /* RootView.swift in Sources */,
 			);

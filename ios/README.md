@@ -201,4 +201,4 @@ cp public/app/icons/icon-1024.png ios/SmarterDog/Assets.xcassets/AppIcon.appicon
 ```
 
 - Colours match `src/index.css`: ink `#1F1F1F`, paper `#F7EFE6`, yellow `#FECC13`, cyan-dark `#1F4E8C`.
-- Root lint, Vitest and the docs link check ignore `ios/`. Nothing here is built by the Vercel deploy. Linux CI cannot compile this target, so there is no iOS job.
+- Root lint, Vitest and the docs link check ignore `ios/`. Nothing here is built by the Vercel deploy. Linux CI cannot compile the iPhone app. It can run the sign-in decisions, which do not use the iPhone UI: `swift test --package-path ios`. The Xcode scheme still has no test action, so leave that action off in Xcode Cloud.
