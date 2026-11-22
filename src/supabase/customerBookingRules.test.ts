@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  changeAppointmentCopy,
   parseChangeDeadlinePreview,
   parseCustomerBookingHorizonDays,
   parseCustomerPortalPolicy,
@@ -67,6 +68,7 @@ describe("parseCustomerPortalPolicy", () => {
     expect(parseCustomerPortalPolicy(productionPayload)).toEqual({
       horizonDays: 180,
       changeDeadlineDescription: "Changes close 24 hours before your appointment.",
+      changeDeadlineRule: "rolling_24h",
       allowCancellations: true,
     });
   });
@@ -75,6 +77,7 @@ describe("parseCustomerPortalPolicy", () => {
     expect(parseCustomerPortalPolicy({ bookingHorizonDays: 180 })).toEqual({
       horizonDays: 180,
       changeDeadlineDescription: null,
+      changeDeadlineRule: null,
       allowCancellations: null,
     });
   });
@@ -199,5 +202,49 @@ describe("resolveChangeDeadlinePreview", () => {
       onRpcError,
     );
     expect(onRpcError).toHaveBeenCalledOnce();
+  });
+});
+
+describe("changeAppointmentCopy", () => {
+  // The owner's wording (22 November 2026), with every fact taken from the server.
+  const rolling = { rule: "rolling_24h", minCancellationHours: 24, allowCancellations: true, allowRescheduling: true };
+
+  it("says the owner's sentence with the notice period the server enforces", () => {
+    expect(changeAppointmentCopy(rolling)).toBe(
+      "You can reschedule up to 24 hours before your appointment. You can also cancel anytime before it starts, " +
+        "although late cancellations (less than 24 hours\u2019 notice) may mean we ask for a deposit on future bookings.",
+    );
+  });
+
+  it("follows a changed setting rather than repeating 24", () => {
+    expect(changeAppointmentCopy({ ...rolling, minCancellationHours: 48 })).toContain("up to 48 hours before");
+    expect(changeAppointmentCopy({ ...rolling, minCancellationHours: 48 })).toContain("less than 48 hours\u2019 notice");
+    expect(changeAppointmentCopy({ ...rolling, minCancellationHours: 1 })).toContain("up to 1 hour before");
+    expect(changeAppointmentCopy({ ...rolling, minCancellationHours: 1 })).toContain("less than 1 hour\u2019s notice");
+  });
+
+  it("names a deposit, as the Terms do, never a fee", () => {
+    const text = changeAppointmentCopy(rolling) ?? "";
+    expect(text).toMatch(/deposit on future bookings/);
+    expect(text).not.toMatch(/charge|fee/i);
+  });
+
+  it("promises rescheduling only when the server said it is switched on", () => {
+    for (const allowRescheduling of [false, null, undefined]) {
+      const text = changeAppointmentCopy({ ...rolling, allowRescheduling }) ?? "";
+      expect(text).not.toMatch(/reschedule/i);
+      expect(text).toMatch(/^You can cancel anytime before it starts/);
+    }
+  });
+
+  it.each([
+    ["the 3:00 pm day-before rule", { ...rolling, rule: "previous_day_1500" }],
+    ["an unknown rule", { ...rolling, rule: null }],
+    ["cancellation switched off", { ...rolling, allowCancellations: false }],
+    ["cancellation not yet known", { ...rolling, allowCancellations: undefined }],
+    ["no hours from the server", { ...rolling, minCancellationHours: undefined }],
+    ["zero hours", { ...rolling, minCancellationHours: 0 }],
+  ])("stays silent for %s, so the server's own sentence shows instead", (_label, input) => {
+    expect(changeAppointmentCopy(input)).toBeNull();
   });
 });

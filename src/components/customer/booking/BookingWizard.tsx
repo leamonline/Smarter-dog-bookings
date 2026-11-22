@@ -26,6 +26,7 @@ import { categoriseConfirmFailure, type ConfirmFailure } from "../../../engine/c
 import {
   LEGACY_BOOKING_HORIZON_DAYS,
   UNKNOWN_PORTAL_POLICY,
+  changeAppointmentCopy,
   type ChangeDeadlinePreview,
   type CustomerPortalPolicy,
 } from "../../../supabase/customerBookingRules";
@@ -1355,6 +1356,16 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
               portalPolicy.allowCancellations === false
                 ? null
                 : portalPolicy.changeDeadlineDescription
+            }
+            changeAppointmentText={
+              portalPolicy.allowCancellations === false
+                ? null
+                : changeAppointmentCopy({
+                    rule: portalPolicy.changeDeadlineRule,
+                    minCancellationHours: changeDeadline?.minCancellationHours,
+                    allowCancellations: changeDeadline?.allowCancellations,
+                    allowRescheduling: changeDeadline?.allowRescheduling,
+                  })
             }
             // Only when the server said so for THIS slot, and only while online
             // changes are a thing at all — a warning that you cannot change

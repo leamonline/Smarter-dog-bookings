@@ -3,7 +3,7 @@ import { getServicePriceLabel, getServicePriceAmount } from "../../../engine/boo
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
 import type { CustomerDog } from "../../../supabase/repositories/dogsRepo";
 import { PawPrint } from "lucide-react";
-import { ESSENTIAL_MESSAGES_NOTICE } from "../../../constants/salonPolicies";
+import { ESSENTIAL_MESSAGES_HEADING, ESSENTIAL_MESSAGES_NOTICE } from "../../../constants/salonPolicies";
 
 interface BookingConfirmationProps {
   selectedDogs: WizardDog[];
@@ -37,6 +37,12 @@ interface BookingConfirmationProps {
    * answer, so silence is silence, never a promise that changes stay open.
    */
   changeAlreadyClosed?: boolean;
+  /**
+   * The owner's "Need to change your appointment?" wording with the notice period
+   * filled in from the server (`changeAppointmentCopy`). Null when the server has
+   * not stated every fact it relies on; the server's own sentence shows instead.
+   */
+  changeAppointmentText?: string | null;
 }
 
 function formatDate(dateStr: string): string {
@@ -78,6 +84,7 @@ export function BookingConfirmation({
   depositTotal = null,
   changeDeadlineNote = null,
   changeAlreadyClosed = false,
+  changeAppointmentText = null,
 }: BookingConfirmationProps) {
   const dogMap = Object.fromEntries(dogs.map((d) => [d.id, d]));
   const total = selectedDogs.reduce((sum, dog) => {
@@ -183,21 +190,18 @@ export function BookingConfirmation({
           You can still cancel from your dashboard before the appointment starts; late cancellations are recorded. For a different time, message us if anything changes.
         </p>
       ) : (
-        changeDeadlineNote && (
-          <p className="text-xs text-[var(--color-ink-muted)] inline-flex items-center gap-1.5 justify-center text-center" style={{ alignSelf: "center" }}>
-            <PawPrint size={12} aria-hidden="true" />
-            {changeDeadlineNote}
-          </p>
+        (changeAppointmentText || changeDeadlineNote) && (
+          <div className="wizard-note">
+            <h2 className="wizard-note-title">Need to change your appointment?</h2>
+            <p>{changeAppointmentText ? <>No problem! {changeAppointmentText}</> : changeDeadlineNote}</p>
+          </div>
         )
       )}
 
-      <p
-        className="text-xs text-[var(--color-ink-muted)] text-center"
-        style={{ alignSelf: "center" }}
-        data-testid="essential-messages-notice"
-      >
-        {ESSENTIAL_MESSAGES_NOTICE}
-      </p>
+      <div className="wizard-note">
+        <h2 className="wizard-note-title">{ESSENTIAL_MESSAGES_HEADING}</h2>
+        <p data-testid="essential-messages-notice">{ESSENTIAL_MESSAGES_NOTICE}</p>
+      </div>
 
       <div className="wizard-actions">
         <button

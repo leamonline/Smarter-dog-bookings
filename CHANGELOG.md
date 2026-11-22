@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — new wording on the booking confirm step
+
+- The confirm step now says "Need to change your appointment?" and "We'll keep you in the loop!" in the owner's words (signed off 22 November 2026). The notice period comes from the salon's setting (24 hours by default) through the server, so the page never promises a deadline the system does not enforce. Under any other deadline rule, or before the server has answered, the server's own sentence shows, as before.
+- A late cancellation "may mean we ask for a deposit on future bookings", matching the website Terms. Rescheduling is mentioned only when it is switched on.
+- The messaging notice is new everywhere it appears (the confirm step and both sign-up/profile screens), and the booked screen's channel sentence follows it.
+
 ## Unreleased — flyer visual language, step 2: the customer portal
 
 - The customer portal takes on the salon flyer's look ([plan](docs/plans/active/2026-11-22-flyer-visual-language.md)): the blue and yellow segmented stripe across the top of sign-in, the dashboard and every booking step; hero titles in Poppins 900; the flyer's mascot beside each service; selected dogs, services, dates and times in brand blue with a tick (yellow stays for Continue); one handwritten Caveat line on sign-in, the dashboard and the booked screen.

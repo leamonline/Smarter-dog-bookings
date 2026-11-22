@@ -105,6 +105,30 @@ describe("BookingConfirmation — change-deadline note", () => {
 
     expect(screen.queryByText(/cancel/i)).toBeNull();
     expect(screen.queryByText(/day before/i)).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Need to change your appointment?" })).toBeNull();
+  });
+
+  it("uses the owner's wording when the server has stated every fact behind it", () => {
+    renderStep5({
+      changeDeadlineNote: "Changes close 24 hours before your appointment.",
+      changeAppointmentText: "You can reschedule up to 24 hours before your appointment.",
+    });
+
+    expect(screen.getByRole("heading", { name: "Need to change your appointment?" })).toBeInTheDocument();
+    expect(screen.getByText(/No problem! You can reschedule up to 24 hours before your appointment\./)).toBeInTheDocument();
+    // One sentence, not two saying the same thing.
+    expect(screen.queryByText("Changes close 24 hours before your appointment.")).toBeNull();
+  });
+
+  it("keeps the too-close warning in charge when this booking is already inside the window", () => {
+    renderStep5({
+      changeDeadlineNote: "Changes close 24 hours before your appointment.",
+      changeAppointmentText: "You can reschedule up to 24 hours before your appointment.",
+      changeAlreadyClosed: true,
+    });
+
+    expect(screen.getByText(/too close to the day to reschedule online/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No problem!/)).toBeNull();
   });
 });
 
