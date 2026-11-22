@@ -2,6 +2,8 @@
 
 This folder is a small iPhone app. It shows a sign-in screen and nothing else. Continue and Staff sign in do not sign anyone in, and the app does not talk to the salon’s booking system yet.
 
+What a later version is allowed to call is written in `docs/ios-api-contract.md` (in the folder above this one). This version does not call any of it.
+
 It is here so you can connect Apple’s Xcode Cloud and get a first TestFlight build. The website and the staff dashboard are unchanged.
 
 You need a Mac. The rest of this repository can be worked on from other computers. The iPhone app cannot.
