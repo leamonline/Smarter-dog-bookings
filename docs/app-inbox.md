@@ -16,7 +16,7 @@ With the switch on:
 - A customer who has both is one row. The row is marked with the channels they use, for example “WhatsApp · App”. If their text thread still has an unread message, a draft, a failed send or a booking proposal, that row stays too, so the thing that needs doing is not hidden.
 - Opening that row shows both sets of messages, each marked WhatsApp, SMS or App.
 - If the customer’s latest message was in the app, the reply box says “This reply goes to their app, not WhatsApp.” Sending stores an app message. It does not call WhatsApp. The box stays disabled until the inbox has checked which channel the reply belongs on.
-- If their latest message was on WhatsApp, the reply still goes out on WhatsApp, including the usual 24-hour window and templates. Retry on a failed WhatsApp message still retries WhatsApp.
+- If their latest message was on WhatsApp, the reply still goes out on WhatsApp, including the usual 24-hour window and templates. Retry on a failed WhatsApp message still retries WhatsApp. A suggested WhatsApp reply stays a WhatsApp send, and the button says so when the box below is replying in the app.
 - A customer who only has the app appears as their own row. There is no WhatsApp template step.
 - A WhatsApp chat that was marked done comes back into the active list when a newer app message arrives. The WhatsApp chat itself is not reopened.
 - A WhatsApp number that is not linked to a customer stays its own WhatsApp thread.

@@ -61,4 +61,19 @@ describe("DraftPanel booking-action guard", () => {
     expect(screen.getByRole("button", { name: "Edit first" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
   });
+
+  it("names WhatsApp on the approve button when the reply box is for the app", () => {
+    render(
+      <DraftPanel
+        draft={draft}
+        onApprove={vi.fn()}
+        onReject={vi.fn()}
+        inFlight={false}
+        sendOnWhatsApp
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Approve & send on WhatsApp" })).toBeEnabled();
+    expect(screen.getByText(/sent on WhatsApp/)).toBeInTheDocument();
+  });
 });

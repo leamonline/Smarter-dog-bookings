@@ -286,6 +286,7 @@ export function ThreadPane({
             onApprove={onApproveDraft}
             onReject={onRejectDraft}
             inFlight={actionInFlight}
+            sendOnWhatsApp={replyInApp}
           />
         )}
         <BookingActionPanel
