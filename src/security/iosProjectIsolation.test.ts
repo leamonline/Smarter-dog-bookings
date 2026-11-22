@@ -204,7 +204,7 @@ describe("the Xcode project is the committed skeleton", () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  it("keeps secrets out of the committed config and uses the brand icon", () => {
+  it("keeps secrets out of the committed config", () => {
     const config = read("ios/Config/Config.xcconfig");
     const placeholder = config.indexOf("SUPABASE_URL");
     const include = config.indexOf('#include? "Config.local.xcconfig"');
@@ -212,13 +212,18 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(placeholder).toBeGreaterThanOrEqual(0);
     expect(placeholder).toBeLessThan(include);
     expect(include).toBeLessThan(infoKey);
-    expect(config).not.toContain("supabase.co");
+    // The live project URL is public and is committed on purpose. No other
+    // Supabase host belongs in this file.
+    const hosts = [...config.matchAll(/[a-z0-9-]+\.supabase\.co/g)].map((match) => match[0]);
+    expect(hosts).toEqual(["nlzhllhkigmsvrzduefz.supabase.co"]);
     expect(config).not.toContain("service_role");
 
-    // The README names service_role so the owner does not paste it. A real key
-    // (a JWT, or an sb_secret_ token) must not appear in any committed file.
-    // The Xcode project lives at the repo root, so this walk has to include it
-    // as well as ios/. Package.resolved has no dotted extension.
+    // The README names service_role so the owner does not paste it. A real
+    // secret (a JWT, or an sb_secret_ token) must not appear in any committed
+    // file. The publishable key below is public by design — the website ships
+    // the same value — so the scan allow-lists this exact string and nothing else.
+    const publicPublishableKey = "sb_publishable_-Uyblq9H8Ji_qbeZHwOZTw_9YIW6Mfk";
+    expect(config).toContain(publicPublishableKey);
     const textFiles = [...walk("ios"), ...walk("SmarterDog.xcodeproj")].filter(
       (file) =>
         file.endsWith("Package.resolved") ||
@@ -237,17 +242,72 @@ describe("the Xcode project is the committed skeleton", () => {
       const source = read(file);
       expect(source, file).not.toMatch(/sb_secret_/);
       expect(source, file).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}/);
+      // Public by design. Any other sb_publishable_ value is still refused.
+      expect(source.replaceAll(publicPublishableKey, ""), file).not.toMatch(/sb_publishable_/);
+    }
+  });
+
+  it("ships the approved iOS 18 icon and leaves Icon Composer out of the build", () => {
+    const project = read(projectPath);
+    expect(project.match(/ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;/g)).toHaveLength(2);
+    expect(project).not.toContain("SmarterDog.icon");
+    expect(project).not.toContain("ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS");
+
+    const setDir = "ios/SmarterDog/Assets.xcassets/AppIcon.appiconset";
+    const contents = JSON.parse(read(`${setDir}/Contents.json`)) as {
+      images: {
+        filename?: string;
+        idiom?: string;
+        platform?: string;
+        size?: string;
+        appearances?: { appearance: string; value: string }[];
+      }[];
+      info: { author: string; version: number };
+    };
+    expect(contents.info).toEqual({ author: "xcode", version: 1 });
+    expect(contents.images.map((image) => image.filename)).toEqual([
+      "AppIcon.png",
+      "AppIcon-Dark.png",
+      "AppIcon-Tinted.png",
+    ]);
+    for (const image of contents.images) {
+      expect(image.idiom).toBe("universal");
+      expect(image.platform).toBe("ios");
+      expect(image.size).toBe("1024x1024");
+      expect(image).not.toHaveProperty("scale");
+    }
+    expect(contents.images[0].appearances).toBeUndefined();
+    expect(contents.images[1].appearances).toEqual([{ appearance: "luminosity", value: "dark" }]);
+    expect(contents.images[2].appearances).toEqual([{ appearance: "luminosity", value: "tinted" }]);
+
+    // PNG IHDR: width at byte 16, height at 20, bit depth at 24, colour type at 25.
+    // Colour type 2 is RGB with no alpha. Type 6 is RGBA. App Store rejects an
+    // alpha channel on the light 1024 icon.
+    const approved = [
+      ["AppIcon.png", 2, "4e7dc516c4f53afed8c79f484ae90145f54e48249dd998d828fc83137119fc46"],
+      ["AppIcon-Dark.png", 6, "debc5b0daa9701aa5869e2dc39dd7d98d5ada85dfa47b30f2e2465a5a5d5d30a"],
+      ["AppIcon-Tinted.png", 2, "bbe53a8f9e9f73ba7c5283d9b4dfb02c85c3d5fd896bdd29ee26931c291d5a76"],
+    ] as const;
+    for (const [name, colourType, sha256] of approved) {
+      const png = readFileSync(join(root, setDir, name));
+      expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(png.readUInt32BE(16), name).toBe(1024);
+      expect(png.readUInt32BE(20), name).toBe(1024);
+      expect(png[24], name).toBe(8);
+      expect(png[25], name).toBe(colourType);
+      expect(createHash("sha256").update(png).digest("hex"), name).toBe(sha256);
     }
 
-    const icon = readFileSync(
-      join(root, "ios/SmarterDog/Assets.xcassets/AppIcon.appiconset/AppIcon.png"),
-    );
-    const sourceIcon = readFileSync(join(root, "public/app/icons/icon-1024.png"));
-    expect(createHash("sha256").update(icon).digest("hex")).toBe(
-      createHash("sha256").update(sourceIcon).digest("hex"),
-    );
-    expect(icon.readUInt32BE(16)).toBe(1024);
-    expect(icon.readUInt32BE(20)).toBe(1024);
-    expect(icon[25]).toBe(2);
+    const composer = "ios/SmarterDog/SmarterDog.icon";
+    expect(existsSync(join(root, composer, "icon.json"))).toBe(true);
+    expect(existsSync(join(root, composer, "Assets/dog.svg"))).toBe(true);
+    expect(existsSync(join(root, composer, "Assets/dog.png"))).toBe(true);
+    const iconDocument = JSON.parse(read(`${composer}/icon.json`)) as {
+      groups?: unknown[];
+      "supported-platforms"?: { squares?: string[] };
+    };
+    expect(iconDocument.groups?.length).toBeGreaterThan(0);
+    expect(iconDocument["supported-platforms"]?.squares).toEqual(["iOS"]);
+    expect(existsSync(join(root, "ios/SmarterDog/ICON-COMPOSER-SETTINGS.md"))).toBe(true);
   });
 });

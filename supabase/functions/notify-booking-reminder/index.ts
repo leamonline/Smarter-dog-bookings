@@ -7,6 +7,9 @@ import { sendEmail } from "../_shared/email.ts";
 import { sanitise, formatDateShort as formatDate, formatTime, joinNames } from "../_shared/format.ts";
 import { recipientIdsForBooking, fetchHumansByIds, pickChannel } from "../_shared/recipients.ts";
 import { failedSendMayHaveGone, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
+import { iosPushEnabled } from "../_shared/apnsChannel.ts";
+import { loadDeviceTokensForHuman, sendableDeviceTokens } from "../_shared/deviceTokens.ts";
+import { postApnsSend, reminderPushBody } from "../_shared/reminderPush.ts";
 
 // ── Environment variables ──────────────────────────────────────────────────
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -361,9 +364,17 @@ serve(async (req) => {
         );
         if (rows.length === 0) continue;
 
-        // 4. Channel preference WhatsApp → SMS → email, skipping opted-out
-        //    channels (PECR).
-        const channel = pickChannel(human);
+        // 4. Channel preference. With IOS_PUSH_ENABLED on, a customer who has
+        //    opened the iPhone app in the last 14 days (and left notifications
+        //    on) gets a push instead of WhatsApp. The flag defaults off, and
+        //    then this is exactly WhatsApp → SMS → email.
+        const pushOn = iosPushEnabled(Deno.env.get("IOS_PUSH_ENABLED"));
+        const apnsTokens = pushOn
+          ? sendableDeviceTokens(await loadDeviceTokensForHuman(supabase, human.id), new Date())
+          : [];
+        let channel = apnsTokens.length > 0
+          ? pickChannel(human, { apns: true })
+          : pickChannel(human);
         if (!channel) {
           console.warn(`No contact method (or all opted out) for human ${humanId} — skipping reminder`);
           results.push({ groupKey, human_id: humanId, success: false });
@@ -411,6 +422,8 @@ serve(async (req) => {
           continue;
         }
 
+        const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
+
         // 7. Send. WhatsApp via the Meta template (records to the inbox with a
         //    meta_message_id so staff see delivery status, and an undelivered
         //    send can be chased by SMS). SMS via sms-send (also inbox-recorded).
@@ -421,7 +434,37 @@ serve(async (req) => {
         // WhatsApp may have arrived (_shared/sendOutcome.ts).
         let outcomeUnknown = false;
         let providerMessageId: string | null = null;
-        if (channel === "whatsapp") {
+        if (channel === "apns") {
+          const pushBody = reminderPushBody({ message });
+          const push = pushBody
+            ? await postApnsSend({
+              supabaseUrl: SUPABASE_URL,
+              serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+              internalSecret: SEND_INTERNAL_SECRET,
+              tokens: apnsTokens.map((row) => ({
+                id: row.id,
+                apns_token: row.apns_token,
+                environment: row.environment === "sandbox" ? "sandbox" : "production",
+                bundle_id: row.bundle_id,
+              })),
+              body: pushBody,
+              collapseId: `reminder-${human.id}-${bookingDate}`,
+            })
+            : { sent: false, providerId: null, outcomeUnknown: false, fallback: true };
+          if (push.sent) {
+            sent = true;
+            providerMessageId = push.providerId;
+          } else if (push.fallback) {
+            const fallback = pickChannel(human);
+            if (fallback) {
+              channel = fallback;
+              await supabase.from("notification_log").update({ channel }).in("id", pendingIds);
+            }
+          } else {
+            outcomeUnknown = true;
+          }
+        }
+        if (!sent && channel === "whatsapp") {
           const result = await invokeInternal("whatsapp-send", {
             mode: "template",
             to: human.phone,
@@ -438,7 +481,7 @@ serve(async (req) => {
           if (!sent) {
             console.error(`reminder whatsapp-send failed for ${groupKey}/${humanId}:`, result.status, JSON.stringify(result.body));
           }
-        } else if (channel === "sms") {
+        } else if (!sent && channel === "sms") {
           const result = await invokeInternal("sms-send", {
             mode: "template",
             to: human.phone,
@@ -452,7 +495,7 @@ serve(async (req) => {
           if (!sent) {
             console.error(`reminder sms-send failed for ${groupKey}/${humanId}:`, result.status, JSON.stringify(result.body));
           }
-        } else {
+        } else if (!sent && channel === "email") {
           const subject = `Reminder — ${dogNames} ${isPlural ? "are" : "is"} booked in tomorrow at Smarter Dog Grooming`;
           // channel==='email' is only chosen when the recipient has an email.
           sent = await sendEmail(human.email!, subject, message);
@@ -461,7 +504,6 @@ serve(async (req) => {
         // 8. Update the pending rows with the outcome. provider_message_id links
         //    the WhatsApp send to its whatsapp_messages delivery status for the
         //    SMS-fallback job.
-        const pendingIds = (pendingRows ?? []).map((r: { id: string }) => r.id);
         await supabase
           .from("notification_log")
           .update({

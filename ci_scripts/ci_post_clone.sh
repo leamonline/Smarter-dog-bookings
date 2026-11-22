@@ -28,7 +28,7 @@ if [ -z "${CI_PRIMARY_REPOSITORY_PATH:-}" ]; then
 fi
 
 if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_PUBLISHABLE_KEY:-}" ]; then
-  echo "ci_post_clone: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is not set. The app will build, but sign-in stays disconnected."
+  echo "ci_post_clone: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is not set. Using the public values already in Config.xcconfig."
   exit 0
 fi
 

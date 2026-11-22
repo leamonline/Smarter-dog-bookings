@@ -102,6 +102,8 @@ These files remain authoritative for their bounded topics:
   findings, why each is accepted, and the `check:advisors` diff against the baseline.
 - [`slack-alerts.md`](slack-alerts.md) — the #salon-today operational alert
   channel: what posts, the thresholds, the privacy rule and how to switch it off.
+- [`ios-api-contract.md`](ios-api-contract.md) — what the iPhone app may call,
+  and the dark-launched APNs path for booking reminders.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and
