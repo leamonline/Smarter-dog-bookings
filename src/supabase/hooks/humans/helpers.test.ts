@@ -51,6 +51,33 @@ describe("WhatsApp opt-out on human entries", () => {
     });
   });
 
+  it("carries the no-show deposit note and keeps it off the editable patch", () => {
+    expect(
+      buildHumanMapEntry({
+        id: "h3",
+        name: "Mark",
+        surname: "Johnson",
+        deposit_required: true,
+        deposit_required_reason: "Deposit required after a no-show: Pepper on 22 Nov 2026",
+        deposit_required_set_at: "2026-11-22T10:00:00.000Z",
+      }),
+    ).toMatchObject({
+      depositRequired: true,
+      depositRequiredReason: "Deposit required after a no-show: Pepper on 22 Nov 2026",
+      depositRequiredSetAt: "2026-11-22T10:00:00.000Z",
+    });
+    const entry = buildHumanMapEntry({ id: "h4", name: "Amy" });
+    expect(entry.depositRequiredReason).toBeNull();
+    expect(entry.depositRequiredSetAt).toBeNull();
+    expect(humanEntryToRow(entry)).toMatchObject({
+      deposit_required_reason: null,
+      deposit_required_set_at: null,
+    });
+    // @ts-expect-error the no-show note is recorded by the database, not by a staff edit
+    const rewrite: HumanPatch = { depositRequiredReason: "Asked at the desk" };
+    expect(rewrite).toEqual({ depositRequiredReason: "Asked at the desk" });
+  });
+
   it("gives updateHuman no way to be handed an untick", () => {
     // The type is the guarantee: typecheck fails if HumanPatch ever accepts
     // the opt-out again (the directive itself errors when unused).
