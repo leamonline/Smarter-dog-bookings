@@ -14,11 +14,13 @@ const defaultRepositoryRoot = path.resolve(
 // - private: not general repository knowledge and may contain sensitive notes;
 // - docs-stubs: generated design-component output, not authored documentation.
 // - website: independently maintained application documentation (ADR 009).
+// - ios: native iPhone skeleton. Its README is owner instructions, not booking docs.
 export const excludedMarkdownPrefixes = [
   "docs/archive/",
   "docs/private/",
   ".design-sync/docs-stubs/",
   "website/",
+  "ios/",
 ];
 
 function repositoryPath(value) {

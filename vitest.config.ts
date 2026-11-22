@@ -41,8 +41,9 @@ export default defineConfig({
           env: offlineEnv,
           include: ["src/**/*.test.{js,ts}"],
           // website/** is an independent application with its own Vitest
-          // config (ADR 009); never let root discovery reach it.
-          exclude: ["src/**/*.component.test.{jsx,tsx}", "website/**"],
+          // config (ADR 009). ios/** is the SwiftUI skeleton and has no
+          // Vitest tests. Never let root discovery reach either.
+          exclude: ["src/**/*.component.test.{jsx,tsx}", "website/**", "ios/**"],
         },
       },
       {
@@ -53,7 +54,7 @@ export default defineConfig({
           environment: "jsdom",
           env: offlineEnv,
           include: ["src/**/*.component.test.{jsx,tsx}"],
-          exclude: ["**/node_modules/**", "website/**"],
+          exclude: ["**/node_modules/**", "website/**", "ios/**"],
           setupFiles: ["./src/test/componentSetup.ts"],
         },
       },
