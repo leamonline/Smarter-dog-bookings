@@ -189,6 +189,58 @@ describe("applyUnifiedInbox", () => {
     expect(rows.map((row) => row.id).sort()).toEqual(["sms-alice", "wa-alice"]);
   });
 
+  it("gives a kept second channel row the customer's app channel, but leaves its own work and unread alone", () => {
+    const smsUnread = {
+      ...aliceSms,
+      unread_count: 2,
+      has_failed_message: true,
+    };
+    const rows = applyUnifiedInbox([aliceWa, smsUnread], [{
+      thread_key: "human:alice",
+      human_id: "alice",
+      whatsapp_conversation_id: "wa-alice",
+      app_conversation_id: "app-alice",
+      channels: ["whatsapp", "sms", "app"],
+      last_channel: "app",
+      last_message_at: "2026-11-22T10:00:00.000Z",
+      last_message_text: "In the app",
+      last_message_direction: "inbound",
+      staff_unread_count: 2,
+      app_unread_count: 1,
+      phone_e164: "+447700900501",
+      customer_name: "Alice",
+      customer_surname: "A",
+    }]);
+    const sms = rows.find((row) => row.id === "sms-alice")!;
+    expect(sms.channels).toEqual(["whatsapp", "sms", "app"]);
+    expect(sms.app_conversation_id).toBe("app-alice");
+    expect(sms.reply_channel).toBe("app");
+    // Its own badge and work stay; the app unread is counted once, on the main row.
+    expect(sms).toMatchObject({ unread_count: 2, has_failed_message: true, last_message_text: "By text" });
+    expect(rows.find((row) => row.id === "wa-alice")!.unread_count).toBe(2);
+  });
+
+  it("leaves a kept second channel row unchanged when the customer has no app thread", () => {
+    const smsUnread = { ...aliceSms, unread_count: 1 };
+    const rows = applyUnifiedInbox([aliceWa, smsUnread], [{
+      thread_key: "human:alice",
+      human_id: "alice",
+      whatsapp_conversation_id: "wa-alice",
+      app_conversation_id: null,
+      channels: ["whatsapp", "sms"],
+      last_channel: "whatsapp",
+      last_message_at: "2026-11-22T09:00:00.000Z",
+      last_message_text: "On WhatsApp",
+      last_message_direction: "inbound",
+      staff_unread_count: 1,
+      app_unread_count: 0,
+      phone_e164: "+447700900501",
+      customer_name: "Alice",
+      customer_surname: "A",
+    }]);
+    expect(rows.find((row) => row.id === "sms-alice")).toBe(smsUnread);
+  });
+
   it("puts a closed WhatsApp thread back in the active queue when a newer app message arrives", () => {
     const closed = { ...aliceWa, closed_at: "2026-11-22T09:30:00.000Z", unread_count: 0 };
     const rows = applyUnifiedInbox([closed], [{

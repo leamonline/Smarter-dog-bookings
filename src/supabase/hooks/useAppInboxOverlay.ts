@@ -72,6 +72,10 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
   const [listReady, setListReady] = useState(false);
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
+  // Only the newest thread request may write the thread. Switching
+  // conversations, a realtime refresh and a send each start a new one, so a
+  // slow reply for an earlier selection cannot replace the open thread.
+  const threadRequestRef = useRef(0);
 
   const merged = useMemo(
     () => (active && unified ? applyUnifiedInbox(conversations, unified) : conversations),
@@ -101,6 +105,7 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
   const appConversationId = parseAppThreadId(selectedId) ?? selectedRow?.app_conversation_id ?? null;
 
   const loadThread = useCallback(async () => {
+    const request = ++threadRequestRef.current;
     if (!enabled || !db || !selectedId) return;
     if (!humanId && !whatsappId) return;
     const requested = selectedId;
@@ -108,6 +113,7 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
       p_human_id: humanId,
       p_whatsapp_conversation_id: whatsappId,
     });
+    if (request !== threadRequestRef.current) return;
     if (error) {
       logger.warn("app inbox thread failed", {
         tags: { hook: "useAppInboxOverlay", op: "thread" },
@@ -191,7 +197,24 @@ export function useAppInboxOverlay<C extends OverlayConversation, M>({
     };
   }, [active, db]);
 
-  const shownMessages = active && thread && threadFor === selectedId ? thread as unknown as M[] : messages;
+  // The unified thread shows every WhatsApp/SMS conversation of the customer,
+  // but Retry sends through the open one. A failed message the open
+  // conversation does not own is marked, so it is retried from its own row
+  // (a row with a failed send always stays in the list) and goes back to the
+  // number it failed on. `messages` is the open conversation's own detail,
+  // the same latest 200 as the unified thread, so an owned message is in it.
+  const ownMessageIds = useMemo(
+    () => new Set((messages as { id?: string | null }[]).map((message) => message?.id).filter(Boolean)),
+    [messages],
+  );
+  const shownMessages = useMemo(() => {
+    if (!(active && thread && threadFor === selectedId)) return messages;
+    return thread.map((message) => (
+      message.status === "failed" && message.channel !== "app" && !ownMessageIds.has(message.id)
+        ? { ...message, retry_elsewhere: true }
+        : message
+    )) as unknown as M[];
+  }, [active, thread, threadFor, selectedId, messages, ownMessageIds]);
   const appOnly = isAppThreadId(selectedId) || selectedRow?.channel === "app";
   const mixed = Boolean(
     active

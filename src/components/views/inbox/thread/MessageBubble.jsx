@@ -240,6 +240,8 @@ export function MessageBubble({ message, onRetry }) {
               >
                 {retryState === "sending" ? "Sending…" : "Retry"}
               </button>
+            ) : message.retry_elsewhere ? (
+              <p className="mt-2">Sent from another of their conversations. Open that one in the list to send it again.</p>
             ) : null}
           </div>
         )}

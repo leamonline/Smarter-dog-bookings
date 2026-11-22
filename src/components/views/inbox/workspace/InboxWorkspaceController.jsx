@@ -353,7 +353,7 @@ export function InboxView({ onOpenHuman, onOpenDog, onWhatsappReenabled } = {}) 
       dogNamesById={dogNamesById}
       dogNames={dogNames}
       loadingDetail={loadingDetail || appInbox.loadingThread}
-      detailError={detailError || appInbox.threadError}
+      detailError={(isAppThreadId(selectedId) ? null : detailError) || appInbox.threadError}
       actionInFlight={actionInFlight || appInbox.sending || appInbox.replyChannel === "pending"}
       draftValue={selectedWork.draft}
       onDraftChange={(value) => workspaceActions.setDraft(selectedId, value)}

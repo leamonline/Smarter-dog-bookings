@@ -142,6 +142,22 @@ function decorate<T extends MergeConversation>(wa: T, unified: UnifiedInboxRow):
   return next;
 }
 
+/**
+ * A WhatsApp/SMS row kept beside the customer's main row. It keeps its own
+ * id, unread count, draft, failed send and booking proposal. It gains the
+ * customer's app channel, so opening it still checks where the customer last
+ * wrote before choosing the reply channel, and still marks app messages read.
+ */
+function withAppChannel<T extends MergeConversation>(wa: T, unified: UnifiedInboxRow | undefined): T {
+  if (!unified?.app_conversation_id) return wa;
+  return {
+    ...wa,
+    channels: unified.channels ?? [],
+    app_conversation_id: unified.app_conversation_id,
+    reply_channel: unified.last_channel,
+  };
+}
+
 function syntheticAppThread(unified: UnifiedInboxRow): MergeConversation {
   const inbound = unified.last_message_direction === "inbound";
   return {
@@ -225,12 +241,22 @@ export function applyUnifiedInbox<T extends MergeConversation>(
   const representedHumans = new Set(
     merged.map((row) => row.human_id).filter((id): id is string => Boolean(id)),
   );
+  const unifiedByHuman = new Map<string, UnifiedInboxRow>();
+  for (const unified of unifiedRows) {
+    if (unified.human_id && !unifiedByHuman.has(unified.human_id)) {
+      unifiedByHuman.set(unified.human_id, unified);
+    }
+  }
   for (const wa of whatsappConversations) {
     if (usedWa.has(wa.id)) continue;
     // A quiet extra WhatsApp/SMS row is folded into the customer's thread.
     // One that still has unread messages, a draft, a failed send or a booking
     // proposal stays, so staff can open the conversation that owns that work.
-    if (wa.human_id && representedHumans.has(wa.human_id) && !needsItsOwnRow(wa)) continue;
+    if (wa.human_id && representedHumans.has(wa.human_id)) {
+      if (!needsItsOwnRow(wa)) continue;
+      merged.push(withAppChannel(wa, unifiedByHuman.get(wa.human_id)) as MergedInboxRow<T>);
+      continue;
+    }
     merged.push(wa);
   }
 

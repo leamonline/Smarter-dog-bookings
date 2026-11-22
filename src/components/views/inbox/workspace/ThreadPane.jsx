@@ -158,7 +158,11 @@ export function ThreadPane({
     }
     chronology.push(
       item.kind === "message" ? (
-        <MessageBubble key={item.key} message={item.data} onRetry={onRetryMessage} />
+        <MessageBubble
+          key={item.key}
+          message={item.data}
+          onRetry={item.data?.retry_elsewhere ? undefined : onRetryMessage}
+        />
       ) : (
         <BookingCreatedCard
           key={item.key}

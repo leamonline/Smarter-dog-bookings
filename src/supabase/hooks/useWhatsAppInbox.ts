@@ -293,7 +293,9 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
 
   // ── Detail: load on selection + realtime ───────────────────
   const refreshDetail = useCallback(async (conversationId: string | null | undefined) => {
-    if (!conversationId) return;
+    // An in-app thread id is not a WhatsApp row. Resume, reconnect and
+    // realtime refreshes must not query WhatsApp with it; the overlay loads it.
+    if (!conversationId || isAppThreadId(conversationId)) return;
     const client = requireClient();
     const controller = new AbortController();
     let timeoutId: number | undefined;
@@ -426,7 +428,7 @@ export function useWhatsAppInbox({ includeBookingWorkspaceData = false }: { incl
 
   // Realtime for the currently-selected conversation
   useEffect(() => {
-    if (!supabase || !selectedId) return;
+    if (!supabase || !selectedId || isAppThreadId(selectedId)) return;
     const client = supabase;
     const channel = client
       .channel(`${CHANNELS.whatsappInboxDetail}-${selectedId}`)
