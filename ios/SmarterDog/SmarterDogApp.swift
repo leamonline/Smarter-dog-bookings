@@ -2,16 +2,11 @@ import SwiftUI
 
 @main
 struct SmarterDogApp: App {
-    init() {
-        // Touch the linked package and the config keys so neither is stripped.
-        // This does not construct a Supabase client and does not open a connection.
-        _ = SupabasePackage.clientTypeName
-        _ = SupabasePackage.hasPlaceholderCredentials
-    }
+    @State private var auth = AuthService()
 
     var body: some Scene {
         WindowGroup {
-            SignInView()
+            RootView(auth: auth)
         }
     }
 }

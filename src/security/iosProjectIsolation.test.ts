@@ -100,7 +100,7 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(project).not.toMatch(/(?<!GENERATE_)INFOPLIST_FILE\b/);
   });
 
-  it("links supabase-swift 2.x and does not construct a client", () => {
+  it("links supabase-swift 2.x and signs in with that client", () => {
     const project = read(projectPath);
     expect(project).toContain('repositoryURL = "https://github.com/supabase/supabase-swift.git";');
     expect(project).toContain("minimumVersion = 2.55.7;");
@@ -137,17 +137,37 @@ describe("the Xcode project is the committed skeleton", () => {
       expect(state, identity).toBeDefined();
       expect(state!.revision, identity).toMatch(/^[0-9a-f]{40}$/);
     }
-    const swift = walk("ios/SmarterDog")
-      .filter((file) => file.endsWith(".swift"))
-      .map((file) => read(file))
-      .join("\n");
-    expect(swift).toContain("SupabaseClient.self");
-    expect(swift).not.toContain("SupabaseClient(");
+    const swiftFiles = walk("ios/SmarterDog").filter((file) => file.endsWith(".swift"));
+    for (const file of swiftFiles) {
+      const name = file.split("/").pop();
+      expect(project, name).toContain(`${name} in Sources`);
+    }
+    const swift = swiftFiles.map((file) => read(file)).join("\n");
+    expect(swift).toContain("SupabaseClient(");
     expect(swift).not.toContain("URLSession");
     expect(swift).toContain('Text("Smarter Dog")');
-    expect(swift).toContain('Text("Continue")');
-    expect(swift).toContain('Text("Staff sign in")');
+    expect(swift).toContain("Continue");
+    expect(swift).toContain("Staff sign in");
     expect(swift).toContain("Phone number");
+    expect(swift).toContain("Sign out");
+    expect(swift).toContain("link_customer_to_human");
+    expect(swift).toContain('from("staff_profiles")');
+    expect(swift).toContain("customer-phone-on-file");
+    expect(swift).toContain('staff.role == "owner" || staff.role == "staff"');
+    expect(swift).toContain("approved_at");
+    expect(swift).toContain("signup_submitted_at");
+  });
+
+  it("fills the public Supabase config on Xcode Cloud without committing it", () => {
+    const scriptPath = "ci_scripts/ci_post_clone.sh";
+    expect(existsSync(join(root, scriptPath))).toBe(true);
+    const script = read(scriptPath);
+    expect(script).toContain("SUPABASE_URL");
+    expect(script).toContain("SUPABASE_PUBLISHABLE_KEY");
+    expect(script).toContain("ios/Config/Config.local.xcconfig");
+    expect(script).not.toContain("supabase.co");
+    expect(script).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}/);
+    expect(script).not.toMatch(/sb_secret_/);
   });
 
   it("keeps secrets out of the committed config and uses the brand icon", () => {
