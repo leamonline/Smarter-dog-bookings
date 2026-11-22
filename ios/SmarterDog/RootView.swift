@@ -38,8 +38,7 @@ struct RootView: View {
                 AccountErrorView(message: message, auth: auth)
             }
         }
-        .tint(Brand.cyanDark)
-        .preferredColorScheme(.light)
+        .tint(AppColor.accentBlueDeep)
     }
 }
 
@@ -51,23 +50,23 @@ private struct HomeRoot: View {
         TabView {
             PaperScreen {
                 Text("Home")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundStyle(Brand.ink)
+                    .appHeading(.largeTitle)
+                    .foregroundStyle(AppColor.textPrimary)
                     .accessibilityAddTraits(.isHeader)
 
                 Text(account.name)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(Brand.ink)
+                    .appHeading(.title2)
+                    .foregroundStyle(AppColor.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(account.roleLabel)
-                    .font(.headline)
-                    .foregroundStyle(Brand.cyanDark)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppColor.textSecondary)
                     .accessibilityLabel("Role, \(account.roleLabel)")
 
                 Text("You're signed in. Booking from the phone comes later.")
                     .font(.body)
-                    .foregroundStyle(Brand.ink.opacity(0.72))
+                    .foregroundStyle(AppColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button("Sign out") {
@@ -88,42 +87,35 @@ private struct PendingApprovalView: View {
 
     var body: some View {
         PaperScreen {
-            VStack(spacing: 8) {
-                Image(systemName: "pawprint.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(Brand.ink)
-                    .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: AppSpace.s1) {
+                IconCircle(systemName: "pawprint.fill")
                 Text(title)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(Brand.ink)
-                    .multilineTextAlignment(.center)
+                    .appHeading(.title2)
+                    .foregroundStyle(AppColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if account.showsName {
                 Text(account.name)
-                    .font(.headline)
-                    .foregroundStyle(Brand.ink)
-                    .frame(maxWidth: .infinity)
+                    .appHeading(.headline)
+                    .foregroundStyle(AppColor.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Text(message)
                 .font(.body)
-                .foregroundStyle(Brand.ink.opacity(0.8))
+                .foregroundStyle(AppColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("Got a question while you wait?")
                 .font(.subheadline)
-                .foregroundStyle(Brand.ink.opacity(0.72))
-            Link("Message us on WhatsApp", destination: SalonLinks.whatsApp)
-                .font(.headline)
-                .foregroundStyle(Brand.cyanDark)
+                .foregroundStyle(AppColor.textSecondary)
+            TextLink(title: "Message us on WhatsApp", destination: SalonLinks.whatsApp)
 
             if account.hold == .finishOnTheWebsite {
-                Link("Finish joining on the website", destination: SalonLinks.book)
-                    .font(.headline)
-                    .foregroundStyle(Brand.cyanDark)
+                TextLink(title: "Finish joining on the website", destination: SalonLinks.book)
             }
 
             PrimaryButton(title: "Check again") {
@@ -164,17 +156,17 @@ private struct NeedsConfigurationView: View {
     var body: some View {
         PaperScreen {
             Text("Smarter Dog")
-                .font(.largeTitle.weight(.bold))
-                .foregroundStyle(Brand.ink)
-                .frame(maxWidth: .infinity)
+                .appHeading(.largeTitle)
+                .foregroundStyle(AppColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.isHeader)
             Text("This copy of the app isn't connected to the salon yet.")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Brand.ink)
+                .appHeading(.title3)
+                .foregroundStyle(AppColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Sign-in needs the Supabase project address and the public anon key. They are added on the Mac, or as two Xcode Cloud variables, before a TestFlight build can sign anyone in. The instructions are in the iPhone notes in the project.")
                 .font(.body)
-                .foregroundStyle(Brand.ink.opacity(0.8))
+                .foregroundStyle(AppColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -190,17 +182,15 @@ private struct MessageScreen: View {
     var body: some View {
         PaperScreen {
             Text(title)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(Brand.ink)
+                .appHeading(.title2)
+                .foregroundStyle(AppColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Text(message)
                 .font(.body)
-                .foregroundStyle(Brand.ink.opacity(0.8))
+                .foregroundStyle(AppColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             if let linkTitle, let link {
-                Link(linkTitle, destination: link)
-                    .font(.headline)
-                    .foregroundStyle(Brand.cyanDark)
+                TextLink(title: linkTitle, destination: link)
             }
             Button("Sign out") {
                 Task { await auth.signOut() }
@@ -217,8 +207,8 @@ private struct AccountErrorView: View {
     var body: some View {
         PaperScreen {
             Text("Smarter Dog")
-                .font(.largeTitle.weight(.bold))
-                .foregroundStyle(Brand.ink)
+                .appHeading(.largeTitle)
+                .foregroundStyle(AppColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             ErrorNote(message: message)
             PrimaryButton(title: "Try again") {
@@ -240,20 +230,20 @@ private struct StatusScreen: View {
     var body: some View {
         PaperScreen {
             Text(title)
-                .font(.largeTitle.weight(.bold))
-                .foregroundStyle(Brand.ink)
-                .frame(maxWidth: .infinity)
+                .appHeading(.largeTitle)
+                .foregroundStyle(AppColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.isHeader)
             if showsProgress {
                 ProgressView()
-                    .tint(Brand.cyanDark)
-                    .frame(maxWidth: .infinity)
+                    .tint(AppColor.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel(message)
             }
             Text(message)
                 .font(.body)
-                .foregroundStyle(Brand.ink.opacity(0.72))
-                .frame(maxWidth: .infinity)
+                .foregroundStyle(AppColor.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
