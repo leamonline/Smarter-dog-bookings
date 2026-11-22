@@ -366,8 +366,10 @@ here rather than rewriting the outline above:
   chart must tell all three sizes apart.
 - Selection: `--color-border-accent` and `ToggleChip`'s default pressed tone are
   brand blue; focus stays charcoal.
-- Chrome: the stripe above the desktop toolbar and under the phone top bar
-  (clear of the safe area); the active tab is blue on desktop and phone.
+- Chrome: the stripe above the desktop toolbar; on phones a 4px stripe drawn
+  inside the top bar's own bottom padding, because an extra 13px pushed the day
+  stack's Check out button under the undo toast (`e2e/day-stack.spec.ts`,
+  #1001). The active tab is blue on desktop and phone.
 - Cream page: `body` and `--color-surface-page` are paper on every staff screen.
 - Staff sign-in: the hero stripe and Poppins Black titles. No new copy.
 - Empty states: `EmptyState mark="mascot"` (puppy mascot, hero title) on the
