@@ -102,6 +102,9 @@ These files remain authoritative for their bounded topics:
   findings, why each is accepted, and the `check:advisors` diff against the baseline.
 - [`slack-alerts.md`](slack-alerts.md) — the #salon-today operational alert
   channel: what posts, the thresholds, the privacy rule and how to switch it off.
+- [`ios-deposits.md`](ios-deposits.md) — £10 card and Apple Pay deposits from the
+  iPhone app: when the money is refunded, kept or carried, and how to switch
+  the feature on in Square's sandbox.
 - [`whatsapp-agent.md`](whatsapp-agent.md) — AI receptionist operation and
   guarded rollout.
 - [`whatsapp-flows.md`](whatsapp-flows.md) — interactive WhatsApp Flow setup and

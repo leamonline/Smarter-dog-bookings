@@ -25,6 +25,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 import { isAuthorizedWebhook, timingSafeEqualHeader } from "./webhook-auth.ts";
+import { isValidSquareSignature } from "./squareSignature.ts";
 import { buildCorsHeaders } from "./cors.ts";
 import {
   AUTH_FAMILIES,
@@ -254,6 +255,11 @@ Deno.test("a family that can fail open must justify itself", () => {
       );
     }
   }
+});
+
+Deno.test("a Square webhook signature fails closed when the key is missing", async () => {
+  assertFalse(await isValidSquareSignature("", "https://example.test/hook", "{}", "abc"));
+  assertFalse(await isValidSquareSignature("key", "https://example.test/hook", "{}", ""));
 });
 
 Deno.test("secret-bearing families declare a 401 or 403 refusal", () => {

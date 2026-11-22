@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — £10 deposits from the iPhone app
+
+- A customer who has been asked for a deposit can pay the £10 in the iPhone app by Apple Pay or card, through Square. The app is not using an App Store purchase. The switch is off until `IOS_DEPOSITS_ENABLED` is set to true, and no Square secret is stored in the repository.
+- Cancel with the salon's usual notice (24 hours, unless that number has been changed) and the £10 is refunded. Cancel after that, or not show up, and the salon keeps it. Move the appointment and the same £10 stays on the new booking. Staff can waive a deposit that has not been paid, or refund one that has, including one the rules had kept.
+- Needs migration `20261122143000` applied before the switch is turned on. Do not turn the switch on until the Square sandbox secrets are set. See [docs/ios-deposits.md](docs/ios-deposits.md).
+
 ## Unreleased — dog photos and customer-added trusted humans in the portal
 
 - Customers can add a photo of their dog by tapping its picture on the dashboard. Photos are shrunk and re-encoded in the browser (removing location data), stored in a private bucket limited to the dog's own folder, and removable from the dog's Edit form.

@@ -24,6 +24,8 @@ export type AuthFamilyId =
   | "agent-secret"
   | "meta-signature"
   | "twilio-signature"
+  | "square-signature"
+  | "customer-jwt"
   | "feed-token"
   | "public-rate-limited";
 

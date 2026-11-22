@@ -53,6 +53,8 @@ the build.
 | `agent-secret` | `x-agent-secret: <AGENT_CALLBACK_SECRET>` | 401 |
 | `meta-signature` | HMAC-SHA256 `X-Hub-Signature-256` over the raw body, and/or the `hub.verify_token` handshake | 403, or 200-and-not-processed (see below) |
 | `twilio-signature` | HMAC-SHA1 `X-Twilio-Signature` over the configured callback URL and every form parameter, keyed with the Twilio Auth Token | 403, or 500 when the token or callback URL is unset |
+| `square-signature` | HMAC-SHA256 of the configured notification URL plus the raw body, keyed with the Square webhook signature key | 403, or 500 when the key or URL is unset |
+| `customer-jwt` | The customer's own session, verified with `auth.getUser()`, then an ownership check | 401 / 403 |
 | `feed-token` | Opaque token from `calendar_feed_tokens`, in the URL | 401 / 403 |
 | `public-rate-limited` | None by design — origin allowlist plus per-IP and global rate limits | 400 / 429 |
 
@@ -99,7 +101,7 @@ The two deploy paths set `verify_jwt` by different means:
 - **CI** passes `--no-verify-jwt` for every changed function and never reads `config.toml`.
 - **A local `supabase functions deploy`** does read `config.toml`.
 
-They now agree for all 27 deployable functions: every `[functions.*]` block in
+They agree for every deployable function: every `[functions.*]` block in
 `supabase/config.toml` explicitly sets `verify_jwt = false`, matching CI's
 `--no-verify-jwt` behaviour.
 
