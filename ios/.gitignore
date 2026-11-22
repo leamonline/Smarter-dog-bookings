@@ -1,0 +1,9 @@
+# Local Supabase URL and publishable key. Never commit.
+Config/Config.local.xcconfig
+
+# Xcode's per-Mac state: chosen device, breakpoints, the team you select.
+xcuserdata/
+*.xcuserstate
+
+DerivedData/
+.build/
