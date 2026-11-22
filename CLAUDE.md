@@ -320,6 +320,12 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   separate class that stays disabled (no consent flag exists yet). SMS needs a **textable number** (UK mobile or
   international; a landline stays on email) and `sms-send` itself refuses opted-out numbers for every caller. Don't write
   a per-function copy of the rule. See [docs/messaging-policy.md](docs/messaging-policy.md).
+- **In-app messages sit beside WhatsApp, and the website inbox does not show
+  them unless `VITE_APP_INBOX_ENABLED=1`.** Tables `app_conversations` /
+  `app_messages` (migration `20261122170000`). Customers read only their own
+  thread; staff read all. Sends are `send_app_message` / `mark_app_messages_read`,
+  not `whatsapp-send`. Do not add an APNs or `notify-staff` call on insert —
+  that hook is left for the push work. See [docs/app-inbox.md](docs/app-inbox.md).
 - **Staff Web Push (additive, staff-only):** installed-PWA staff can opt in (Settings → Your Account →
   Device notifications) to a device push for new messages/bookings/cancellations/reschedules/signups/
   waitlist. Dark-launched behind `STAFF_PUSH_ENABLED` (default off); changes NOTHING for customers or

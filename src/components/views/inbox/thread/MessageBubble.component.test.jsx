@@ -384,4 +384,25 @@ describe("MessageBubble — special message rendering", () => {
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     });
   });
+
+  it("labels an in-app message as App", () => {
+    const { container } = render(
+      <MessageBubble
+        message={{ ...base, channel: "app", direction: "inbound", content: "Hello from the app" }}
+      />,
+    );
+    expect(container.textContent).toContain("App");
+    expect(container.textContent).toContain("Hello from the app");
+  });
+
+  it("points to the owning conversation instead of offering Retry on another conversation's failed message", () => {
+    render(
+      <MessageBubble
+        message={{ ...base, direction: "outbound", status: "failed", content: "See you at 9", retry_elsewhere: true }}
+      />,
+    );
+    expect(screen.getByText(/Message failed/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByText(/Open that one in the list to send it again/)).toBeTruthy();
+  });
 });
