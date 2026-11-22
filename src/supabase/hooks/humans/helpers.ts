@@ -75,7 +75,13 @@ export type SetHumansByIdMap = Dispatch<SetStateAction<HumansByIdMap>>;
 export type HumanPatch = Partial<
   Omit<
     Human,
-    "id" | "trustedContacts" | "whatsappOptedOut" | "whatsappOptedOutAt" | "whatsappOptedOutReason"
+    | "id"
+    | "trustedContacts"
+    | "whatsappOptedOut"
+    | "whatsappOptedOutAt"
+    | "whatsappOptedOutReason"
+    | "depositRequiredReason"
+    | "depositRequiredSetAt"
   >
 > & {
   archivedAt?: string | null;
@@ -123,6 +129,8 @@ export function humanEntryToRow(entry: HumanEntry): RawHumanCacheRow {
     preferred_slots: entry.preferredSlots ?? null,
     blocked_slots: entry.blockedSlots ?? null,
     deposit_required: entry.depositRequired ?? null,
+    deposit_required_reason: entry.depositRequiredReason ?? null,
+    deposit_required_set_at: entry.depositRequiredSetAt ?? null,
     ai_whatsapp_allowed: entry.aiWhatsappAllowed ?? null,
     archived_at: entry.archivedAt ?? null,
     whatsapp_opted_out: entry.whatsappOptedOut ?? null,
@@ -187,6 +195,8 @@ export function buildHumanMapEntry(row: HumanRowLike): HumanEntry {
     preferredSlots: row.preferred_slots || [],
     blockedSlots: row.blocked_slots || [],
     depositRequired: row.deposit_required === true,
+    depositRequiredReason: row.deposit_required_reason ?? null,
+    depositRequiredSetAt: row.deposit_required_set_at ?? null,
     archivedAt: row.archived_at || null,
     // "Where did you hear about us?" — captured at self-signup, read-only to
     // staff. Only on the full select("*") fetch (not the directory projection).

@@ -231,6 +231,8 @@ export function useHumanMutations({
         preferredSlots: savedRow.preferred_slots || [],
         blockedSlots: savedRow.blocked_slots || [],
         depositRequired: savedRow.deposit_required === true,
+        depositRequiredReason: savedRow.deposit_required_reason ?? null,
+        depositRequiredSetAt: savedRow.deposit_required_set_at ?? null,
         aiWhatsappAllowed: savedRow.ai_whatsapp_allowed !== false,
         ...whatsappOptOutFromRow(savedRow),
         archivedAt: savedRow.archived_at || null,

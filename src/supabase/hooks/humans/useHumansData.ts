@@ -13,7 +13,7 @@ import { safeGet, safeSet } from "../../../lib/storage";
 import { buildHumanMapEntry, isRawHumanCacheRow } from "./helpers";
 import type { HumanCacheEntry, HumanEntry, HumanRowLike, HumansByIdMap, HumansMap } from "./helpers";
 import type { Database } from "../../database.types";
-import type { RealtimePostgresDeletePayload } from "@supabase/supabase-js";
+import type { RealtimePostgresDeletePayload, RealtimePostgresUpdatePayload } from "@supabase/supabase-js";
 
 type HumanRow = Database["public"]["Tables"]["humans"]["Row"];
 
@@ -256,7 +256,40 @@ export function useHumansData({
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "humans" },
-        () => {
+        (payload: RealtimePostgresUpdatePayload<HumanRow>) => {
+          // A no-show turns the deposit on in the database, not through the
+          // customer form. The directory refetch below only rewrites page 0,
+          // so an owner loaded from Today (or any later page) would keep the
+          // old flag. Staff would then see the switch off and, tapping it to
+          // clear a deposit, write it on again. Fold this row into whatever
+          // cache already holds them. Page 0 is still refetched for the grid.
+          const row = payload.new;
+          if (row?.id) {
+            const tag = {
+              depositRequired: row.deposit_required === true,
+              depositRequiredReason: row.deposit_required_reason ?? null,
+              depositRequiredSetAt: row.deposit_required_set_at ?? null,
+              deposit_required: row.deposit_required === true,
+              deposit_required_reason: row.deposit_required_reason ?? null,
+              deposit_required_set_at: row.deposit_required_set_at ?? null,
+            };
+            setHumansById((prev) => {
+              const existing = prev[row.id];
+              if (!existing) return prev;
+              return { ...prev, [row.id]: { ...existing, ...tag } };
+            });
+            setHumans((prev) => {
+              const match = Object.entries(prev).find(([, human]) => human.id === row.id);
+              if (!match) return prev;
+              const [key, human] = match;
+              return { ...prev, [key]: { ...human, ...tag } };
+            });
+            setDirectoryHumans((prev) =>
+              prev.some((human) => human.id === row.id)
+                ? prev.map((human) => (human.id === row.id ? { ...human, ...tag } : human))
+                : prev,
+            );
+          }
           if (!startDirectoryFetchRef.current) return;
           fetchDirectory(queryRef.current, { append: false });
         },
