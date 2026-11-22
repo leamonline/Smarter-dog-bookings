@@ -212,13 +212,18 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(placeholder).toBeGreaterThanOrEqual(0);
     expect(placeholder).toBeLessThan(include);
     expect(include).toBeLessThan(infoKey);
-    expect(config).not.toContain("supabase.co");
+    // The live project URL is public and is committed on purpose. No other
+    // Supabase host belongs in this file.
+    const hosts = [...config.matchAll(/[a-z0-9-]+\.supabase\.co/g)].map((match) => match[0]);
+    expect(hosts).toEqual(["nlzhllhkigmsvrzduefz.supabase.co"]);
     expect(config).not.toContain("service_role");
 
-    // The README names service_role so the owner does not paste it. A real key
-    // (a JWT, or an sb_secret_ token) must not appear in any committed file.
-    // The Xcode project lives at the repo root, so this walk has to include it
-    // as well as ios/. Package.resolved has no dotted extension.
+    // The README names service_role so the owner does not paste it. A real
+    // secret (a JWT, or an sb_secret_ token) must not appear in any committed
+    // file. The publishable key below is public by design — the website ships
+    // the same value — so the scan allow-lists this exact string and nothing else.
+    const publicPublishableKey = "sb_publishable_-Uyblq9H8Ji_qbeZHwOZTw_9YIW6Mfk";
+    expect(config).toContain(publicPublishableKey);
     const textFiles = [...walk("ios"), ...walk("SmarterDog.xcodeproj")].filter(
       (file) =>
         file.endsWith("Package.resolved") ||
@@ -237,6 +242,8 @@ describe("the Xcode project is the committed skeleton", () => {
       const source = read(file);
       expect(source, file).not.toMatch(/sb_secret_/);
       expect(source, file).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}/);
+      // Public by design. Any other sb_publishable_ value is still refused.
+      expect(source.replaceAll(publicPublishableKey, ""), file).not.toMatch(/sb_publishable_/);
     }
 
     const icon = readFileSync(
