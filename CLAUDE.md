@@ -29,11 +29,12 @@ Root lint, test and build discovery exclude it; use the `website:*` scripts (`np
 **Also in this repository:** `ios/` is the SwiftUI iPhone app (home-screen name Smarter Dog).
 The Xcode project is `SmarterDog.xcodeproj` at the repository root, because Xcode Cloud looks
 for that name there; the sources stay in `ios/`. It signs customers and staff in through the
-same Supabase project as the website. Headings use bundled Poppins; other text, including
-button labels, is the system font. Colours are named asset-catalogue sets with light and dark
-appearances, not the website palette. It is not part of the web build. Root lint, Vitest and
-the docs link check ignore `ios/`. Linux CI runs the sign-in decisions
-(`.github/workflows/ios-auth.yml`) and cannot compile the iPhone UI. Xcode Cloud does that.
+same Supabase project as the website. What it may call beyond sign-in is
+[docs/ios-api-contract.md](docs/ios-api-contract.md). Headings use bundled Poppins; other text,
+including button labels, is the system font. Colours are named asset-catalogue sets with light
+and dark appearances, not the website palette. It is not part of the web build. Root lint, Vitest
+and the docs link check ignore `ios/`. Linux CI runs the sign-in tests
+(`.github/workflows/ios-auth.yml`) and does not compile the app. Xcode Cloud does that.
 Instructions: [ios/README.md](ios/README.md).
 
 **What actually publishes smarterdog.co.uk:** since the [domain cutover](docs/superpowers/runbooks/2026-09-11-smarterdog-domain-cutover.md)

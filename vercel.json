@@ -96,6 +96,11 @@
       "permanent": true
     },
     {
+      "source": "/support/",
+      "destination": "/support",
+      "permanent": true
+    },
+    {
       "source": "/matted-coat-policy/",
       "destination": "/matted-coat-policy",
       "permanent": true
@@ -308,6 +313,10 @@
     {
       "source": "/terms",
       "destination": "/terms/index.html"
+    },
+    {
+      "source": "/support",
+      "destination": "/support/index.html"
     },
     {
       "source": "/matted-coat-policy",

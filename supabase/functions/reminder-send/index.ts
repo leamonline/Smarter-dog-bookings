@@ -46,6 +46,9 @@ import { sendEmail } from "../_shared/email.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import { blockReason, blockText } from "../_shared/channelPolicy.ts";
 import { failedSendMayHaveGone, UNKNOWN_OUTCOME_TEXT, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
+import { iosPushEnabled } from "../_shared/apnsChannel.ts";
+import { loadDeviceTokensForHuman, sendableDeviceTokens } from "../_shared/deviceTokens.ts";
+import { postApnsSend, reminderPushBody, type ApnsSendToken } from "../_shared/reminderPush.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -57,13 +60,15 @@ const corsFor = (req: Request) =>
   buildCorsHeaders(req, ALLOWED_ORIGINS, { allowInternalSecret: true });
 
 type Channel = "whatsapp" | "sms" | "email";
+type RequestedChannel = Channel | "apns";
 
 interface ReminderSendBody {
   booking_id: string;
-  channel: Channel;
+  channel: RequestedChannel;
   whatsapp?: { template_name: string; language?: string; params?: string[] };
   sms?: { text: string };
   email?: { subject: string; body: string };
+  apns?: { body?: string };
 }
 
 interface HumanRow {
@@ -258,8 +263,8 @@ serve(async (req) => {
 
   const { booking_id, channel } = body ?? {};
   if (!booking_id) return json(req, { error: "booking_id is required" }, 400);
-  if (channel !== "whatsapp" && channel !== "sms" && channel !== "email") {
-    return json(req, { error: "channel must be 'whatsapp' | 'sms' | 'email'" }, 400);
+  if (channel !== "whatsapp" && channel !== "sms" && channel !== "email" && channel !== "apns") {
+    return json(req, { error: "channel must be 'whatsapp' | 'sms' | 'email' | 'apns'" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
@@ -308,9 +313,39 @@ serve(async (req) => {
       .single();
     if (humanErr || !human) return json(req, { error: "customer not found" }, 404);
 
+    // App users get a push instead of WhatsApp when IOS_PUSH_ENABLED is on
+    // and a fresh token exists. The flag defaults off, so a WhatsApp, SMS
+    // or email request then follows the checks below exactly as before.
+    const pushOn = iosPushEnabled(Deno.env.get("IOS_PUSH_ENABLED"));
+    const pushBody = reminderPushBody({
+      explicit: body.apns?.body,
+      message: body.sms?.text,
+      whatsappParams: body.whatsapp?.params,
+    });
+    let apnsTokens: ApnsSendToken[] = [];
+    if (pushOn && (channel === "whatsapp" || channel === "apns")) {
+      apnsTokens = sendableDeviceTokens(await loadDeviceTokensForHuman(supabase, humanId), new Date())
+        .map((row) => ({
+          id: row.id,
+          apns_token: row.apns_token,
+          environment: row.environment === "sandbox" ? "sandbox" as const : "production" as const,
+          bundle_id: row.bundle_id,
+        }));
+    }
+    let deliver: RequestedChannel = channel;
+    if (channel === "apns") {
+      if (!pushOn) return json(req, { error: "iOS push is switched off" }, 422);
+      if (apnsTokens.length === 0) {
+        return json(req, { error: "No fresh app notification token for this customer" }, 422);
+      }
+      if (!pushBody) return json(req, { error: "apns.body is required" }, 400);
+    } else if (channel === "whatsapp" && apnsTokens.length > 0 && pushBody) {
+      deliver = "apns";
+    }
+
     const avail = channelAvailability(human as HumanRow);
-    if (!avail[channel].ok) {
-      return json(req, { error: avail[channel].reason }, 422);
+    if (deliver !== "apns" && !avail[deliver].ok) {
+      return json(req, { error: avail[deliver].reason }, 422);
     }
     const phoneE164 = toValidE164((human as HumanRow).phone);
 
@@ -319,7 +354,7 @@ serve(async (req) => {
       booking_id: b.id,
       group_id: b.group_id,
       human_id: humanId,
-      channel,
+      channel: deliver,
       trigger_type: "reminder",
       status: "pending",
     }));
@@ -344,7 +379,28 @@ serve(async (req) => {
     // before sending again, and the log row is marked (_shared/sendOutcome.ts).
     let outcomeUnknown = false;
 
-    if (channel === "whatsapp") {
+    if (deliver === "apns" && pushBody) {
+      const push = await postApnsSend({
+        supabaseUrl: SUPABASE_URL,
+        serviceRoleKey: SERVICE_ROLE_KEY,
+        internalSecret: SEND_INTERNAL_SECRET,
+        tokens: apnsTokens,
+        body: pushBody,
+        collapseId: `reminder-${humanId}-${anchor.booking_date}`,
+      });
+      if (push.sent) {
+        sent = true;
+        providerMessageId = push.providerId;
+      } else if (push.fallback && channel === "whatsapp" && avail.whatsapp.ok) {
+        deliver = "whatsapp";
+        await supabase.from("notification_log").update({ channel: "whatsapp" }).in("id", pendingIds);
+      } else if (push.outcomeUnknown) {
+        outcomeUnknown = true;
+      } else {
+        failDetail = "app push could not be delivered";
+      }
+    }
+    if (!sent && deliver === "whatsapp") {
       const wa = body.whatsapp;
       if (!wa?.template_name) {
         await markFailed(supabase, pendingIds, "missing whatsapp template");
@@ -362,7 +418,7 @@ serve(async (req) => {
       outcomeUnknown = !sent && failedSendMayHaveGone(result);
       providerMessageId = (result.body.meta_message_id as string | null) ?? null;
       if (!sent) failDetail = String(result.body.detail ?? result.body.error ?? `whatsapp-send ${result.status}`);
-    } else if (channel === "sms") {
+    } else if (!sent && deliver === "sms") {
       const text = body.sms?.text?.trim();
       if (!text) {
         await markFailed(supabase, pendingIds, "empty sms body");
@@ -379,7 +435,7 @@ serve(async (req) => {
       outcomeUnknown = !sent && failedSendMayHaveGone(result);
       providerMessageId = (result.body.twilio_sid as string | null) ?? null;
       if (!sent) failDetail = String(result.body.detail ?? result.body.error ?? `sms-send ${result.status}`);
-    } else {
+    } else if (!sent && deliver === "email") {
       const subject = body.email?.subject?.trim();
       const emailBody = body.email?.body?.trim();
       if (!subject || !emailBody) {
@@ -406,19 +462,19 @@ serve(async (req) => {
       .in("id", pendingIds);
 
     if (!sent) {
-      console.error(`reminder-send: ${channel} send failed:`, outcomeUnknown ? "outcome unknown" : failDetail);
+      console.error(`reminder-send: ${deliver} send failed:`, outcomeUnknown ? "outcome unknown" : failDetail);
       if (outcomeUnknown) {
         return json(req, {
           ok: false,
           outcome: "unknown",
           code: "delivery_outcome_unknown",
           error: UNKNOWN_OUTCOME_TEXT,
-          channel,
+          channel: deliver,
         }, 502);
       }
-      return json(req, { error: "send failed", channel }, 502);
+      return json(req, { error: "send failed", channel: deliver }, 502);
     }
-    return json(req, { ok: true, channel, provider_message_id: providerMessageId });
+    return json(req, { ok: true, channel: deliver, provider_message_id: providerMessageId });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("reminder-send unhandled error:", message);

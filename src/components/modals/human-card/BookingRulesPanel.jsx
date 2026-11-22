@@ -135,6 +135,9 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
               Every booking holds its slot awaiting a £10 bank transfer (unique
               reference, 12-hour window) and is released if it doesn't arrive.
             </p>
+            {depositRequired && human?.depositRequiredReason ? (
+              <p className="text-caption text-slate-500 mt-1">{human.depositRequiredReason}</p>
+            ) : null}
           </div>
           <button
             type="button"

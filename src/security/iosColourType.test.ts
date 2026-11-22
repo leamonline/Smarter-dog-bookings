@@ -330,7 +330,9 @@ describe("sign-in screens use the catalogue", () => {
     expect(dog.properties["preserves-vector-representation"]).toBe(true);
   });
 
-  it("keeps SwiftUI files out of the Linux sign-in package and leaves the icon alone", () => {
+  // The home-screen icon and the public salon connection are pinned by
+  // iosProjectIsolation.test.ts. This change must leave both as main has them.
+  it("keeps SwiftUI files out of the Linux sign-in package", () => {
     const pkg = read("ios/Package.swift");
     const exclude = pkg.match(/exclude:\s*\[([\s\S]*?)\]/)?.[1] ?? "";
     const sources = pkg.match(/sources:\s*\[([\s\S]*?)\]/)?.[1] ?? "";
@@ -342,16 +344,5 @@ describe("sign-in screens use the catalogue", () => {
       expect(exclude, name).toContain(`"${name}"`);
       expect(sources, name).not.toContain(`"${name}"`);
     }
-
-    const icon = readFileSync(join(root, "ios/SmarterDog/Assets.xcassets/AppIcon.appiconset/AppIcon.png"));
-    const sourceIcon = readFileSync(join(root, "public/app/icons/icon-1024.png"));
-    expect(createHash("sha256").update(icon).digest("hex")).toBe(
-      createHash("sha256").update(sourceIcon).digest("hex"),
-    );
-
-    const config = read("ios/Config/Config.xcconfig");
-    expect(config).toContain("placeholder.invalid");
-    expect(config).toContain("placeholder-not-a-real-key");
-    expect(config).not.toContain("supabase.co");
   });
 });

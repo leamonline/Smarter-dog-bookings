@@ -256,6 +256,68 @@ describe("useHumansData realtime", () => {
     // h2 was never hydrated, so it stays an empty stub (no false positives).
     expect(result.current.humansById.h2.trustedContacts).toEqual([]);
   });
+
+  it("applies a deposit change to an owner who is not on the current directory page", async () => {
+    // Page 0 is only Sarah. Dave is in the lookup cache because Today loaded
+    // him with a booking, which is the customer a no-show actually belongs to.
+    const stub = makeStub(() => ({
+      data: { rows: [h1], total: 2, letters: [] },
+      error: null,
+    }));
+    setSupabase(stub);
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.setHumans((prev) => ({
+        ...prev,
+        "Dave Smith": {
+          id: "h2",
+          name: "Dave",
+          surname: "Smith",
+          fullName: "Dave Smith",
+          depositRequired: false,
+          trustedIds: [],
+          trustedContacts: [],
+        },
+      }));
+      result.current.setHumansById((prev) => ({
+        ...prev,
+        h2: {
+          id: "h2",
+          name: "Dave",
+          surname: "Smith",
+          fullName: "Dave Smith",
+          depositRequired: false,
+        },
+      }));
+    });
+
+    const before = stub.rpc.mock.calls.length;
+    act(() =>
+      stub._channel.fire("UPDATE", {
+        new: {
+          id: "h2",
+          deposit_required: true,
+          deposit_required_reason: "Deposit required after a no-show: Pepper on 22 Nov 2026",
+          deposit_required_set_at: "2026-11-22T10:00:00.000Z",
+        },
+      }),
+    );
+    await waitFor(() => expect(stub.rpc.mock.calls.length).toBe(before + 1));
+
+    expect(result.current.humans["Dave Smith"]).toMatchObject({
+      depositRequired: true,
+      depositRequiredReason: "Deposit required after a no-show: Pepper on 22 Nov 2026",
+      depositRequiredSetAt: "2026-11-22T10:00:00.000Z",
+    });
+    expect(result.current.humansById.h2).toMatchObject({
+      deposit_required: true,
+      depositRequired: true,
+    });
+    // Sarah's page-0 refetch must not invent a deposit for her.
+    expect(result.current.humans["Sarah Jones"].depositRequired).toBe(false);
+  });
 });
 
 describe("useHumansData fetchArchivedHumans", () => {

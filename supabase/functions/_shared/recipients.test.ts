@@ -45,6 +45,13 @@ Deno.test("channelAvailableFor honours setup flag, contact detail and opt-out", 
   assertEquals(channelAvailableFor(human({ email_opted_out: true }), "email"), false);
 });
 
+Deno.test("pickChannel prefers an app push only when a reminder asks for it", () => {
+  assertEquals(pickChannel(human(), { apns: true }), "apns");
+  assertEquals(pickChannel(human({ whatsapp: false, phone: null, email: null }), { apns: true }), "apns");
+  assertEquals(pickChannel(human()), "whatsapp");
+  assertEquals(pickChannel(human(), { apns: false }), "whatsapp");
+});
+
 Deno.test("pickChannel prefers WhatsApp, then SMS, then email", () => {
   assertEquals(pickChannel(human()), "whatsapp");
   assertEquals(pickChannel(human({ whatsapp: false })), "sms");
