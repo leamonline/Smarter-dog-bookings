@@ -318,7 +318,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   a per-function copy of the rule. See [docs/messaging-policy.md](docs/messaging-policy.md).
 - **In-app messages sit beside WhatsApp, and the website inbox does not show
   them unless `VITE_APP_INBOX_ENABLED=1`.** Tables `app_conversations` /
-  `app_messages` (migration `20261122120000`). Customers read only their own
+  `app_messages` (migration `20261122170000`). Customers read only their own
   thread; staff read all. Sends are `send_app_message` / `mark_app_messages_read`,
   not `whatsapp-send`. Do not add an APNs or `notify-staff` call on insert —
   that hook is left for the push work. See [docs/app-inbox.md](docs/app-inbox.md).

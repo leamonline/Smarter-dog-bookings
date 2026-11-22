@@ -1,7 +1,7 @@
 # In-app messages
 
 **Status:** Active
-**Authority:** The migration `20261122120000_app_messaging.sql` and the functions it creates. If this page and the database disagree, the database is what customers experience.
+**Authority:** The migration `20261122170000_app_messaging.sql` and the functions it creates. If this page and the database disagree, the database is what customers experience.
 
 Messages typed in the iPhone app are a separate conversation from WhatsApp. Staff see both in the same inbox once the switch below is on. A customer who does not have the app is unchanged: they still write and receive messages on WhatsApp.
 
@@ -32,7 +32,7 @@ The iPhone app does not call these yet. Sign-in is separate work. This page is t
 
 Do not apply this migration to the live salon database as part of reviewing the change. Staging first.
 
-1. Apply `supabase/migrations/20261122120000_app_messaging.sql` to the **staging** Supabase project, the same way other migrations are applied there. Do not apply it to production until you have decided to ship it. Merging to `main` does not apply database migrations, and this pull request cannot merge until production has the same file, because of the migrations check. That production apply is a separate step you approve.
+1. Apply `supabase/migrations/20261122170000_app_messaging.sql` to the **staging** Supabase project, the same way other migrations are applied there. Do not apply it to production until you have decided to ship it. Merging to `main` does not apply database migrations, and this pull request cannot merge until production has the same file, because of the migrations check. That production apply is a separate step you approve.
 2. Build or preview the website with `VITE_APP_INBOX_ENABLED=1`. A normal production build leaves the variable unset, so the live inbox does not change when the code is only deployed.
 3. Sign in as staff. Open the inbox. WhatsApp threads should look as they do now, until an app message exists.
 4. As a test customer who is linked to a login, send an app message with the function below (the iPhone screen is not built yet; the Supabase SQL editor, signed in as that customer, is enough). The staff inbox, with the switch on, should show it marked App. A reply from staff should come back on that same conversation, not as a WhatsApp message.

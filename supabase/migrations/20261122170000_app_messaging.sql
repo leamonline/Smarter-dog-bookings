@@ -38,7 +38,7 @@ create table if not exists public.app_conversations (
 );
 
 comment on table public.app_conversations is
-  'One in-app conversation per customer. Not a WhatsApp thread. Customers read their own row; staff read all. Writes go through send_app_message and mark_app_messages_read (20261122120000).';
+  'One in-app conversation per customer. Not a WhatsApp thread. Customers read their own row; staff read all. Writes go through send_app_message and mark_app_messages_read (20261122170000).';
 
 create table if not exists public.app_messages (
   id uuid primary key default gen_random_uuid(),
@@ -53,7 +53,7 @@ create table if not exists public.app_messages (
 );
 
 comment on table public.app_messages is
-  'One in-app message. sender is customer or staff; staff_user_id is the signed-in staff member when sender is staff. staff_read_at / customer_read_at are the read marks. Attachments are not stored yet (20261122120000).';
+  'One in-app message. sender is customer or staff; staff_user_id is the signed-in staff member when sender is staff. staff_read_at / customer_read_at are the read marks. Attachments are not stored yet (20261122170000).';
 
 create index if not exists app_messages_conversation_created_idx
   on public.app_messages (conversation_id, created_at desc);
@@ -271,7 +271,7 @@ end;
 $$;
 
 comment on function public.send_app_message(text, uuid) is
-  'Sends one in-app message. Customers write on their own linked human (p_human_id is ignored). Staff must pass the customer human id. Does not write WhatsApp or send a push (20261122120000).';
+  'Sends one in-app message. Customers write on their own linked human (p_human_id is ignored). Staff must pass the customer human id. Does not write WhatsApp or send a push (20261122170000).';
 
 revoke all on function public.send_app_message(text, uuid) from public, anon, authenticated;
 grant execute on function public.send_app_message(text, uuid) to authenticated;
@@ -359,7 +359,7 @@ end;
 $$;
 
 comment on function public.mark_app_messages_read(uuid) is
-  'Marks the other side''s in-app messages read and recounts that side''s unread total. Staff mark customer messages; a customer marks staff messages on their own conversation only (20261122120000).';
+  'Marks the other side''s in-app messages read and recounts that side''s unread total. Staff mark customer messages; a customer marks staff messages on their own conversation only (20261122170000).';
 
 revoke all on function public.mark_app_messages_read(uuid) from public, anon, authenticated;
 grant execute on function public.mark_app_messages_read(uuid) to authenticated;
@@ -542,7 +542,7 @@ end;
 $$;
 
 comment on function public.list_staff_unified_inbox() is
-  'Staff only. One inbox row per customer, merging WhatsApp, SMS and in-app threads, plus a row for each WhatsApp number that is not linked to a customer. channels lists the pipes on that row (20261122120000).';
+  'Staff only. One inbox row per customer, merging WhatsApp, SMS and in-app threads, plus a row for each WhatsApp number that is not linked to a customer. channels lists the pipes on that row (20261122170000).';
 
 revoke all on function public.list_staff_unified_inbox() from public, anon, authenticated;
 grant execute on function public.list_staff_unified_inbox() to authenticated;
@@ -654,7 +654,7 @@ end;
 $$;
 
 comment on function public.list_staff_unified_thread(uuid, uuid) is
-  'Staff only. Messages for one customer across WhatsApp, SMS and the app, oldest first, capped at the latest 200. Each row carries its channel (20261122120000).';
+  'Staff only. Messages for one customer across WhatsApp, SMS and the app, oldest first, capped at the latest 200. Each row carries its channel (20261122170000).';
 
 revoke all on function public.list_staff_unified_thread(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.list_staff_unified_thread(uuid, uuid) to authenticated;

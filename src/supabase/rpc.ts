@@ -1300,7 +1300,7 @@ export function updateStaffBookingVisit(
   });
 }
 
-// In-app messages (migration 20261122120000). Customers omit humanId.
+// In-app messages (migration 20261122170000). Customers omit humanId.
 // Staff pass the customer's human id. Replying here does not send WhatsApp.
 
 export function sendAppMessage(

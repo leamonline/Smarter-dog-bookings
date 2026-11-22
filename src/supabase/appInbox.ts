@@ -1,7 +1,7 @@
 /**
  * In-app messages beside WhatsApp.
  *
- * The database functions in migration 20261122120000 are the authority.
+ * The database functions in migration 20261122170000 are the authority.
  * This module is the staff inbox's read model: fold those rows onto the
  * WhatsApp list, decide which channel a reply uses, and call send_app_message.
  * It does not run unless VITE_APP_INBOX_ENABLED=1.

@@ -1,4 +1,4 @@
--- In-app messages beside WhatsApp (20261122120000).
+-- In-app messages beside WhatsApp (20261122170000).
 --
 -- A customer reads and writes only their own conversation. Staff read all.
 -- Direct writes are refused. The unified inbox merges an app thread with
