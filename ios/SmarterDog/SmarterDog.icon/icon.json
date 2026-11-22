@@ -1,0 +1,64 @@
+{
+  "features": [
+    "refractivity",
+    "specular-location"
+  ],
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "extended-srgb:0.99608,0.80000,0.07451,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "solid": "extended-srgb:0.10980,0.10980,0.11765,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Dog",
+      "layers": [
+        {
+          "name": "Dog",
+          "image-name": "dog.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "extended-srgb:0.12157,0.12157,0.12157,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "extended-srgb:0.99608,0.80000,0.07451,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.3
+      },
+      "specular": true,
+      "specular-highlight-placement": "outside",
+      "translucency": {
+        "enabled": true,
+        "value": 0.12
+      },
+      "refractivity": {
+        "enabled": true,
+        "depth": 0.35,
+        "strength": 0.3
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "iOS"
+    ]
+  }
+}
