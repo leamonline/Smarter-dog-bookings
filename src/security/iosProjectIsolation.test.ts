@@ -4,7 +4,8 @@
 // It does not, and cannot, run xcodebuild.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { excludedMarkdownPrefixes } from "../../scripts/check-doc-links.mjs";
@@ -168,6 +169,39 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(script).not.toContain("supabase.co");
     expect(script).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}/);
     expect(script).not.toMatch(/sb_secret_/);
+    expect(script).toContain("jwt_payload_has_service_role");
+  });
+
+  it("refuses a service-role JWT and keeps a public anon JWT", () => {
+    const directory = mkdtempSync(join(tmpdir(), "sdb-ios-config-"));
+    mkdirSync(join(directory, "ios", "Config"), { recursive: true });
+    const script = join(root, "ci_scripts/ci_post_clone.sh");
+    const token = (payload: object) => {
+      const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+      return `${part({ alg: "none" })}.${part(payload)}.sig`;
+    };
+    const env = {
+      ...process.env,
+      CI_PRIMARY_REPOSITORY_PATH: directory,
+      SUPABASE_URL: "https://example.invalid",
+    };
+    expect(() =>
+      execFileSync(script, {
+        env: { ...env, SUPABASE_PUBLISHABLE_KEY: token({ role: "service_role" }) },
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(existsSync(join(directory, "ios", "Config", "Config.local.xcconfig"))).toBe(false);
+
+    const anon = token({ role: "anon" });
+    execFileSync(script, {
+      env: { ...env, SUPABASE_PUBLISHABLE_KEY: anon },
+      stdio: "pipe",
+    });
+    const written = readFileSync(join(directory, "ios", "Config", "Config.local.xcconfig"), "utf8");
+    expect(written).toContain(anon);
+    expect(written).not.toContain("service_role");
+    rmSync(directory, { recursive: true, force: true });
   });
 
   it("keeps secrets out of the committed config and uses the brand icon", () => {

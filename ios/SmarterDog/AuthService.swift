@@ -101,10 +101,11 @@ final class AuthService {
 
     func verifyCode(_ raw: String) async throws {
         let client = try requireClient()
-        let code = raw.filter(\.isNumber)
-        guard code.count == 6 else {
+        let digits = raw.filter(\.isNumber)
+        guard digits.count >= 6 else {
             throw SignInFailure(message: "Please enter the 6-digit code.")
         }
+        let code = String(digits.prefix(6))
         guard !normalisedPhone.isEmpty else {
             throw SignInFailure(message: "Enter your mobile number again, then ask for a new code.")
         }

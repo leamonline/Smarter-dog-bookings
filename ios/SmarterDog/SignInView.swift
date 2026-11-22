@@ -192,8 +192,8 @@ struct SignInView: View {
                     .focused($focused, equals: .code)
                     .accessibilityLabel("Text message code")
                     .onChange(of: code) { _, newValue in
-                        let digits = newValue.filter(\.isNumber)
-                        if digits != newValue { code = String(digits.prefix(6)) }
+                        let digits = String(newValue.filter(\.isNumber).prefix(6))
+                        if digits != newValue { code = digits }
                     }
             }
             PrimaryButton(title: "Continue", busy: submitting, busyTitle: "Checking") {

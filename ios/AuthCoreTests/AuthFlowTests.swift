@@ -102,6 +102,10 @@ final class AuthFlowTests: XCTestCase {
         }
         XCTAssertEqual(fake.verifiedCodes, ["123456"])
 
+        fake.verifyError = nil
+        try await auth.verifyCode("1234567")
+        XCTAssertEqual(fake.verifiedCodes.last, "123456")
+
         fake.phoneError = SalonClientError.rateLimited
         do {
             _ = try await auth.checkPhone("07700 900123")
