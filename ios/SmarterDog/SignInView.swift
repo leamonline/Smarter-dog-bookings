@@ -67,26 +67,59 @@ struct SignInView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 12) {
-            Text("Smarter Dog")
-                .font(.largeTitle.weight(.bold))
-                .foregroundStyle(Brand.ink)
-                .frame(maxWidth: .infinity)
-                .accessibilityAddTraits(.isHeader)
-
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Brand.yellow)
-                .frame(width: 56, height: 4)
-                .accessibilityHidden(true)
-
-            Text(instruction)
-                .font(.subheadline)
-                .foregroundStyle(Brand.ink.opacity(0.72))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
+            if stage == .phone {
+                phoneHero
+            } else {
+                compactHeader
+            }
         }
-        .padding(.top, 12)
+    }
+
+    private var phoneHero: some View {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
+            DogWordmark()
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Come scruffy.")
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .lastTextBaseline, spacing: 0) {
+                        Text("Leave ")
+                        HighlightedWord(text: "gorgeous.")
+                    }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Leave")
+                        HighlightedWord(text: "gorgeous.")
+                    }
+                }
+            }
+            .appHeading(.largeTitle)
+            .foregroundStyle(AppColor.textPrimary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+
+            instructionText
+            DashRibbon()
+        }
+    }
+
+    private var compactHeader: some View {
+        VStack(alignment: .leading, spacing: AppSpace.s1) {
+            DogWordmark()
+                .accessibilityAddTraits(.isHeader)
+            WordmarkAccent()
+            instructionText
+            DashRibbon()
+                .padding(.top, AppSpace.s1)
+        }
+    }
+
+    private var instructionText: some View {
+        Text(instruction)
+            .font(.subheadline)
+            .foregroundStyle(AppColor.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var instruction: String {
@@ -125,8 +158,8 @@ struct SignInView: View {
     }
 
     private var phoneStage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            labeledField("Phone number") {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
+            labeledField("Phone number", focused: focused == .phone) {
                 TextField("07123 456789", text: $phone)
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
@@ -144,14 +177,12 @@ struct SignInView: View {
                 stage = .staff
             }
             .buttonStyle(TextLinkButtonStyle())
-            .frame(maxWidth: .infinity)
-            .padding(.top, 8)
         }
     }
 
     private var passwordStage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            labeledField("Password") {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
+            labeledField("Password", focused: focused == .password) {
                 passwordField
             }
             securityCheck
@@ -170,7 +201,7 @@ struct SignInView: View {
     }
 
     private var sendCodeStage: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
             securityCheck
             if let captchaNote { ErrorNote(message: captchaNote) }
             PrimaryButton(title: "Text me a code", busy: submitting, busyTitle: "Sending") {
@@ -182,8 +213,8 @@ struct SignInView: View {
     }
 
     private var codeStage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            labeledField("Code") {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
+            labeledField("Code", focused: focused == .code) {
                 TextField("6-digit code", text: $code)
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
@@ -201,7 +232,7 @@ struct SignInView: View {
             }
             Text("To send another code, complete the security check.")
                 .font(.subheadline)
-                .foregroundStyle(Brand.ink.opacity(0.72))
+                .foregroundStyle(AppColor.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             securityCheck
             if let captchaNote { ErrorNote(message: captchaNote) }
@@ -216,22 +247,20 @@ struct SignInView: View {
     }
 
     private var unknownStage: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
             Text("Join the Pack on the website and we'll get you set up. Once the salon has approved you, come back here and sign in with this number.")
                 .font(.body)
-                .foregroundStyle(Brand.ink)
+                .foregroundStyle(AppColor.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
-            Link("Join the Pack on the website", destination: SalonLinks.book)
-                .font(.headline)
-                .foregroundStyle(Brand.cyanDark)
+            TextLink(title: "Join the Pack on the website", destination: SalonLinks.book)
             Button("Use a different number") { stage = .phone }
                 .buttonStyle(TextLinkButtonStyle())
         }
     }
 
     private var staffStage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            labeledField("Email") {
+        VStack(alignment: .leading, spacing: AppSpace.s2) {
+            labeledField("Email", focused: focused == .email) {
                 TextField("name@smarterdog.co.uk", text: $email)
                     .keyboardType(.emailAddress)
                     .textContentType(.username)
@@ -242,7 +271,7 @@ struct SignInView: View {
                     .submitLabel(.next)
                     .onSubmit { focused = .password }
             }
-            labeledField("Password") {
+            labeledField("Password", focused: focused == .password) {
                 passwordField
             }
             securityCheck
@@ -256,7 +285,7 @@ struct SignInView: View {
     }
 
     private var passwordField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: AppSpace.s1) {
             Group {
                 if showPassword {
                     TextField("Password", text: $password)
@@ -269,12 +298,14 @@ struct SignInView: View {
             .autocorrectionDisabled()
             .focused($focused, equals: .password)
             .accessibilityLabel("Password")
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
                 showPassword.toggle()
             } label: {
                 Image(systemName: showPassword ? "eye.slash" : "eye")
-                    .foregroundStyle(Brand.cyanDark)
+                    .foregroundStyle(AppColor.textPrimary)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(showPassword ? "Hide password" : "Show password")
@@ -423,21 +454,14 @@ struct SignInView: View {
         AccessibilityNotification.Announcement(message).post()
     }
 
-    private func labeledField(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func labeledField(_ title: String, focused: Bool, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: AppSpace.s1) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Brand.ink)
+                .foregroundStyle(AppColor.textPrimary)
             content()
                 .font(.body)
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Brand.paperLine, lineWidth: 1)
-                )
+                .appControlChrome(focused: focused)
         }
     }
 }
@@ -446,18 +470,21 @@ struct PaperScreen<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                content()
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppSpace.s3) {
+                    content()
+                }
+                .padding(.horizontal, AppSpace.s2)
+                .padding(.vertical, AppSpace.s4)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 32)
-            .frame(maxWidth: 480)
-            .frame(maxWidth: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
+            CheckerboardEdge()
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .scrollDismissesKeyboard(.interactively)
-        .background(Brand.paper.ignoresSafeArea())
+        .background(AppColor.surface.ignoresSafeArea())
     }
 }
 
@@ -467,16 +494,19 @@ struct ErrorNote: View {
     var body: some View {
         Text(message)
             .font(.subheadline)
-            .foregroundStyle(Brand.ink)
+            .foregroundStyle(AppColor.destructive)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Brand.yellow, lineWidth: 2)
+            .padding(AppSpace.s2)
+            .background(
+                AppColor.destructiveSoft,
+                in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                    .strokeBorder(AppColor.separator, lineWidth: 1)
+            )
+            .appCardShadow()
             .accessibilityLabel("Problem. \(message)")
             .accessibilityAddTraits(.updatesFrequently)
     }
@@ -490,23 +520,18 @@ struct PrimaryButton: View {
 
     var body: some View {
         Button(action: action) {
-            Group {
+            HStack(spacing: AppSpace.s1) {
                 if busy {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                            .tint(Brand.ink)
-                        Text(busyTitle)
-                    }
-                } else {
-                    Text(title)
+                    ProgressView()
+                        .tint(AppColor.onAction)
                 }
+                Text(busy ? busyTitle : title)
             }
-            .font(.headline)
-            .foregroundStyle(Brand.ink)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(Brand.yellow)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .font(.body.weight(.semibold))
+            .foregroundStyle(AppColor.onAction)
+            .padding(.horizontal, AppSpace.s2)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(AppColor.actionYellow, in: Capsule())
         }
         .buttonStyle(.plain)
         .disabled(busy)
@@ -519,10 +544,25 @@ struct TextLinkButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Brand.cyanDark)
+            .foregroundStyle(AppColor.accentBlueDeep)
             .underline()
-            .frame(minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+struct TextLink: View {
+    let title: String
+    let destination: URL
+
+    var body: some View {
+        Link(destination: destination) {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(AppColor.accentBlueDeep)
+                .underline()
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }
     }
 }
 

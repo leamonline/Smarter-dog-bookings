@@ -15,10 +15,10 @@ struct SecurityCheckView: View {
     let onEvent: (TurnstileEvent) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: AppSpace.s1) {
             Text("Security check")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Brand.ink)
+                .foregroundStyle(AppColor.textPrimary)
                 .accessibilityAddTraits(.isHeader)
 
             if let siteKey {
@@ -29,18 +29,21 @@ struct SecurityCheckView: View {
             } else {
                 Text("The security check isn't available in this build, so signing in is turned off. The website's public Turnstile site key has to be added with the salon connection.")
                     .font(.subheadline)
-                    .foregroundStyle(Brand.ink)
+                    .foregroundStyle(AppColor.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
+        .padding(AppSpace.s2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Brand.paperLine, lineWidth: 1)
+        .background(
+            AppColor.surfaceRaised,
+            in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                .strokeBorder(AppColor.separator, lineWidth: 1)
+        )
+        .appCardShadow()
     }
 }
 
@@ -126,7 +129,7 @@ private enum TurnstilePage {
         <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         </head>
         <body>
-        <div class="cf-turnstile" data-sitekey="\(siteKey)" data-theme="light" data-callback="onToken" data-expired-callback="onExpired" data-error-callback="onFailed"></div>
+        <div class="cf-turnstile" data-sitekey="\(siteKey)" data-theme="auto" data-callback="onToken" data-expired-callback="onExpired" data-error-callback="onFailed"></div>
         <script>
           function post(event, token) {
             window.webkit.messageHandlers.turnstile.postMessage({ event: event, token: token || "" });

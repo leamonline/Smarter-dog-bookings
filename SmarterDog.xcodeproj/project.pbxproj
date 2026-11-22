@@ -9,8 +9,14 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* SmarterDogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* SmarterDogApp.swift */; };
 		A10000000000000000000002 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* SignInView.swift */; };
-		A10000000000000000000003 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* Brand.swift */; };
 		A10000000000000000000004 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* SupabaseConfig.swift */; };
+		A10000000000000000000050 /* AppColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* AppColor.swift */; };
+		A10000000000000000000051 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000061 /* AppFont.swift */; };
+		A10000000000000000000052 /* AppMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* AppMetrics.swift */; };
+		A10000000000000000000053 /* Decorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000063 /* Decorations.swift */; };
+		A10000000000000000000054 /* Poppins-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* Poppins-Bold.ttf */; };
+		A10000000000000000000055 /* Poppins-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000065 /* Poppins-SemiBold.ttf */; };
+		A10000000000000000000056 /* OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* OFL.txt */; };
 		A10000000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* Assets.xcassets */; };
 		A10000000000000000000007 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000042 /* Supabase */; };
 		A10000000000000000000008 /* PhoneNumber.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001C /* PhoneNumber.swift */; };
@@ -26,8 +32,15 @@
 /* Begin PBXFileReference section */
 		A10000000000000000000011 /* SmarterDogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmarterDogApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
-		A10000000000000000000013 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
+		A10000000000000000000060 /* AppColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColor.swift; sourceTree = "<group>"; };
+		A10000000000000000000061 /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
+		A10000000000000000000062 /* AppMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetrics.swift; sourceTree = "<group>"; };
+		A10000000000000000000063 /* Decorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Decorations.swift; sourceTree = "<group>"; };
+		A10000000000000000000064 /* Poppins-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-Bold.ttf"; sourceTree = "<group>"; };
+		A10000000000000000000065 /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-SemiBold.ttf"; sourceTree = "<group>"; };
+		A10000000000000000000066 /* OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL.txt; sourceTree = "<group>"; };
+		A10000000000000000000067 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000016 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A10000000000000000000018 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000019 /* Config.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.local.xcconfig.example; sourceTree = "<group>"; };
@@ -78,7 +91,10 @@
 			children = (
 				A10000000000000000000011 /* SmarterDogApp.swift */,
 				A10000000000000000000012 /* SignInView.swift */,
-				A10000000000000000000013 /* Brand.swift */,
+				A10000000000000000000060 /* AppColor.swift */,
+				A10000000000000000000061 /* AppFont.swift */,
+				A10000000000000000000062 /* AppMetrics.swift */,
+				A10000000000000000000063 /* Decorations.swift */,
 				A10000000000000000000014 /* SupabaseConfig.swift */,
 				A1000000000000000000001C /* PhoneNumber.swift */,
 				A1000000000000000000001D /* AuthModels.swift */,
@@ -88,9 +104,21 @@
 				A1000000000000000000002D /* SupabaseSessionClient.swift */,
 				A1000000000000000000002A /* SecurityCheckView.swift */,
 				A1000000000000000000002B /* RootView.swift */,
+				A10000000000000000000067 /* Info.plist */,
 				A10000000000000000000016 /* Assets.xcassets */,
+				A10000000000000000000070 /* Fonts */,
 			);
 			path = "ios/SmarterDog";
+			sourceTree = "<group>";
+		};
+		A10000000000000000000070 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000064 /* Poppins-Bold.ttf */,
+				A10000000000000000000065 /* Poppins-SemiBold.ttf */,
+				A10000000000000000000066 /* OFL.txt */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000025 /* ios/Config */ = {
@@ -169,6 +197,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000006 /* Assets.xcassets in Resources */,
+				A10000000000000000000054 /* Poppins-Bold.ttf in Resources */,
+				A10000000000000000000055 /* Poppins-SemiBold.ttf in Resources */,
+				A10000000000000000000056 /* OFL.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -181,7 +212,10 @@
 			files = (
 				A10000000000000000000001 /* SmarterDogApp.swift in Sources */,
 				A10000000000000000000002 /* SignInView.swift in Sources */,
-				A10000000000000000000003 /* Brand.swift in Sources */,
+				A10000000000000000000050 /* AppColor.swift in Sources */,
+				A10000000000000000000051 /* AppFont.swift in Sources */,
+				A10000000000000000000052 /* AppMetrics.swift in Sources */,
+				A10000000000000000000053 /* Decorations.swift in Sources */,
 				A10000000000000000000004 /* SupabaseConfig.swift in Sources */,
 				A10000000000000000000008 /* PhoneNumber.swift in Sources */,
 				A10000000000000000000009 /* AuthModels.swift in Sources */,
@@ -307,6 +341,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/SmarterDog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";
 				INFOPLIST_KEY_CFBundleName = "Smarter Dog";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -343,6 +378,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ios/SmarterDog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";
 				INFOPLIST_KEY_CFBundleName = "Smarter Dog";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
