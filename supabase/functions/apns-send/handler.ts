@@ -14,6 +14,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { iosPushEnabled } from "../_shared/apnsChannel.ts";
 import {
+  ApnsNotContactedError,
   normaliseApnsEnvironment,
   normaliseApnsToken,
   normaliseBundleId,
@@ -149,8 +150,14 @@ export function createApnsSendHandler(deps: ApnsSendDeps) {
           deps.fetch,
         );
       } catch (err) {
-        // The .p8 could not be used, so Apple was never contacted for this token.
-        console.error("apns send failed before Apple:", err instanceof Error ? err.message : String(err));
+        if (err instanceof ApnsNotContactedError) {
+          // Signing failed before the request. WhatsApp is still safe.
+          console.error("apns send failed before Apple:", err.message);
+          continue;
+        }
+        // Anything else may be after Apple accepted the push.
+        console.error("apns send outcome unknown:", err instanceof Error ? err.message : String(err));
+        inconclusive = true;
         continue;
       }
       if (result.kind === "sent") {
@@ -158,9 +165,13 @@ export function createApnsSendHandler(deps: ApnsSendDeps) {
         apnsId = apnsId ?? result.apnsId;
       } else if (result.kind === "invalid_token") {
         invalidIds.push(token.id);
-      } else {
+      } else if (result.kind === "unavailable") {
+        // 429, 5xx, or the connection dropped. The push might have arrived.
         inconclusive = true;
       }
+      // "rejected" (403 InvalidProviderToken, 400 BadTopic, …) is a definite
+      // no. The device token stays. fallback stays true when nothing was sent
+      // and nothing was inconclusive.
     }
 
     if (invalidIds.length > 0) {

@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
+  ApnsNotContactedError,
   apnsHost,
   buildApnsJwt,
   classifyApnsResponse,
@@ -140,4 +141,52 @@ Deno.test("sendApnsAlert posts to the environment host and returns the apns-id",
   );
   assertEquals(called, `https://api.sandbox.push.apple.com/3/device/${token}`);
   assertEquals(result, { kind: "sent", apnsId: "apple-1" });
+});
+
+Deno.test("a 200 whose body cannot be read is still a delivered push", async () => {
+  const { pem } = await testPem();
+  const fetchImpl: typeof fetch = () =>
+    Promise.resolve({
+      status: 200,
+      headers: { get: () => "apple-accepted" },
+      text: () => Promise.reject(new Error("body failed")),
+    } as unknown as Response);
+  const result = await sendApnsAlert(
+    {
+      deviceToken: "cd".repeat(32),
+      environment: "production",
+      bundleId: "uk.co.smarterdog.app",
+      title: "Smarter Dog Grooming",
+      body: "See you tomorrow",
+    },
+    { keyId: "KEYID12345", teamId: "TEAMID1234", privateKeyPem: pem },
+    fetchImpl,
+  );
+  assertEquals(result, { kind: "sent", apnsId: "apple-accepted" });
+});
+
+Deno.test("a key that cannot sign throws before any request", async () => {
+  let called = false;
+  const fetchImpl: typeof fetch = () => {
+    called = true;
+    return Promise.resolve(new Response(""));
+  };
+  let caught: unknown;
+  try {
+    await sendApnsAlert(
+      {
+        deviceToken: "cd".repeat(32),
+        environment: "sandbox",
+        bundleId: "uk.co.smarterdog.app",
+        title: "Title",
+        body: "Body",
+      },
+      { keyId: "KEYID12345", teamId: "TEAMID1234", privateKeyPem: "not-a-key" },
+      fetchImpl,
+    );
+  } catch (err) {
+    caught = err;
+  }
+  assertEquals(caught instanceof ApnsNotContactedError, true);
+  assertEquals(called, false);
 });

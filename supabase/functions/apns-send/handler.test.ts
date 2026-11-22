@@ -24,7 +24,13 @@ async function signingPem(): Promise<string> {
   return `-----BEGIN PRIVATE KEY-----\n${btoa(binary)}\n-----END PRIVATE KEY-----`;
 }
 
-async function world(opts: { enabled?: boolean; configured?: boolean; secret?: string } = {}) {
+async function world(opts: {
+  enabled?: boolean;
+  configured?: boolean;
+  secret?: string;
+  badKey?: boolean;
+  apple?: "mixed" | "forbidden" | "unreadable-success";
+} = {}) {
   const pem = await signingPem();
   const rows: Row[] = [
     { id: "live", apns_token: LIVE },
@@ -36,6 +42,16 @@ async function world(opts: { enabled?: boolean; configured?: boolean; secret?: s
     fetch: (input) => {
       const url = String(input);
       calls.push(url);
+      if (opts.apple === "forbidden") {
+        return Promise.resolve(new Response(JSON.stringify({ reason: "InvalidProviderToken" }), { status: 403 }));
+      }
+      if (opts.apple === "unreadable-success") {
+        return Promise.resolve({
+          status: 200,
+          headers: { get: () => "apple-live" },
+          text: () => Promise.reject(new Error("body failed")),
+        } as unknown as Response);
+      }
       const dead = url.endsWith(DEAD);
       const body = dead ? JSON.stringify({ reason: "Unregistered" }) : "";
       return Promise.resolve(new Response(body, {
@@ -61,7 +77,11 @@ async function world(opts: { enabled?: boolean; configured?: boolean; secret?: s
     },
     pushEnabled: () => opts.enabled !== false,
     expectedBundleId: () => (opts.configured === false ? null : BUNDLE),
-    secrets: () => opts.configured === false ? null : { keyId: "KEYID12345", teamId: "TEAMID1234", privateKeyPem: pem },
+    secrets: () => {
+      if (opts.configured === false) return null;
+      if (opts.badKey) return { keyId: "KEYID12345", teamId: "TEAMID1234", privateKeyPem: "not-a-key" };
+      return { keyId: "KEYID12345", teamId: "TEAMID1234", privateKeyPem: pem };
+    },
     internalSecret: () => opts.secret ?? "internal-secret",
   });
   return { rows, calls, handle, admins: () => admins };
@@ -114,6 +134,38 @@ Deno.test("missing Apple secrets fall back and leave every token in place", asyn
   const body = await res.json();
   assertEquals(body.fallback, true);
   assertEquals(body.error, "apns_not_configured");
+  assertEquals(calls, []);
+  assertEquals(rows.map((row) => row.id), ["live", "dead"]);
+});
+
+Deno.test("a definite Apple refusal keeps every token and tells the caller to fall back", async () => {
+  const { handle, rows, calls, admins } = await world({ apple: "forbidden" });
+  const res = await handle(post("internal-secret", payload));
+  const body = await res.json();
+  assertEquals(body.sent, 0);
+  assertEquals(body.fallback, true);
+  assertEquals(body.outcome_unknown, false);
+  assertEquals(calls.length, 2);
+  assertEquals(admins(), 0);
+  assertEquals(rows.map((row) => row.id), ["live", "dead"]);
+});
+
+Deno.test("an accepted push whose body cannot be read is sent, not a fallback", async () => {
+  const { handle, rows } = await world({ apple: "unreadable-success" });
+  const res = await handle(post("internal-secret", payload));
+  const body = await res.json();
+  assertEquals(body.sent, 2);
+  assertEquals(body.fallback, false);
+  assertEquals(body.outcome_unknown, false);
+  assertEquals(rows.map((row) => row.id), ["live", "dead"]);
+});
+
+Deno.test("a key that cannot sign falls back and never calls Apple", async () => {
+  const { handle, rows, calls } = await world({ badKey: true });
+  const res = await handle(post("internal-secret", payload));
+  const body = await res.json();
+  assertEquals(body.fallback, true);
+  assertEquals(body.outcome_unknown, false);
   assertEquals(calls, []);
   assertEquals(rows.map((row) => row.id), ["live", "dead"]);
 });

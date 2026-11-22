@@ -20,6 +20,14 @@ export type ApnsSendResult =
   | { kind: "rejected"; status: number; reason: string }
   | { kind: "unavailable"; status: number; reason: string };
 
+/** The .p8 could not be used, so the request never left for Apple. */
+export class ApnsNotContactedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApnsNotContactedError";
+  }
+}
+
 const INVALID_TOKEN_REASONS = new Set([
   "BadDeviceToken",
   "Unregistered",
@@ -147,7 +155,12 @@ export async function sendApnsAlert(
   fetchImpl: typeof fetch = fetch,
   nowSeconds?: number,
 ): Promise<ApnsSendResult> {
-  const jwt = await buildApnsJwt({ ...secrets, nowSeconds });
+  let jwt: string;
+  try {
+    jwt = await buildApnsJwt({ ...secrets, nowSeconds });
+  } catch (err) {
+    throw new ApnsNotContactedError(err instanceof Error ? err.message : String(err));
+  }
   const payload: Record<string, unknown> = {
     aps: {
       alert: { title: alert.title, body: alert.body },
@@ -175,10 +188,23 @@ export async function sendApnsAlert(
     const message = err instanceof Error ? err.message : String(err);
     return { kind: "unavailable", status: 0, reason: message };
   }
-  const text = await res.text();
+  // The status is already known. Failing to read the body must not look like
+  // "Apple was never called" — a 200 with an unreadable body was accepted.
+  let text = "";
+  try {
+    text = await res.text();
+  } catch {
+    text = "";
+  }
   const classified = classifyApnsResponse(res.status, text);
   if (classified.kind === "sent") {
-    return { kind: "sent", apnsId: res.headers.get("apns-id") };
+    let apnsId: string | null = null;
+    try {
+      apnsId = res.headers.get("apns-id");
+    } catch {
+      apnsId = null;
+    }
+    return { kind: "sent", apnsId };
   }
   return classified;
 }

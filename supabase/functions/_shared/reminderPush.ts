@@ -3,9 +3,11 @@
 //
 // How a reminder function talks to apns-send, and how it reads the answer.
 //
-// fallback means nothing was handed to Apple, so WhatsApp (then SMS, then
-// email) is safe. outcomeUnknown means a push might already be on its way,
-// so the same request must not also text or WhatsApp the customer.
+// fallback means Apple definitely did not deliver: the request never left,
+// or Apple refused it for a reason that is not a dead device token (a bad
+// key, a wrong topic). WhatsApp, then SMS, then email, is safe.
+// outcomeUnknown means a push might already be on its way, so the same
+// request must not also text or WhatsApp the customer.
 // ============================================================
 
 export interface PushAttempt {

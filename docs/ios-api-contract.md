@@ -162,12 +162,14 @@ Otherwise the reminder uses the existing order: WhatsApp, then SMS, then email.
 
 If Apple says the token is dead (`Unregistered`, `BadDeviceToken`, or
 `DeviceTokenNotForTopic`), that row is deleted. The nightly reminder then uses
-WhatsApp, then SMS, then email. A staff reminder that was asked for on WhatsApp
-falls back to that WhatsApp send when WhatsApp is still allowed. An explicit
-`apns` request that cannot be delivered is recorded as failed and is not also
-sent as a text, because that request did not include one. If the push might
-have been delivered and the reply was lost, the same request does **not** also
-send WhatsApp or a text.
+WhatsApp, then SMS, then email. A definite refusal that is not the phone's
+fault (a rejected key, a wrong topic) keeps the token and the nightly reminder
+uses WhatsApp as well. A staff reminder that was asked for on WhatsApp falls
+back to that WhatsApp send when WhatsApp is still allowed. An explicit `apns`
+request that cannot be delivered is recorded as failed and is not also sent as
+a text, because that request did not include one. If Apple accepted the push,
+or the reply was lost after the request was sent, the same request does **not**
+also send WhatsApp or a text.
 
 The log row uses `channel = 'apns'`. A staff Web Push (`webpush`) is a different
 thing and is unchanged.
