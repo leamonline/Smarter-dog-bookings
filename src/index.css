@@ -1647,13 +1647,20 @@ button.human-empty-pack:hover {
 }
 
 /* The stripe above the staff toolbar (AppToolbar). Full bleed across the app
-   gutter, on the toolbar's white. Phones show it under the top bar instead, so
-   it never fights the safe-area padding. */
+   gutter, on the toolbar's white. */
 .staff-stripe {
   margin-inline: calc(-1 * var(--app-gutter));
   padding: 6px 8px 0;
   background: var(--color-surface-card);
 }
-.staff-stripe--under {
-  padding: 0 12px 6px;
+/* Phones: 4px tall, positioned inside the top bar's bottom padding (at least
+   4px, see short:pb-1), so the stripe adds no height to the phone layout. */
+.staff-stripe-phone {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 4px;
+  gap: 3px;
 }
+.staff-stripe-phone .brand-stripe__seg { border-radius: 2px; }

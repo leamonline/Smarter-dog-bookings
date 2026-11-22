@@ -294,7 +294,11 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           Both step aside on phones while the on-screen keyboard is up
           (see useKeyboardOpen) so the field being typed into keeps its
           room. */}
-      <div className="lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 short:pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] short:pt-[calc(env(safe-area-inset-top)+0.25rem)] flex items-center gap-2 bg-white text-slate-700">
+      <div className="relative lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 short:pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] short:pt-[calc(env(safe-area-inset-top)+0.25rem)] flex items-center gap-2 bg-white text-slate-700">
+        {/* Phones: a 4px flyer stripe drawn inside the bar's own bottom padding,
+            so it adds no height. Phone layouts (the day stack's toast against
+            Check out, #1001) depend on every pixel up here. */}
+        <BrandStripe className="staff-stripe-phone" />
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <BrandWordmark className="h-6 w-[113px]" />
         </NavLink>
@@ -386,10 +390,6 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
             </div>
           )}
         </div>
-      </div>
-      {/* Phones: the flyer stripe sits under the top bar, clear of the safe area. */}
-      <div className="staff-stripe staff-stripe--under lg:hidden max-md:keyboard:hidden">
-        <BrandStripe />
       </div>
     </>
   );
