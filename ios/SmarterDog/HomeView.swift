@@ -37,7 +37,13 @@ final class HomeModel {
 struct CustomerHomeView: View {
     let account: AccountCard
     var auth: AuthService
-    @State private var model = HomeModel(client: SupabaseHomeClient.make())
+    @State private var model: HomeModel
+
+    init(account: AccountCard, auth: AuthService, client: SalonHomeClient? = SupabaseHomeClient.make()) {
+        self.account = account
+        self.auth = auth
+        _model = State(initialValue: HomeModel(client: client))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
