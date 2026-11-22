@@ -28,6 +28,7 @@ import {
   SALON_TERMS_URL,
 } from "../../constants/salonPolicies.ts";
 import { SALON_SLOGAN } from "../../constants/salonBrand";
+import { BrandStripe } from "../ui/BrandStripe.jsx";
 
 const OVERDUE_DAYS = 42; // 6 weeks; the 'due for another?' threshold.
 
@@ -285,6 +286,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
 
       {/* ===== TOP NAV (no in-header CTA — the in-page Booking card carries the action) ===== */}
       <nav className="portal-topnav" aria-label="Primary">
+        <BrandStripe />
         <div className="portal-topnav-inner">
           <a href="https://smarterdog.co.uk" target="_blank" rel="noopener noreferrer" className="portal-topnav-logo" aria-label="Smarter Dog home (opens in a new tab)">
             <img src="/app/logos/smarter-dog-lockup-black.svg" alt="Smarter Dog Grooming" />

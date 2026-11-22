@@ -23,6 +23,11 @@ export { StatusPill } from "./StatusPill.jsx";
 // WhatsApp conversation state.
 export { BookingStatusBadge, resolveDayStatus } from "./BookingStatusBadge";
 export { SafetyAlertChip } from "./SafetyAlertChip.jsx";
+// Flyer visual language (docs/plans/active/2026-11-22-flyer-visual-language.md):
+// the segmented stripe, the yellow swash and the service mascots. Decorative only.
+export { BrandStripe } from "./BrandStripe.jsx";
+export { ScribbleUnderline } from "./ScribbleUnderline.jsx";
+export { ServiceMascot, SERVICE_MASCOTS } from "./ServiceMascot.jsx";
 // Dialogs. AccessibleModal owns behaviour (focus trap, Escape, scroll lock, stacking);
 // ModalShell adds the chrome (accent bar, pinned header/footer, mobile sheet).
 export { AccessibleModal } from "./AccessibleModal";

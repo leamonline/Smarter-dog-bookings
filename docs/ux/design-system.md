@@ -31,7 +31,10 @@ step 3).
 
 Montserrat is body/UI and Poppins is headings; staff page titles stay Poppins
 700. Hero lines (sign-in, step titles, confirmations, true empty and done
-states) move to Poppins 900 in step 2, replacing Barlow Condensed. Caveat 700 is
+states) use Poppins 900 through `font-hero` with `font-black`: on the customer
+portal since step 2, on staff screens from step 3. It is registered as its own
+family, `Poppins Black`, so headings already set to 800 or 900 keep the 700 face
+they were designed with. Barlow Condensed is gone. Caveat 700 is
 the handwritten accent: at most one short line per hero screen, in blue or ink,
 never carrying a name, date, price or instruction. The Quicksand descriptions
 are historical.
@@ -59,7 +62,8 @@ polaroid settling, one mascot bounce) and is removed under
   secondary. Success and WhatsApp keep their existing green meanings.
 - Brand blue (`--color-brand-cyan`) is the brand partner: links, the active tab,
   and the ring and tick on a selected item, over the sky tint. Selection moves
-  from charcoal to blue in step 2 (portal) and step 3 (staff); a tick or check
+  from charcoal to blue on the customer portal in step 2 and on staff screens in
+  step 3; a tick or check
   stays, so colour is never the only signal. The brighter flyer blue
   (`--color-brand-cyan-light`) is decoration only and never text.
 - Safety colours are frozen. Status and dog-size colours change once, in step 3,

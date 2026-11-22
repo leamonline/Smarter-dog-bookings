@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — flyer visual language, step 2: the customer portal
+
+- The customer portal takes on the salon flyer's look ([plan](docs/plans/active/2026-11-22-flyer-visual-language.md)): the blue and yellow segmented stripe across the top of sign-in, the dashboard and every booking step; hero titles in Poppins 900; the flyer's mascot beside each service; selected dogs, services, dates and times in brand blue with a tick (yellow stays for Continue); one handwritten Caveat line on sign-in, the dashboard and the booked screen.
+- "All booked in!" shows the dog's own photo in the taped polaroid when the customer has added one, with the service mascot on its corner. This needed a fix: the wizard dropped each dog's photo when it loaded them, so the screen could never show it.
+- Motion is three single moves on the booked screen (the swash draws in, the polaroid settles, the mascot bounces once), all off under reduced motion. The looping floating paws are gone.
+- Poppins 900 is registered under its own font name, so no existing heading changes weight. Barlow Condensed, which nothing used, is removed: 37KB out, 13KB of Poppins 900 in, so the app precaches about 24KB less.
+- Staff screens are unchanged; they follow in step 3.
+
 ## Unreleased — flyer visual language: approved rules and plan
 
 - Records the owner's approval (22 November 2026) of a visual language taken from the salon's printed flyer, for both the staff dashboard and the customer portal: the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md) holds the 13 decisions, the exact values with their contrast evidence, and the four rollout steps.

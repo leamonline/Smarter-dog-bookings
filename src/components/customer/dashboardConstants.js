@@ -6,15 +6,6 @@ export const SERVICE_LABELS = {
   "nail-trim": "Nail Trim",
 };
 
-// Icon names resolved to Lucide components in each component file
-export const SERVICE_ICON_NAMES = {
-  "full-groom": "Scissors",
-  "bath-and-brush": "Droplets",
-  "bath-and-deshed": "Wind",
-  "puppy-groom": "PawPrint",
-  "nail-trim": "Scissors",
-};
-
 export function formatSlot(slot) {
   const [h, m] = slot.split(":").map(Number);
   const suffix = h >= 12 ? "pm" : "am";

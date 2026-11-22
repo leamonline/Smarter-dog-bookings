@@ -13,6 +13,15 @@
   color: var(--color-ink);
 }
 
+/* The flyer stripe across the top of every wizard screen (decision 4). It
+   cancels the page's top and side padding so it runs edge to edge. */
+.booking-wizard > .brand-stripe {
+  margin: -16px -4px 22px;
+}
+@media (min-width: 640px) {
+  .booking-wizard > .brand-stripe { margin: -28px -12px 28px; }
+}
+
 .booking-wizard-inner {
   max-width: 560px;
   margin: 0 auto;
@@ -93,12 +102,14 @@
 }
 
 .booking-wizard-title h1 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(22px, 5vw, 28px);
+  /* Hero line (flyer visual language, decision 3): Poppins Black. */
+  font-family: var(--font-hero);
+  font-weight: 900;
+  font-size: clamp(26px, 6vw, 34px);
+  line-height: 1.05;
   color: var(--color-ink);
   margin: 0;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.03em;
   position: relative;
   display: inline-block;
   outline: none;
@@ -139,12 +150,14 @@
   background: rgba(31, 31, 31, 0.10);
   border-radius: 2px;
 }
+/* Done steps are progress, not something to press, so they take the brand
+   blue rather than the action yellow (flyer visual language, decision 5). */
 .booking-wizard-steps li.is-done .booking-wizard-step-dot {
-  background: var(--color-brand-yellow);
-  border-color: var(--color-brand-yellow-dark);
-  color: var(--color-ink);
+  background: var(--color-brand-cyan);
+  border-color: var(--color-brand-cyan-dark);
+  color: var(--color-surface-card);
 }
-.booking-wizard-steps li.is-done:not(:last-child)::after { background: var(--color-brand-yellow); }
+.booking-wizard-steps li.is-done:not(:last-child)::after { background: var(--color-brand-cyan); }
 .booking-wizard-steps li.is-current .booking-wizard-step-dot {
   background: white;
   border-color: var(--color-ink);
@@ -190,11 +203,13 @@
   transform: translateY(-1px);
   box-shadow: var(--shadow-sd-card);
 }
+/* Selected: brand blue ring and tick on the sky tint (decision 5). Yellow is
+   kept for the one thing to press next, the Continue button. */
 .wizard-option[aria-pressed="true"],
 .wizard-option.is-selected {
-  border-color: var(--color-brand-yellow-dark);
-  background: var(--color-sd-buttercup-tint);
-  box-shadow: var(--shadow-sd-card);
+  border-color: var(--color-brand-cyan);
+  background: var(--color-sd-sky-tint);
+  box-shadow: var(--shadow-sd-card), inset 0 0 0 1px var(--color-brand-cyan);
 }
 .wizard-option:disabled {
   opacity: 0.45;
@@ -222,8 +237,8 @@
   border-color: var(--color-ink);
 }
 .wizard-tick[data-checked="true"] {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
+  background: var(--color-brand-cyan);
+  border-color: var(--color-brand-cyan);
   transform: scale(1.04);
 }
 
@@ -389,9 +404,9 @@
   transform: translateY(-1px);
 }
 .wizard-day[aria-pressed="true"] {
-  background: var(--color-brand-yellow);
-  border-color: var(--color-brand-yellow-dark);
-  color: var(--color-ink);
+  background: var(--color-brand-cyan);
+  border-color: var(--color-brand-cyan-dark);
+  color: var(--color-surface-card);
   font-weight: 800;
   box-shadow: var(--shadow-sd-card);
 }
@@ -622,26 +637,6 @@
   position: relative;
 }
 
-.booking-success-paws {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 0;
-}
-.booking-success-paws svg {
-  position: absolute;
-  opacity: 0.18;
-  animation: pawFloat 3.6s ease-in-out infinite;
-}
-
-.booking-success > *:not(.booking-success-paws) { position: relative; z-index: 1; }
-
-@keyframes pawFloat {
-  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
-  50% { transform: translateY(-10px) rotate(var(--rot, 0deg)); }
-}
-
 .booking-success-polaroid {
   width: 180px;
   height: 200px;
@@ -678,14 +673,44 @@
 }
 
 .booking-success-title {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 700;
+  font-family: var(--font-hero);
+  font-size: clamp(32px, 8vw, 40px);
+  font-weight: 900;
+  line-height: 1.05;
   color: var(--color-ink);
   margin: 0 0 12px;
   position: relative;
   display: inline-block;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.035em;
+}
+/* The one handwritten line the booked moment carries (decision 9). */
+.booking-success-hand {
+  display: block;
+  margin: 6px 0 2px;
+  font-family: var(--font-handwriting);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1.1;
+  color: var(--color-brand-cyan);
+  transform: rotate(-3deg);
+}
+/* Polaroid plus the service mascot tucked on its corner. */
+.booking-success-figure {
+  position: relative;
+  width: 180px;
+  margin: 0 auto 24px;
+}
+.booking-success-figure .booking-success-polaroid { margin: 0; }
+.booking-success-figure .service-mascot {
+  position: absolute;
+  right: -34px;
+  bottom: -14px;
+}
+.booking-success-polaroid-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
 }
 .booking-success-subtitle {
   font-size: 15px;
@@ -730,7 +755,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .booking-success-polaroid { animation: none; }
-  .booking-success-paws svg { animation: none; }
 }
 
 .wizard-btn:disabled {

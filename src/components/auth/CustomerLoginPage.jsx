@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { Eye, EyeOff } from "lucide-react";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
+import { BrandStripe } from "../ui/BrandStripe.jsx";
 import { Input } from "../ui/index.js";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { normaliseUkMobile } from "../../utils/phone.js";
@@ -412,9 +413,11 @@ export function CustomerLoginPage({
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
+      className="relative min-h-screen flex flex-col items-center justify-center px-4 py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
+      {/* The flyer stripe across the top of the page (flyer visual language, decision 4). */}
+      <BrandStripe size="hero" className="absolute top-3 left-3 right-3" />
       <div
         className="w-full max-w-md bg-white rounded-3xl px-10 py-12 border border-[rgba(31,31,31,0.07)] relative overflow-hidden motion-safe:animate-[cardSlideUp_0.5s_cubic-bezier(0.22,1,0.36,1)_both]"
         style={{
@@ -422,13 +425,6 @@ export function CustomerLoginPage({
             "0 2px 4px rgba(31, 31, 31, 0.05), 0 16px 40px -14px rgba(31, 31, 31, 0.15), 0 34px 72px -28px rgba(16,194,252,0.24)",
         }}
       >
-        {/* Brand-gradient ribbon along the very top edge for a polished,
-            branded finish (clipped to the card's rounded corners). */}
-        <div
-          aria-hidden="true"
-          className="absolute top-0 left-0 right-0 h-1.5"
-          style={{ background: "linear-gradient(90deg, var(--color-brand-cyan), var(--color-brand-yellow) 55%, var(--color-brand-coral))" }}
-        />
         {/* Decorative scatter of the brand dog silhouette behind the form,
             drifting gently. */}
         <DogSilhouetteScatter animated />
@@ -450,16 +446,23 @@ export function CustomerLoginPage({
 
           {/* aria-live wrapper announces the stage change to screen readers. */}
           <div aria-live="polite">
-            <h1 className="font-display font-bold text-3xl mb-4 text-center text-[var(--color-ink)]">
+            <h1 className="font-hero font-black text-4xl leading-tight tracking-tight mb-4 text-center text-[var(--color-ink)]">
               <span className="relative inline-block">
                 {heading}
                 <ScribbleUnderline />
               </span>
             </h1>
             {stage === "phone" && (
-              <p className="text-sm text-center text-[var(--color-ink-soft)] mb-4 leading-relaxed">
-                Book grooms, see past visits, and keep your details up to date.
-              </p>
+              <>
+                {/* The sign-in hero's one handwritten line, taken from the flyer
+                    (owner sign-off, 22 November 2026). */}
+                <p className="font-handwriting font-bold text-2xl text-center text-brand-cyan -rotate-2 mb-3">
+                  Book your groom online
+                </p>
+                <p className="text-sm text-center text-[var(--color-ink-soft)] mb-4 leading-relaxed">
+                  Book grooms, see past visits, and keep your details up to date.
+                </p>
+              </>
             )}
             <p id="login-instruction" className="text-sm text-center text-[var(--color-ink-muted)] mb-8 leading-relaxed">
               {instruction}

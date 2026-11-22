@@ -44,6 +44,9 @@ import { BookingSummarySidebar } from "./BookingSummarySidebar";
 import { AddToCalendarButton } from "../AddToCalendarButton";
 import { DepositHoldInstructions } from "../DepositHoldInstructions";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
+import { BrandStripe } from "../../ui/BrandStripe.jsx";
+import { ServiceMascot } from "../../ui/ServiceMascot.jsx";
+import { useDogPhotoUrl } from "../../../supabase/hooks/useCustomerDogPhoto";
 import { SERVICES } from "../../../constants/salon";
 import {
   readRepeatEntries,
@@ -157,32 +160,22 @@ const STEP_TITLES = [
 ];
 
 // Five paw prints scattered around the success screen, gently floating.
-// Decorative — purely a one-time joy moment, hidden from screen readers.
-const CONFETTI_PAWS: Array<{ top: string; left: string; size: number; color: string; rot: number; delay: string }> = [
-  { top: "8%",  left: "10%", size: 22, color: "var(--color-brand-yellow)",      rot: -18, delay: "0s"   },
-  { top: "22%", left: "82%", size: 18, color: "var(--color-brand-cyan-dark)",   rot:  12, delay: "0.4s" },
-  { top: "55%", left: "6%",  size: 16, color: "var(--color-brand-coral)",       rot:  -8, delay: "0.8s" },
-  { top: "70%", left: "88%", size: 20, color: "var(--color-brand-yellow-dark)", rot:  22, delay: "1.2s" },
-  { top: "85%", left: "20%", size: 14, color: "var(--color-brand-cyan-dark)",   rot:  -6, delay: "1.6s" },
-];
-
-function ConfettiPaws() {
+// The booked moment's picture (flyer visual language, decisions 9 and 10):
+// the dog's own photo in the taped polaroid when the customer has added one,
+// the paw placeholder when not, and the service's mascot on the corner,
+// bouncing once. It replaced a loop of floating paws, because the approved
+// motion is three single moves and nothing that keeps going. Decorative: the
+// heading and sentence below say everything it shows.
+function SuccessFigure({ photoPath, serviceId }: { photoPath: string | null; serviceId: string | null }) {
+  const { url, onLoadError } = useDogPhotoUrl(photoPath);
   return (
-    <div className="booking-success-paws" aria-hidden="true">
-      {CONFETTI_PAWS.map((p, i) => (
-        <PawPrint
-          key={i}
-          size={p.size}
-          style={{
-            top: p.top,
-            left: p.left,
-            color: p.color,
-            transform: `rotate(${p.rot}deg)`,
-            animationDelay: p.delay,
-            ["--rot" as string]: `${p.rot}deg`,
-          } as React.CSSProperties}
-        />
-      ))}
+    <div className="booking-success-figure" aria-hidden="true">
+      <div className="booking-success-polaroid">
+        <div className="booking-success-polaroid-photo">
+          {url ? <img src={url} alt="" onError={onLoadError} /> : <PawPrint size={48} />}
+        </div>
+      </div>
+      {serviceId && <ServiceMascot serviceId={serviceId} size={68} bounce />}
     </div>
   );
 }
@@ -192,7 +185,12 @@ function ConfettiPaws() {
 // it these screens fell back to the plain page background, breaking
 // continuity right at the flow's emotional high point.
 function SuccessShell({ children }: { children: React.ReactNode }) {
-  return <div className="booking-wizard">{children}</div>;
+  return (
+    <div className="booking-wizard">
+      <BrandStripe />
+      {children}
+    </div>
+  );
 }
 
 export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWizardProps) {
@@ -447,6 +445,8 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
             size: d.size,
             reportedSize: d.reportedSize,
             isPregnant: d.isPregnant,
+            // The booked moment frames this photo in its polaroid.
+            photoPath: d.photoPath ?? null,
           };
         })
       );
@@ -982,6 +982,14 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       : dogNames.slice(0, -1).join(", ") + " & " + dogNames[dogNames.length - 1];
     // Keep the full server-issued identity; truncating UUIDs risks collisions.
     const bookingRef = bookedIds[0] ?? "";
+    // The first chosen dog with a photo is the polaroid's subject; its service
+    // picks the mascot. With no photo anywhere, the first dog's service does.
+    const photoDog = selectedDogs
+      .map((d) => dogs.find((dog) => dog.id === d.dogId))
+      .find((dog) => !!dog?.photoPath);
+    const heroDogId = photoDog?.id ?? selectedDogs[0]?.dogId ?? null;
+    const heroPhotoPath = photoDog?.photoPath ?? null;
+    const heroServiceId = heroDogId ? services[heroDogId] ?? null : null;
 
     if (requestSent) {
       return (
@@ -1017,7 +1025,6 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
       return (
         <SuccessShell>
           <div className="booking-success booking-success--waitlist">
-            <ConfettiPaws />
             <div className="booking-success-polaroid" aria-hidden="true">
               <div className="booking-success-polaroid-photo">
                 <Clipboard size={48} />
@@ -1044,20 +1051,18 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
     return (
       <SuccessShell>
         <div className="booking-success">
-          <ConfettiPaws />
-          <div className="booking-success-polaroid" aria-hidden="true">
-            <div className="booking-success-polaroid-photo">
-              <PawPrint size={48} />
-            </div>
-          </div>
+          <SuccessFigure photoPath={heroPhotoPath} serviceId={heroServiceId} />
           <h1 ref={stepHeadingRef} tabIndex={-1} className="booking-success-title">
             {depositInfo
               ? "Deposit needed"
               : depositStatusUnknown
                 ? "Appointment saved"
                 : "All booked in!"}
-            <ScribbleUnderline />
+            <ScribbleUnderline draw />
           </h1>
+          {!depositInfo && !depositStatusUnknown && (
+            <span className="booking-success-hand">See you soon!</span>
+          )}
           <p className="booking-success-subtitle">
             {depositInfo ? (
               <>
@@ -1122,6 +1127,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
 
   return (
     <div className="booking-wizard">
+      <BrandStripe />
       <div className="booking-wizard-inner">
         <div className="booking-wizard-main">
         {/* Header */}
