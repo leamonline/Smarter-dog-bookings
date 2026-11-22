@@ -20,6 +20,13 @@ describe('public route SEO', () => {
     expect(PRERENDER_PATHS).toContain('/services');
     expect(PRERENDER_PATHS).toContain('/community');
     expect(PRERENDER_PATHS).toContain('/houndsly');
+    expect(PRERENDER_PATHS).toContain('/support');
+    expect(routeSeoFor('/support')).toMatchObject({
+      title: 'App support — Smarter Dog Grooming',
+      canonical: '/support',
+      robots: 'index,follow',
+    });
+    expect(routeSeoFor('/support').description).toMatch(/WhatsApp/);
     for (const page of NEED_PAGES) {
       expect(PRERENDER_PATHS).toContain(page.path);
     }
@@ -90,6 +97,16 @@ describe('public route SEO', () => {
     }
     expect(faqSchemaFor('/faq').mainEntity.length).toBeGreaterThan(0);
     expect(faqSchemaFor('/services')).toBeNull();
+  });
+
+  it('lists every prerendered route in the public sitemap', () => {
+    const sitemap = readFileSync('public/sitemap.xml', 'utf8');
+    for (const path of PRERENDER_PATHS) {
+      const loc = path === '/'
+        ? 'https://smarterdog.co.uk/'
+        : `https://smarterdog.co.uk${path}`;
+      expect(sitemap).toContain(`<loc>${loc}</loc>`);
+    }
   });
 
   it('treats a trailing slash as the same public route', () => {

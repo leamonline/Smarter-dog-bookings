@@ -69,7 +69,7 @@ describe("vercel routing table", () => {
     // rewrite serves the file.
     const marketing = [
       "/approach", "/community", "/faq", "/houndsly",
-      "/matted-coat-policy", "/privacy", "/services", "/terms",
+      "/matted-coat-policy", "/privacy", "/services", "/support", "/terms",
       "/nervous-anxious-dog-grooming", "/senior-blind-deaf-dog-grooming",
       "/doodle-grooming-matted-coats", "/dog-de-shedding-ashton-under-lyne",
       "/sensitive-skin-dog-grooming-natural-shampoo", "/independent-dog-groomer-vs-chain",
@@ -162,7 +162,7 @@ describe("vercel routing table", () => {
     // pages off the air.
     const marketing = [
       "/approach", "/community", "/faq", "/houndsly",
-      "/matted-coat-policy", "/privacy", "/services", "/terms",
+      "/matted-coat-policy", "/privacy", "/services", "/support", "/terms",
       "/nervous-anxious-dog-grooming", "/senior-blind-deaf-dog-grooming",
       "/doodle-grooming-matted-coats", "/dog-de-shedding-ashton-under-lyne",
       "/sensitive-skin-dog-grooming-natural-shampoo", "/independent-dog-groomer-vs-chain",
