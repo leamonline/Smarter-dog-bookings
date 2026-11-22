@@ -492,6 +492,11 @@ begin
     raise exception 'booking_not_found' using errcode = 'P0002';
   end if;
 
+  -- Take the booking lock before looking at payments. prepare_square_deposit_charge
+  -- takes the same lock first, so a charge that opens while this runs is either
+  -- visible to the checks below or waits until the waiver has finished.
+  perform 1 from public.bookings b where b.id = p_booking_id for update;
+
   if exists (
     select 1
     from public.deposit_payments p
@@ -510,8 +515,6 @@ begin
   ) then
     raise exception 'deposit_already_taken' using errcode = 'P0001';
   end if;
-
-  perform b.id from public.bookings b where b.id = p_booking_id for update;
 
   update public.deposit_payments
      set status = 'waived',
