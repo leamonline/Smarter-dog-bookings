@@ -8,8 +8,8 @@ select plan(53);
 
 \ir fixtures/ensure_local_vault_secrets.psql
 
-insert into public.salon_config (pricing, large_dog_slots, settings)
-select '{}'::jsonb, '{}'::jsonb, '{"minCancellationHours": 24}'::jsonb
+insert into public.salon_config (settings)
+select '{"minCancellationHours": 24}'::jsonb
 where (select count(*) from public.salon_config) = 0;
 
 update public.salon_config
