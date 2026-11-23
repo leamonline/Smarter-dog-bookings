@@ -210,6 +210,18 @@ Each is its own pull request, merged only after the full CI bar.
    openings). `docs/capacity-engine.md` now says four copies.
 3. **Read-only wizard.** Dogs, services, date and time screens ending at a
    summary with **no confirm button**. Sample data mode for screenshots.
+   - **3a, built:** the state and rules in `ios/SmarterDog/BookingWizard.swift`,
+     no screens. The five steps and their headings match the website. A dog the
+     salon has not sized, or a pregnant dog, is shown but cannot be chosen (the
+     website's words). A change upstream drops what it makes wrong: a different
+     dog clears the time and, for a large dog, a Puppy Groom; a different date
+     clears the time. Tapping a step never jumps past the first unfinished one.
+     The summary shows no price: prices come from the salon's pricing settings,
+     which the app does not read yet, and a guess is worse than saying nothing.
+     The website's "ask staff to confirm this dog's size" button writes a to-do,
+     so the app does not have it yet and says only what is true.
+   - **3b, next:** the screens, a data client for dogs (with `is_pregnant`) and
+     availability, and the sample mode.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.
