@@ -87,7 +87,7 @@ export function ConversationListItem({
           isSelected
             ? "border-l-brand-yellow bg-brand-yellow/45 shadow-[inset_0_0_0_1px_rgba(31,31,31,0.18)]"
             : isClosed
-              ? "border-l-transparent bg-slate-50 opacity-75 hover:bg-slate-100"
+              ? "border-l-transparent bg-sd-cloud-tint opacity-75 hover:bg-slate-100"
               : unread
                 ? "border-l-transparent bg-brand-yellow/15 hover:bg-brand-yellow/25"
                 : "border-l-transparent bg-white hover:bg-slate-50"

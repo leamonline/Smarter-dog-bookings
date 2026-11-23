@@ -144,7 +144,7 @@ export function BroadcastMessageModal({ defaultDate, onClose }) {
       )}
 
       {result && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2">
+        <div className="rounded-lg border border-slate-200 bg-sd-cloud-tint p-3 flex flex-col gap-2">
           <div className="text-body text-slate-700">
             {resultMode === "preview" ? (
               <>

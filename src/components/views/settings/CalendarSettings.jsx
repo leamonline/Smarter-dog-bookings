@@ -78,7 +78,7 @@ export function CalendarSettings() {
         ) : feedUrl ? (
           <>
             {/* URL + copy */}
-            <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-3 mb-3">
+            <div className="flex items-center gap-2 bg-sd-cloud-tint rounded-lg p-3 mb-3">
               <input
                 type="text"
                 readOnly
@@ -141,7 +141,7 @@ export function CalendarSettings() {
       </div>
 
       {/* Customer info */}
-      <div className="bg-slate-50 border border-slate-200 rounded-card p-5">
+      <div className="bg-sd-cloud-tint border border-slate-200 rounded-card p-5">
         <h3 className="text-[15px] font-bold text-slate-800 mb-1">Customer Calendar Sync</h3>
         <p className="text-body text-slate-500 leading-relaxed">
           Customers can add appointments to their personal calendar from the booking confirmation screen

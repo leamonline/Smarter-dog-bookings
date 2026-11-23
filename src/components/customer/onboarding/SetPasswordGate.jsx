@@ -146,7 +146,7 @@ export function SetPasswordGate({ mode = "set", reason, username, onComplete, on
               value={username}
               readOnly
               tabIndex={-1}
-              className="portal-input w-full bg-slate-50 text-slate-600"
+              className="portal-input w-full bg-sd-cloud-tint text-slate-600"
             />
           </div>
         )}

@@ -463,7 +463,7 @@ export function TrustedHumansPanel({
             )}
 
             {showNewForm && (
-              <div className="mt-2 p-3 bg-slate-50 rounded-control border border-slate-200">
+              <div className="mt-2 p-3 bg-sd-cloud-tint rounded-control border border-slate-200">
                 <div className="text-micro font-extrabold text-brand-teal-text uppercase tracking-wide mb-2">
                   New trusted human
                 </div>

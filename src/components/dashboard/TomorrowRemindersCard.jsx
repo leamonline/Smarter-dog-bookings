@@ -206,7 +206,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
           <button
             type="button"
             onClick={onOpen}
-            className="inline-flex items-center justify-center py-1.5 px-3 rounded-md bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            className="inline-flex items-center justify-center py-1.5 px-3 rounded-md bg-sd-cloud-tint border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
           >
             Review all {totalCount}
           </button>

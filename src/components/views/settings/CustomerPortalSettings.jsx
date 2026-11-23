@@ -75,7 +75,7 @@ export function CustomerPortalSettings({
             the current booking setup stays in force.
           </p>
         )}
-        <p className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-700">
+        <p className="mb-2 rounded-lg border border-slate-200 bg-sd-cloud-tint px-3 py-2.5 text-xs font-semibold text-slate-700">
           Upcoming visits are always visible so customers can see and act on
           unresolved bookings.
         </p>

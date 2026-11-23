@@ -134,7 +134,7 @@ export function RecurringBookingModal({
                   key={b.id}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${
                     isCurrent
-                      ? "border-2 bg-slate-50"
+                      ? "border-2 bg-sd-cloud-tint"
                       : isPast
                         ? "border-slate-100 bg-slate-50/50 opacity-60"
                         : "border-slate-200 bg-white"

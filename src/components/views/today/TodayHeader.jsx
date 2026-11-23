@@ -6,6 +6,7 @@ import { DAY_CAPACITY } from "../../../engine/utilisation";
 import { Button } from "../../ui/Button.jsx";
 import { IconButton } from "../../ui/IconButton.jsx";
 import { PageHeader } from "../../ui/PageHeader.jsx";
+import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
 import { formatMoney } from "./parts.jsx";
 import {
   NeedsAttentionSummary,
@@ -89,6 +90,10 @@ export function TodayHeader({
               className={`inline-flex min-h-11 min-w-0 items-center gap-2 rounded-control px-1 text-left outline-none transition-colors hover:bg-brand-ink/[0.04] focus-visible:ring-2 focus-visible:ring-brand-ink focus-visible:ring-offset-2 ${hasDayArrows ? "max-sm:gap-1" : "-ml-1"}`}
             >
               <CalendarDays size={18} aria-hidden="true" className="hidden shrink-0 text-brand-ink/45 sm:block" />
+              {/* The yellow swash under the page title (flyer visual language,
+                  decision 8). It sits on this wrapper, not the title, because
+                  the title truncates and would clip it. */}
+              <span className="relative inline-flex min-w-0">
               <strong className={`min-w-0 truncate font-display text-lg font-bold leading-none tracking-[-0.02em] text-brand-ink sm:text-2xl ${hasDayArrows ? "max-[359px]:text-base" : ""}`}>
                 {hasDayArrows ? (
                   <>
@@ -104,6 +109,8 @@ export function TodayHeader({
                   </>
                 )}
               </strong>
+              <ScribbleUnderline />
+              </span>
               <ChevronDown size={15} aria-hidden="true" className={`shrink-0 text-brand-ink/45 ${hasDayArrows ? "max-[359px]:hidden" : ""}`} />
             </button>
             {hasDayArrows ? (

@@ -321,7 +321,7 @@ export function BookingPane({
           <p className="mt-1 text-xs">{emptyStateBody}</p>
         </div>
       ) : !open ? (
-        <div className="m-3 flex items-start gap-2 rounded-tile border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+        <div className="m-3 flex items-start gap-2 rounded-tile border border-slate-200 bg-sd-cloud-tint px-3 py-2 text-xs text-slate-700">
           <CalendarDays aria-hidden="true" size={17} className="mt-0.5 shrink-0" />
           The salon is closed on this date. Existing appointments remain visible for context.
         </div>

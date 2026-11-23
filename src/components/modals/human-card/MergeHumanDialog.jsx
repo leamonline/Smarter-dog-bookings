@@ -52,7 +52,7 @@ function CompareColumn({ human, dogs, dogsByHumanId, bookingsByDate, role }) {
       className={`flex-1 min-w-0 rounded-control border p-3 ${
         isWinner
           ? "border-brand-teal/50 bg-brand-teal/5"
-          : "border-slate-200 bg-slate-50"
+          : "border-slate-200 bg-sd-cloud-tint"
       }`}
     >
       <div
