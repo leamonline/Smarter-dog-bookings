@@ -19,6 +19,9 @@ struct SmarterDogApp: App {
                     auth: AuthService(previewPhase: .customer(account)),
                     client: SampleHomeClient()
                 )
+            } else if CommandLine.arguments.contains("-sampleBooking") {
+                // Debug only: the booking screens with made-up dogs, no sign-in and no network.
+                NavigationStack { BookingFlowView(client: SampleBookingClient()) }
             } else {
                 RootView(auth: auth)
             }
@@ -44,6 +47,19 @@ struct SampleHomeClient: SalonHomeClient {
             BookingRow(id: "b2", booking_date: later, slot: "12:00", service: "Bath & De-shed", status: "Booked", dog_id: "d2"),
         ]
         return (bookings, dogs)
+    }
+}
+
+/// Made-up dogs for booking screenshots, covering every state of the dog step.
+/// Compiled into Debug builds only.
+struct SampleBookingClient: SalonBookingDataClient {
+    func loadDogs() async throws -> [BookingDogRow] {
+        [
+            BookingDogRow(id: "d1", name: "Biscuit", breed: "Cockapoo", size: "medium", is_pregnant: false),
+            BookingDogRow(id: "d2", name: "Moose", breed: "Newfoundland", size: "large", is_pregnant: false),
+            BookingDogRow(id: "d3", name: "Pip", breed: "Cavapoo", size: nil, is_pregnant: false),
+            BookingDogRow(id: "d4", name: "Bella", breed: "Poodle", size: "small", is_pregnant: true),
+        ]
     }
 }
 #endif

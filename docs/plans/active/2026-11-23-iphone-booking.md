@@ -220,8 +220,18 @@ Each is its own pull request, merged only after the full CI bar.
      which the app does not read yet, and a guess is worse than saying nothing.
      The website's "ask staff to confirm this dog's size" button writes a to-do,
      so the app does not have it yet and says only what is true.
-   - **3b, next:** the screens, a data client for dogs (with `is_pregnant`) and
-     availability, and the sample mode.
+   - **3b-1, built:** the dog picker. `BookingFlowModel` (in the Linux-tested package)
+     holds the wizard and loads the customer's dogs through
+     `SalonBookingDataClient` (`SupabaseBookingClient` reads `dogs` with
+     `is_pregnant`, under Row Level Security). `BookingFlowView` has the step
+     header and dots, the dog step (a blocked dog is shown with the website's
+     reason and cannot be tapped; selected is a blue ring, tint and tick; the
+     website's two explanations with a WhatsApp link) and Back and Continue.
+     **Reachable only from Debug builds with the launch argument `-sampleBooking`**
+     (made-up dogs covering every state), so no customer sees a half-built flow.
+   - **3b-2 onwards, next:** services, date, time and summary screens, each
+     reading `BookingFlowModel`, and the availability read for the date and time
+     steps.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.
