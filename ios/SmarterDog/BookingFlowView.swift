@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. This slice has
-/// the first two steps (pick a dog, choose a service); the others arrive in the next ones, and
+/// the first three steps (pick a dog, choose a service, pick a date); the others arrive in the next ones, and
 /// nothing here can send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
 /// so no customer sees a half-built flow.
 struct BookingFlowView: View {
@@ -32,6 +32,10 @@ struct BookingFlowView: View {
         .background(AppColor.surface.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.loadDogs() }
+        // The date step reads the calendar the first time it appears, not before.
+        .task(id: model.step) {
+            if model.step == .date, model.calendarState == .idle { await model.loadDateStep() }
+        }
     }
 
     // MARK: header
@@ -60,6 +64,8 @@ struct BookingFlowView: View {
             dogStep
         case .service:
             serviceStep
+        case .date:
+            dateStep
         default:
             Text("This step is coming next.")
                 .font(.body)
@@ -124,6 +130,54 @@ struct BookingFlowView: View {
                     selected: model.selectedService == service
                 ) {
                     model.select(service: service)
+                }
+            }
+        }
+    }
+
+    /// The date step: a list by week, not the website's grid. The salon is open Monday to Wednesday,
+    /// so a grid would be mostly closed cells with small targets. Closed and fully booked days stay
+    /// in the list, greyed and labelled, so the customer can see why a day is missing.
+    @ViewBuilder
+    private var dateStep: some View {
+        if model.calendarState != .loaded {
+            ProgressView()
+                .tint(AppColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Loading available days")
+        } else {
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                if let name = model.selectedDogName {
+                    Text("Pick a day for \(name). Days we can't take \(name) on are greyed out.")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if model.calendarIsIncomplete {
+                    ErrorNote(message: "We couldn't check every day, so one may turn out to be full when you pick a time.")
+                    Button("Check again") { Task { await model.showDatePage(model.datePage) } }
+                        .buttonStyle(BackButtonStyle())
+                }
+                if let offer = model.lastMinuteOffer {
+                    LastMinuteRow(offer: offer, selected: model.isLastMinuteSelected) {
+                        model.selectLastMinute()
+                    }
+                }
+                if model.canShowEarlierDates {
+                    Button("Show earlier dates") { Task { await model.showDatePage(model.datePage - 1) } }
+                        .buttonStyle(BackButtonStyle())
+                }
+                ForEach(model.dateWeeks) { week in
+                    SectionLabel(text: week.heading)
+                    ForEach(week.days) { day in
+                        DateChoiceRow(option: day, selected: model.selectedDate == day.date) {
+                            model.select(date: day.date)
+                        }
+                    }
+                }
+                if model.canShowLaterDates {
+                    Button("Show later dates") { Task { await model.showDatePage(model.datePage + 1) } }
+                        .buttonStyle(BackButtonStyle())
                 }
             }
         }
@@ -242,6 +296,84 @@ private struct ServiceChoiceRow: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(AppColor.textPrimary)
                     }
+                }
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// One day. A day that cannot be picked shows why ("Closed", "Fully booked") and cannot be tapped.
+private struct DateChoiceRow: View {
+    let option: DateOption
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                Text(option.title)
+                    .font(.headline)
+                    .foregroundStyle(option.isSelectable ? AppColor.textPrimary : AppColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                if let label = option.state.label {
+                    Text(label)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppColor.textSecondary)
+                } else if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+            .opacity(option.isSelectable ? 1 : 0.6)
+        }
+        .buttonStyle(.plain)
+        .disabled(!option.isSelectable)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(option.state.label ?? "")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// Today's staff-opened slots. Shown only when there is something to book, above the list.
+private struct LastMinuteRow: View {
+    let offer: LastMinuteOffer
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                Image(systemName: "bolt.fill")
+                    .font(.title3)
+                    .foregroundStyle(AppColor.textPrimary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: AppSpace.half) {
+                    Text(offer.title)
+                        .font(.headline)
+                        .foregroundStyle(AppColor.textPrimary)
+                    Text("Times: " + offer.slots.map(HomeSelector.timeText).joined(separator: ", "))
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 if selected {
