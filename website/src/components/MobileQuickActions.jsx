@@ -56,7 +56,7 @@ const MobileQuickActions = ({ onBookClick }) => {
                         rel="noopener noreferrer"
                         onClick={handleWhatsAppClick}
                         className="w-full rounded-xl px-4 py-3 font-bold text-sm text-center border-2"
-                        style={{ borderColor: colors.teal, color: colors.teal }}
+                        style={{ borderColor: colors.plum, color: colors.plum }}
                     >
                         WhatsApp us
                     </a>

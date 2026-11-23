@@ -6,7 +6,7 @@ import PolaroidImage from '../PolaroidImage';
 
 const HoundslySection = () => {
     return (
-        <section className="py-24 relative overflow-hidden" style={{ backgroundColor: colors.mutedGreen }}>
+        <section className="py-24 relative overflow-hidden" style={{ backgroundColor: colors.cyanLight }}>
             {/* Subtle texture overlay */}
             <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E")` }}
@@ -30,7 +30,7 @@ const HoundslySection = () => {
                                         src="/assets/houndsly-shampoo.jpg"
                                         caption="Houndsly Natural Shampoo"
                                         rotation={-4}
-                                        tapeColor={colors.green}
+                                        tapeColor={colors.yellow}
                                         width={300}
                                         height={300}
                                         loading="lazy"
@@ -81,12 +81,12 @@ const HoundslySection = () => {
                                 <h2 className="heading-font font-bold text-4xl mb-6" style={{ color: colors.plum }}>
                                     Made for sensitive skin
                                 </h2>
-                                <p className="body-font text-xl mb-6 leading-relaxed" style={{ color: colors.teal }}>
+                                <p className="body-font text-xl mb-6 leading-relaxed" style={{ color: colors.inkMuted }}>
                                     We couldn't find shampoos we were happy putting on our own dogs, so we made our own.
                                     Naturally derived ingredients, no animal products, and properly gentle — even on the fussiest skin.
                                 </p>
 
-                                <p className="body-font text-xl mb-8 leading-relaxed" style={{ color: colors.teal }}>
+                                <p className="body-font text-xl mb-8 leading-relaxed" style={{ color: colors.inkMuted }}>
                                     Handmade in small batches, because that's the only way we'd want our dogs washed.
                                 </p>
 
@@ -104,7 +104,7 @@ const HoundslySection = () => {
                                 </div>
 
                                 {/* Salon link - the key differentiator */}
-                                <p className="body-font text-base mb-8 italic" style={{ color: colors.teal, opacity: 0.9 }}>
+                                <p className="body-font text-base mb-8 italic" style={{ color: colors.inkMuted }}>
                                     These are the products we actually use in the salon every day.{' '}
                                     <Link to="/sensitive-skin-dog-grooming-natural-shampoo" className="font-semibold underline" style={{ color: colors.plum }}>
                                         Grooming for sensitive skin

@@ -1,9 +1,9 @@
 # Flyer visual language for the web app
 
-Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264; step 3 follow-ups in review)
+Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website merged in #1269 and #1272, emails in review)
 Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
-Last verified: 2026-11-22
+Last verified: 2026-11-23
 Owners: `docs/ux/**`, `src/index.css`, `src/customer-portal.css`, `src/constants/statusPalette.ts`, `src/components/ui/**`, `src/components/customer/**`, `src/components/auth/**`, `public/app/fonts/**`, `.design-sync/**`
 Dependencies: None in-repo. Builds on the [brand reskin](2026-09-20-brand-reskin.md) palette and the [design-system components and tokens](2026-10-25-design-system-components-and-tokens.md) work.
 Related requirements: `REQ-A11Y-001`
@@ -401,6 +401,91 @@ here rather than rewriting the outline above:
 
 Separate plans in their own codebases, reusing these values.
 
+**Website, as built (23 November 2026).** The owner chose "Flyer palette, keep
+bands": the bold full-width section bands stay, recoloured to the flyer family,
+and coral, teal-green and orange are retired. All in `website/`; nothing shared
+at code level (ADR 009).
+
+- `website/src/constants/colors.js` holds the app's values: `plum` (ink),
+  `offWhite` (paper), `cyan` (flyer blue), `cyanText` (brand blue), `navy`,
+  `yellow`, `cyanLight` (now the app's sky tint, `#EAF4FF`), plus `inkMuted`
+  (`#57677C`, the app's muted text) and `whatsapp` (`#25D366`). `pink`, `teal`,
+  `green`, `orange`, `mutedGreen`, `blueSlate` and their tints are gone; a test
+  keeps them out and pins every contrast ratio the file quotes.
+- Bands on the homepage: sky-blue hero (unchanged), brand-blue services and
+  closing CTA (`blueBand`, the two former coral bands, with white text at
+  6.2:1), yellow gallery (unchanged), sky-tint Houndsly (was muted green),
+  charcoal footer. The Services page cards sit on sky blue and its timeline on
+  navy (were teal and blue slate). Community categories alternate sky and
+  yellow tints.
+- The text teal (about 200 uses) becomes the app's muted ink; titles that used
+  it become charcoal. Every link colour on the Community page is brand blue (the
+  yellow and coral links were 1.5:1 and 3.6:1).
+- Buttons: every booking button is yellow with charcoal text, including the
+  former green, coral, white and sky-blue ones; WhatsApp buttons use WhatsApp's
+  own green; the cookie Accept and scroll-to-top buttons are charcoal; selected
+  chips are brand blue over the sky tint.
+- Gallery and Houndsly tape alternates blue and yellow; decorative stickers are
+  brand blue.
+- Type: the homepage hero is Poppins 900 with −3.5% tracking. Google Fonts now
+  loads Poppins 900 (nothing else on the site asks for 800 or 900, so no
+  heading changes weight) and only Caveat 700, which `.handwriting` uses.
+- The stripe (`BrandStripe` in `website/src/components/sections/Navigation.jsx`, its only user, because the website's dev-server module budget has no headroom) runs across the top of
+  every page on a thin strip of white inside the navigation, because the flyer
+  blue segments vanish on the sky-blue hero.
+- Contrast: an axe scan of every route found 15 failures on the live site before
+  this change and none after.
+- **Not done in #1269:** the hero still carried more than one handwritten
+  line. Emails are not started.
+
+**Website hero tidy-up (23 November 2026, the owner's choice of "full tidy
+pass").** The hero said "easy" four ways at once and some details looked broken:
+
+- One yellow control, the booking button. The yellow "Easy peasy" tag looked
+  like a second button and did nothing; it is now the hero's single Caveat line,
+  in charcoal beside the button (below it on tablets). The "quick and easy"
+  sticker is gone.
+- In its place a proof line, "★ 4.9 on Google · Since 1982", from
+  `GOOGLE_RATING` and `FOUNDED_YEAR` in `website/src/constants/salonFacts.js`,
+  which the stats strip and the reviews now read too. It also shows on phones,
+  where the button lives in the sticky footer.
+- The swash sits under "gorgeous." only, clear of the descenders, and draws in
+  once (420ms), with the finished line under reduced motion.
+- The polaroids take translucent yellow tape (the blue vanished on the sky
+  blue) and only the front one keeps its caption; the other two were clipped by
+  the front photo. They keep their descriptions as alt text through a new `alt`
+  prop on `PolaroidImage`.
+- Headline tracking eases from −3.5% to −2.5% so "Leave gorgeous" no longer
+  runs together; "Ashton-under-Lyne" no longer breaks at its hyphen; the hero's
+  bottom padding is smaller, so the stats strip starts sooner.
+- No new module: the dev-server module budget in
+  `website/e2e/performance.spec.js` still has no headroom (79 on Chromium, 80 on
+  WebKit, the same as before).
+
+
+**Emails, as built (23 November 2026).** The owner chose a "branded wrapper":
+one shared template for every email, the words unchanged.
+
+- Before: six edge functions sent plain text through SendGrid (booking
+  confirmed, cancelled, two reminder paths, welcome, and the staff waitlist
+  alert). Email is the last channel after WhatsApp and SMS, so it reaches few
+  customers (38 had neither when the messaging policy was written).
+- Now `supabase/functions/_shared/email.ts` sends two parts: the plain text,
+  word for word, then the same words in HTML from `_shared/emailHtml.ts`. No
+  caller's wording changed.
+- The HTML: the flyer stripe as nine coloured table cells (it shows with images
+  blocked), "Smarter Dog Grooming" in charcoal, the message on a white card on
+  cream, a yellow "Book or manage online" button to the customer portal
+  (`CUSTOMER_PORTAL_URL`, overridable per environment), and the salon's name and
+  address from `SALON_LOCATION` in the muted grey. The staff waitlist alert
+  passes `portalButton: false` and gets no button.
+- Email clients are not browsers: tables and inline styles only, no images, no
+  web fonts (Poppins or Montserrat where installed, Arial otherwise), no style
+  block. Every piece of text is escaped; web addresses in a staff-written
+  reminder become links, escaped piece by piece.
+- Not reachable from this repository: the staff password-reset email, whose
+  template lives in the Supabase dashboard. Customer sign-in codes go by SMS,
+  not email.
 ## Testing
 
 - Step 1: `npm run check:docs` (links). No code changed.

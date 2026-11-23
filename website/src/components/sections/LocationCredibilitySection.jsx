@@ -71,7 +71,7 @@ const LocationCredibilitySection = () => {
                                 <span
                                     key={entry.town}
                                     className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold"
-                                    style={{ backgroundColor: 'white', color: colors.teal }}
+                                    style={{ backgroundColor: 'white', color: colors.inkMuted }}
                                 >
                                     {entry.town}
                                     <span style={{ color: colors.plum }}>{entry.eta}</span>

@@ -1,15 +1,12 @@
 // Services page data - extracted for maintainability
 // Update prices and descriptions here without touching UI code
 
-import { colors } from './colors';
-
 export const services = [
     {
         title: "Full Groom",
         price: "From £42",
         description: "The complete makeover. Includes a double bath and blow dry, full body styling to your preference, hygiene clip, paw pad trim, nail trim, and ear cleaning.",
         bestFor: "First visits or dogs needing a full reset",
-        color: colors.teal,
         bgColor: 'white'
     },
     {
@@ -17,7 +14,6 @@ export const services = [
         price: "From £38",
         description: "A bath, blow-dry and thorough brush-out to keep your dog fresh between full grooms.",
         bestFor: "Regulars between full grooms",
-        color: colors.orange,
         bgColor: 'white'
     },
     {
@@ -25,7 +21,6 @@ export const services = [
         price: "From £38",
         description: "A bath, blow-dry and de-shedding treatment for double coats and heavy shedders.",
         bestFor: "Double coats and heavy shedders",
-        color: colors.yellow,
         bgColor: 'white'
     }
 ];

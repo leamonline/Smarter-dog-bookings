@@ -36,7 +36,7 @@ const SmarterDogHomepage = () => {
         <ServicesSection />
         <AftercareGuidesSection onBookClick={goToBooking} />
         <GallerySection />
-        <SectionDivider type="grass" color={colors.mutedGreen} backgroundColor={colors.yellow} height="100px" />
+        <SectionDivider type="grass" color={colors.cyanLight} backgroundColor={colors.yellow} height="100px" />
         <HoundslySection />
         <TestimonialsSection />
         <LocationCredibilitySection />

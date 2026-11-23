@@ -14,10 +14,6 @@ import GuideLinks from '../GuideLinks';
 const ServicesPage = () => {
     const [isLoaded, setIsLoaded] = useState(false);
 
-    const getServiceHeadingColor = (color) => (
-        color === colors.orange || color === colors.yellow ? colors.plum : color
-    );
-
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
         return () => clearTimeout(timer);
@@ -35,25 +31,25 @@ const ServicesPage = () => {
                     {/* Background Dog */}
                     <div className="absolute top-10 left-0 md:left-20 z-0 opacity-10 pointer-events-none" aria-hidden="true">
                         <DogSilhouette
-                            color={colors.teal}
+                            color={colors.inkMuted}
                             className="w-64 h-auto -rotate-12"
                         />
                     </div>
 
                     <div className="relative z-10">
-                        <h1 className="heading-font text-5xl md:text-6xl font-bold mb-6" style={{ color: colors.teal }}>
+                        <h1 className="heading-font text-5xl md:text-6xl font-bold mb-6" style={{ color: colors.plum }}>
                             How we look after your dog
                         </h1>
-                        <p className="body-font text-xl max-w-2xl mx-auto" style={{ color: colors.teal }}>
+                        <p className="body-font text-xl max-w-2xl mx-auto" style={{ color: colors.inkMuted }}>
                             Calm, careful grooming shaped around your dog's coat, temperament, and comfort.
                         </p>
                     </div>
                 </div>
 
-                <SectionDivider type="wave" color={colors.teal} backgroundColor={colors.offWhite} />
+                <SectionDivider type="wave" color={colors.cyan} backgroundColor={colors.offWhite} />
 
                 {/* Pricing Tiers */}
-                <section className="py-20 px-6" style={{ backgroundColor: colors.teal }}>
+                <section className="py-20 px-6" style={{ backgroundColor: colors.cyan }}>
                     <div className="max-w-7xl mx-auto">
                         <div className="grid md:grid-cols-3 gap-8 mb-16">
                             {services.map((service, index) => (
@@ -62,12 +58,12 @@ const ServicesPage = () => {
                                     className="rounded-3xl p-8 border-4 transition-transform hover:-translate-y-2 duration-300 flex flex-col shadow-lg"
                                     style={{ borderColor: 'white', backgroundColor: service.bgColor }}
                                 >
-                                    <h2 className="heading-font text-3xl font-bold mb-2" style={{ color: getServiceHeadingColor(service.color) }}>
+                                    <h2 className="heading-font text-3xl font-bold mb-2" style={{ color: colors.plum }}>
                                         {service.title}
                                     </h2>
                                     <p className="text-2xl font-bold mb-4" style={{ color: colors.darkGray }}>{service.price}</p>
                                     <p className="body-font text-lg mb-6 text-gray-600 flex-grow leading-relaxed">{service.description}</p>
-                                    <p className="body-font text-base italic mb-8 pt-4 border-t border-gray-100" style={{ color: colors.teal }}>
+                                    <p className="body-font text-base italic mb-8 pt-4 border-t border-gray-100" style={{ color: colors.inkMuted }}>
                                         Best for: {service.bestFor}
                                     </p>
                                     <button
@@ -87,19 +83,19 @@ const ServicesPage = () => {
                         {/* Additional Services Info */}
                         <div className="grid md:grid-cols-2 gap-8">
                             <div className="bg-white rounded-3xl p-8 shadow-lg">
-                                <h3 className="heading-font text-2xl font-bold mb-4" style={{ color: colors.teal }}>
+                                <h3 className="heading-font text-2xl font-bold mb-4" style={{ color: colors.plum }}>
                                     {additionalServices.puppyIntro.title}
                                 </h3>
                                 <p className="body-font text-lg text-gray-600 mb-4 leading-relaxed">
                                     {additionalServices.puppyIntro.description}
                                 </p>
-                                <p className="body-font text-base italic mb-4" style={{ color: colors.teal }}>
+                                <p className="body-font text-base italic mb-4" style={{ color: colors.inkMuted }}>
                                     {additionalServices.puppyIntro.tagline}
                                 </p>
                                 <p className="font-bold text-lg" style={{ color: colors.plum }}>{additionalServices.puppyIntro.price}</p>
                             </div>
                             <div className="bg-white rounded-3xl p-8 shadow-lg">
-                                <h3 className="heading-font text-2xl font-bold mb-4" style={{ color: colors.teal }}>
+                                <h3 className="heading-font text-2xl font-bold mb-4" style={{ color: colors.plum }}>
                                     {additionalServices.walkIn.title}
                                 </h3>
                                 <p className="body-font text-lg text-gray-600 mb-4 leading-relaxed">
@@ -112,7 +108,7 @@ const ServicesPage = () => {
                                         <li key={idx}>{item.name} — {item.price}</li>
                                     ))}
                                 </ul>
-                                <p className="body-font text-base italic mt-4" style={{ color: colors.teal }}>
+                                <p className="body-font text-base italic mt-4" style={{ color: colors.inkMuted }}>
                                     {additionalServices.walkIn.tagline}
                                 </p>
                             </div>
@@ -120,10 +116,10 @@ const ServicesPage = () => {
                     </div>
                 </section>
 
-                <SectionDivider type="curve" color={colors.blueSlate} backgroundColor={colors.teal} />
+                <SectionDivider type="curve" color={colors.navy} backgroundColor={colors.cyan} />
 
                 {/* What to Expect Timeline */}
-                <section className="py-20 px-6" style={{ backgroundColor: colors.blueSlate }}>
+                <section className="py-20 px-6" style={{ backgroundColor: colors.navy }}>
                     <div className="max-w-4xl mx-auto">
                         <h2 className="heading-font text-4xl font-bold text-center mb-4 text-white">
                             What to expect on the day
@@ -137,7 +133,7 @@ const ServicesPage = () => {
                     </div>
                 </section>
 
-                <SectionDivider type="slant" color="white" backgroundColor={colors.blueSlate} />
+                <SectionDivider type="slant" color="white" backgroundColor={colors.navy} />
 
                 <section className="py-16 px-6" style={{ backgroundColor: colors.offWhite }}>
                     <div className="max-w-3xl mx-auto">

@@ -98,14 +98,14 @@ describe('DogSilhouette', () => {
   it('combines multiple props correctly', () => {
     const { container } = render(
       <DogSilhouette
-        color={colors.pink}
+        color={colors.cyanText}
         className="w-[30rem] h-auto -scale-x-100 rotate-[-10deg]"
         style={{ opacity: 0.1 }}
       />
     );
     const svg = container.querySelector('svg');
 
-    expect(svg).toHaveAttribute('fill', colors.pink);
+    expect(svg).toHaveAttribute('fill', colors.cyanText);
     expect(svg).toHaveClass('w-[30rem]');
     expect(svg).toHaveClass('h-auto');
     expect(svg).toHaveClass('-scale-x-100');

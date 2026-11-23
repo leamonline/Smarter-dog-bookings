@@ -61,7 +61,7 @@ const OurApproachPage = ({ onBookClick }) => {
                         >
                             Our Approach
                         </h1>
-                        <p className="body-font text-lg" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg" style={{ color: colors.inkMuted }}>
                             We're a calm, welfare-first salon. Here's how that shows up in practice.
                         </p>
                     </div>
@@ -79,7 +79,7 @@ const OurApproachPage = ({ onBookClick }) => {
                                 >
                                     {item.title}
                                 </h2>
-                                <p className="body-font" style={{ color: colors.teal }}>
+                                <p className="body-font" style={{ color: colors.inkMuted }}>
                                     {item.desc}
                                 </p>
                             </div>
@@ -92,14 +92,14 @@ const OurApproachPage = ({ onBookClick }) => {
 
                     {/* CTA */}
                     <div className="text-center mt-16">
-                        <p className="body-font mb-6" style={{ color: colors.teal }}>
+                        <p className="body-font mb-6" style={{ color: colors.inkMuted }}>
                             Ready to book your dog's first visit?
                         </p>
                         <button
                             onClick={() => onBookClick?.('Approach Page')}
                             className="px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
                             style={{
-                                backgroundColor: colors.cyan,
+                                backgroundColor: colors.yellow,
                                 color: colors.plum
                             }}
                         >

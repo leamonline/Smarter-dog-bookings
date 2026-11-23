@@ -27,6 +27,8 @@ let package = Package(
                 "RootView.swift",
                 "SmarterDogApp.swift",
                 "SupabaseHomeClient.swift",
+                "SupabaseBookingClient.swift",
+                "BookingFlowView.swift",
                 "HomeView.swift",
                 "SupabaseDogsClient.swift",
                 "DogsView.swift",
@@ -37,13 +39,18 @@ let package = Package(
                 "SessionClient.swift",
                 "AuthService.swift",
                 "HomeModels.swift",
+                "BookingModels.swift",
+                "CapacityEngine.swift",
+                "BookingWizard.swift",
+                "BookingFlowModel.swift",
                 "DogsModels.swift",
             ]
         ),
         .testTarget(
             name: "AuthCoreTests",
             dependencies: ["AuthCore"],
-            path: "AuthCoreTests"
+            path: "AuthCoreTests",
+            exclude: ["denial-cases.json", "capacity-parity.json"]
         ),
     ]
 )

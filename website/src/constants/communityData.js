@@ -40,7 +40,7 @@ export const communityCategories = [
         id: 'pet-shops',
         title: 'Pet Shops',
         subtitle: 'Local spots we trust for treats, food, and supplies.',
-        color: colors.yellow,
+        color: colors.cyanText,
         tint: colors.yellowLight,
         iconName: 'PetShopIcon',
         listings: [
@@ -74,8 +74,8 @@ export const communityCategories = [
         id: 'vets',
         title: 'Vets',
         subtitle: 'Trusted local practices for when your dog needs medical care.',
-        color: colors.teal,
-        tint: colors.tealLight,
+        color: colors.cyanText,
+        tint: colors.cyanLight,
         iconName: 'VetIcon',
         listings: [
             {
@@ -108,8 +108,8 @@ export const communityCategories = [
         id: 'pet-sitters',
         title: 'Pet Sitters & Dog Walkers',
         subtitle: 'Reliable local people to look after your best friend.',
-        color: colors.pink,
-        tint: colors.pinkLight,
+        color: colors.cyanText,
+        tint: colors.yellowLight,
         iconName: 'PetSitterIcon',
         listings: [
             {

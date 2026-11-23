@@ -12,8 +12,7 @@ describe('HeroSection', () => {
   it('renders hero headline', () => {
     render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
 
-    expect(screen.getByText(/Come scruffy/i)).toBeInTheDocument();
-    expect(screen.getByText(/Leave gorgeous/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Come scruffy\.\s*Leave gorgeous\./i })).toBeInTheDocument();
   });
 
   it('renders booking button with brand colors', () => {
@@ -44,7 +43,6 @@ describe('HeroSection', () => {
 
     expect(screen.queryByRole('button', { name: /Book your dog online/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Easy peasy/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/quick and easy,/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Book for our return' }));
     expect(onBookClick).toHaveBeenCalledWith('Holiday Notice');
 
@@ -53,6 +51,41 @@ describe('HeroSection', () => {
     expect(screen.queryByRole('button', { name: 'Book for our return' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Book your dog online/i })).toBeInTheDocument();
     expect(screen.getByText(/Easy peasy/i)).toBeInTheDocument();
-    expect(screen.getByText(/quick and easy,/i)).toBeInTheDocument();
+  });
+
+  // The hero tidy-up of 23 November 2026: one yellow control, one handwritten
+  // line, and the proof facts the stats strip already states.
+  it('has one yellow element, the booking button, and no yellow tag that looks like a second button', () => {
+    const { container } = render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
+    const yellow = [...container.querySelectorAll('[style]')].filter(
+      (el) => el.style.backgroundColor === 'rgb(254, 204, 19)',
+    );
+    expect(yellow).toHaveLength(1);
+    expect(yellow[0]).toBe(screen.getByRole('button', { name: /Book your dog online/i }));
+  });
+
+  it('keeps to one handwritten line on the hero: Easy peasy, plus the front photo caption only', () => {
+    const { container } = render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
+    const handwriting = [...container.querySelectorAll('.handwriting')].map((el) => el.textContent.trim());
+    expect(handwriting).toEqual([expect.stringMatching(/^Easy peasy/), 'Feeling gorgeous']);
+    expect(screen.queryByText(/quick and easy,/i)).not.toBeInTheDocument();
+  });
+
+  it('still describes the uncaptioned photos to screen readers', () => {
+    render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
+    expect(screen.getByAltText('Happy freshly groomed pup')).toBeInTheDocument();
+    expect(screen.getByAltText('Fluffy and fabulous')).toBeInTheDocument();
+    expect(screen.getByAltText('Feeling gorgeous')).toBeInTheDocument();
+  });
+
+  it('states the rating and founding year from the shared facts', () => {
+    render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
+    expect(screen.getByText(/4\.9 on Google · Since 1982/)).toBeInTheDocument();
+  });
+
+  it('draws the swash under "gorgeous." only', () => {
+    const { container } = render(<HeroSection isLoaded={true} onBookClick={() => {}} />);
+    const swash = container.querySelector('h1 svg.swash-draw');
+    expect(swash.parentElement.textContent).toBe('gorgeous.');
   });
 });

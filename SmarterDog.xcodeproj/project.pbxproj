@@ -36,6 +36,12 @@
 		A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A1 /* SupabaseDogsClient.swift */; };
 		A100000000000000000000B2 /* DogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* DogsView.swift */; };
 		A100000000000000000000B3 /* DogsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A3 /* DogsModels.swift */; };
+		A10000000000000000000096 /* BookingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000086 /* BookingModels.swift */; };
+		A10000000000000000000097 /* CapacityEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000087 /* CapacityEngine.swift */; };
+		A10000000000000000000098 /* BookingWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000088 /* BookingWizard.swift */; };
+		A10000000000000000000099 /* BookingFlowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000089 /* BookingFlowModel.swift */; };
+		A1000000000000000000009A /* SupabaseBookingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008A /* SupabaseBookingClient.swift */; };
+		A1000000000000000000009B /* BookingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008B /* BookingFlowView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +78,12 @@
 		A100000000000000000000A1 /* SupabaseDogsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseDogsClient.swift; sourceTree = "<group>"; };
 		A100000000000000000000A2 /* DogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsView.swift; sourceTree = "<group>"; };
 		A100000000000000000000A3 /* DogsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsModels.swift; sourceTree = "<group>"; };
+		A10000000000000000000086 /* BookingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingModels.swift; sourceTree = "<group>"; };
+		A10000000000000000000087 /* CapacityEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapacityEngine.swift; sourceTree = "<group>"; };
+		A10000000000000000000088 /* BookingWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingWizard.swift; sourceTree = "<group>"; };
+		A10000000000000000000089 /* BookingFlowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingFlowModel.swift; sourceTree = "<group>"; };
+		A1000000000000000000008A /* SupabaseBookingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBookingClient.swift; sourceTree = "<group>"; };
+		A1000000000000000000008B /* BookingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingFlowView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -123,6 +135,12 @@
 				A1000000000000000000002A /* SecurityCheckView.swift */,
 				A1000000000000000000002B /* RootView.swift */,
 				A10000000000000000000080 /* HomeModels.swift */,
+				A10000000000000000000086 /* BookingModels.swift */,
+				A10000000000000000000087 /* CapacityEngine.swift */,
+				A10000000000000000000088 /* BookingWizard.swift */,
+				A10000000000000000000089 /* BookingFlowModel.swift */,
+				A1000000000000000000008A /* SupabaseBookingClient.swift */,
+				A1000000000000000000008B /* BookingFlowView.swift */,
 				A10000000000000000000081 /* SupabaseHomeClient.swift */,
 				A10000000000000000000082 /* HomeView.swift */,
 				A100000000000000000000A3 /* DogsModels.swift */,
@@ -247,6 +265,12 @@
 				A10000000000000000000052 /* AppMetrics.swift in Sources */,
 				A10000000000000000000053 /* Decorations.swift in Sources */,
 				A10000000000000000000090 /* HomeModels.swift in Sources */,
+				A10000000000000000000096 /* BookingModels.swift in Sources */,
+				A10000000000000000000097 /* CapacityEngine.swift in Sources */,
+				A10000000000000000000098 /* BookingWizard.swift in Sources */,
+				A10000000000000000000099 /* BookingFlowModel.swift in Sources */,
+				A1000000000000000000009A /* SupabaseBookingClient.swift in Sources */,
+				A1000000000000000000009B /* BookingFlowView.swift in Sources */,
 				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
 				A10000000000000000000092 /* HomeView.swift in Sources */,
 				A100000000000000000000B3 /* DogsModels.swift in Sources */,

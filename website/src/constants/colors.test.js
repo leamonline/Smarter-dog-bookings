@@ -1,224 +1,104 @@
 import { describe, it, expect } from 'vitest';
 import { colors } from './colors';
 
+// The website uses the salon flyer's palette, the same values as the booking
+// app (docs/plans/active/2026-11-22-flyer-visual-language.md). These tests pin
+// the values, keep the retired colours out, and keep every contrast figure
+// quoted in colors.js true.
+
+const channel = (c) => {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => channel(parseInt(hex.slice(i, i + 2), 16)));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const WHITE = '#FFFFFF';
+
 describe('colors constants', () => {
-  describe('all required colors are defined', () => {
-    it('defines teal anchor color', () => {
-      expect(colors.teal).toBeDefined();
-      expect(colors.teal).toBe('#2A6F6B');
-    });
-
-    it('defines offWhite color', () => {
-      expect(colors.offWhite).toBeDefined();
-      expect(colors.offWhite).toBe('#F7EFE6');
-    });
-
-    it('defines cyan bright color', () => {
-      expect(colors.cyan).toBeDefined();
-      expect(colors.cyan).toBe('#5595DC');
-    });
-
-    it('defines cyanText, the calm blue that passes AA as type', () => {
-      expect(colors.cyanText).toBeDefined();
-      expect(colors.cyanText).toBe('#2A62A8');
-    });
-
-    it('defines green bright color', () => {
-      expect(colors.green).toBeDefined();
-      expect(colors.green).toBe('#00D94A');
-    });
-
-    it('defines pink bright color', () => {
-      expect(colors.pink).toBeDefined();
-      expect(colors.pink).toBe('#E7546C');
-    });
-
-    it('defines yellow bright color', () => {
-      expect(colors.yellow).toBeDefined();
-      expect(colors.yellow).toBe('#FECC13');
-    });
-
-    it('defines orange bright color', () => {
-      expect(colors.orange).toBeDefined();
-      expect(colors.orange).toBe('#FF6B00');
-    });
-
-    it('defines cyanLight tint', () => {
-      expect(colors.cyanLight).toBeDefined();
-      expect(colors.cyanLight).toBe('#E0EFFF');
-    });
-
-    it('defines greenLight tint', () => {
-      expect(colors.greenLight).toBeDefined();
-      expect(colors.greenLight).toBe('#E3FCE8');
-    });
-
-    it('defines tealLight tint', () => {
-      expect(colors.tealLight).toBeDefined();
-      expect(colors.tealLight).toBe('#E8F5F5');
-    });
-
-    it('defines pinkLight tint', () => {
-      expect(colors.pinkLight).toBeDefined();
-      expect(colors.pinkLight).toBe('#FFE3EB');
-    });
-
-    it('defines yellowLight tint', () => {
-      expect(colors.yellowLight).toBeDefined();
-      expect(colors.yellowLight).toBe('#FFF9DB');
+  it('pins the flyer palette', () => {
+    expect(colors).toEqual({
+      plum: '#1F1F1F',
+      inkMuted: '#57677C',
+      offWhite: '#F7EFE6',
+      warmBeige: '#FDFBF7',
+      cyan: '#5595DC',
+      cyanText: '#2A62A8',
+      blueBand: '#2A62A8',
+      navy: '#1F4E8C',
+      yellow: '#FECC13',
+      whatsapp: '#25D366',
+      darkGray: '#4A4A4A',
+      cyanLight: '#EAF4FF',
+      yellowLight: '#FFF9DB',
     });
   });
 
-  describe('color value validation', () => {
-    it('all colors are strings', () => {
-      Object.values(colors).forEach(color => {
-        expect(typeof color).toBe('string');
-      });
-    });
-
-    it('all colors start with #', () => {
-      Object.values(colors).forEach(color => {
-        expect(color).toMatch(/^#/);
-      });
-    });
-
-    it('all colors are valid hex codes', () => {
-      const hexColorRegex = /^#[0-9A-F]{6}$/i;
-      Object.entries(colors).forEach(([, color]) => {
-        expect(color).toMatch(hexColorRegex);
-      });
-    });
-
-    it('all colors are uppercase hex values', () => {
-      Object.entries(colors).forEach(([, color]) => {
-        const hexPart = color.substring(1);
-        expect(hexPart).toMatch(/^[0-9A-F]{6}$/);
-      });
-    });
-
-    it('no colors are undefined or null', () => {
-      Object.values(colors).forEach(color => {
-        expect(color).not.toBeUndefined();
-        expect(color).not.toBeNull();
-      });
-    });
+  it('matches the booking app values for ink, paper, blues, yellow and muted text', () => {
+    // src/index.css in the booking app: --color-brand-ink, --color-brand-paper,
+    // --color-brand-cyan(-light/-dark), --color-brand-yellow, --color-sd-sky-tint
+    // and --color-text-muted. Change them together or not at all.
+    expect([colors.plum, colors.offWhite, colors.cyanText, colors.cyan, colors.navy, colors.yellow, colors.cyanLight, colors.inkMuted])
+      .toEqual(['#1F1F1F', '#F7EFE6', '#2A62A8', '#5595DC', '#1F4E8C', '#FECC13', '#EAF4FF', '#57677C']);
   });
 
-  describe('color palette structure', () => {
-    it('exports the full palette', () => {
-      expect(Object.keys(colors)).toHaveLength(18);
-    });
-
-    it('has 2 anchor colors (teal, offWhite)', () => {
-      expect(colors).toHaveProperty('teal');
-      expect(colors).toHaveProperty('offWhite');
-    });
-
-    it('has 5 bright colors (cyan, green, pink, yellow, orange)', () => {
-      expect(colors).toHaveProperty('cyan');
-      expect(colors).toHaveProperty('green');
-      expect(colors).toHaveProperty('pink');
-      expect(colors).toHaveProperty('yellow');
-      expect(colors).toHaveProperty('orange');
-    });
-
-    it('has 5 light tints (cyanLight, greenLight, tealLight, pinkLight, yellowLight)', () => {
-      expect(colors).toHaveProperty('cyanLight');
-      expect(colors).toHaveProperty('greenLight');
-      expect(colors).toHaveProperty('tealLight');
-      expect(colors).toHaveProperty('pinkLight');
-      expect(colors).toHaveProperty('yellowLight');
-    });
+  it('keeps the retired colours out', () => {
+    for (const name of ['teal', 'pink', 'orange', 'green', 'mutedGreen', 'blueSlate', 'pinkLight', 'greenLight', 'tealLight']) {
+      expect(colors, `${name} was retired in November 2026`).not.toHaveProperty(name);
+    }
+    const retired = ['#E7546C', '#E8506A', '#2A6F6B', '#2D8B7A', '#00D94A', '#FF6B00', '#7AB8A8', '#4A6FA5'];
+    for (const value of Object.values(colors)) expect(retired).not.toContain(value.toUpperCase());
   });
 
-  describe('light tints are lighter than their bright counterparts', () => {
-    it('cyanLight is lighter than cyan', () => {
-      const cyan = parseInt(colors.cyan.substring(1), 16);
-      const cyanLight = parseInt(colors.cyanLight.substring(1), 16);
-      // Light colors should have higher hex values (closer to white)
-      expect(cyanLight).toBeGreaterThan(cyan);
-    });
-
-    it('greenLight is lighter than green', () => {
-      const green = parseInt(colors.green.substring(1), 16);
-      const greenLight = parseInt(colors.greenLight.substring(1), 16);
-      expect(greenLight).toBeGreaterThan(green);
-    });
-
-    it('pinkLight is lighter than pink', () => {
-      const pink = parseInt(colors.pink.substring(1), 16);
-      const pinkLight = parseInt(colors.pinkLight.substring(1), 16);
-      expect(pinkLight).toBeGreaterThan(pink);
-    });
-
-    it('yellowLight is lighter than yellow', () => {
-      const yellow = parseInt(colors.yellow.substring(1), 16);
-      const yellowLight = parseInt(colors.yellowLight.substring(1), 16);
-      expect(yellowLight).toBeGreaterThan(yellow);
-    });
+  it('uses uppercase six-digit hex values throughout', () => {
+    for (const value of Object.values(colors)) expect(value).toMatch(/^#[0-9A-F]{6}$/);
   });
 
-  describe('color object is frozen/immutable', () => {
-    it('colors object exists and is an object', () => {
-      expect(colors).toBeDefined();
-      expect(typeof colors).toBe('object');
-    });
+  it('gives each value one name, apart from the declared alias', () => {
+    // blueBand is cyanText under its surface role, so a band and a link can be
+    // told apart in the markup. Any other repeat is a mistake.
+    const aliases = { blueBand: 'cyanText' };
+    for (const [alias, canonical] of Object.entries(aliases)) expect(colors[alias]).toBe(colors[canonical]);
+    const values = Object.entries(colors).filter(([name]) => !(name in aliases)).map(([, v]) => v);
+    expect(new Set(values).size).toBe(values.length);
+  });
+});
 
-    it('all color values are non-empty strings', () => {
-      Object.values(colors).forEach(color => {
-        expect(color.length).toBeGreaterThan(0);
-      });
-    });
+describe('published contrast ratios', () => {
+  // [foreground, background, ratio quoted in colors.js]. A retuned colour fails
+  // here until its comment is corrected too.
+  it.each([
+    ['plum on white', colors.plum, WHITE, 16.5],
+    ['plum on yellow', colors.plum, colors.yellow, 10.9],
+    ['plum on sky blue', colors.plum, colors.cyan, 5.3],
+    ['inkMuted on white', colors.inkMuted, WHITE, 5.8],
+    ['inkMuted on offWhite', colors.inkMuted, colors.offWhite, 5.1],
+    ['inkMuted on cyanLight', colors.inkMuted, colors.cyanLight, 5.2],
+    ['cyanText on white', colors.cyanText, WHITE, 6.2],
+    ['cyanText on offWhite', colors.cyanText, colors.offWhite, 5.4],
+    ['white on blueBand', WHITE, colors.blueBand, 6.2],
+    ['white on navy', WHITE, colors.navy, 8.3],
+    ['white on sky blue (large text only)', WHITE, colors.cyan, 3.1],
+  ])('%s', (_label, fg, bg, quoted) => {
+    expect(contrast(fg, bg)).toBeCloseTo(quoted, 1);
   });
 
-  describe('specific color usage validation', () => {
-    it('teal is a darker color suitable for text on yellow', () => {
-      // Teal should be dark (low hex value for better contrast)
-      expect(colors.teal).toBe('#2A6F6B');
-      // Verify it's a darker shade
-      const tealValue = parseInt(colors.teal.substring(1), 16);
-      expect(tealValue).toBeLessThan(0x808080); // Less than medium gray
-    });
-
-    it('bright colors are vibrant and saturated', () => {
-      const brightColors = [colors.cyan, colors.green, colors.pink, colors.yellow, colors.orange];
-
-      brightColors.forEach(color => {
-        // Bright colors should not be too close to gray
-        expect(color).not.toMatch(/#[89ABCD]{6}/i);
-      });
-    });
-
-    it('offWhite is close to white but not pure white', () => {
-      expect(colors.offWhite).toBe('#F7EFE6');
-      expect(colors.offWhite).not.toBe('#FFFFFF');
-    });
+  it('keeps every text pairing the site relies on at AA for body text', () => {
+    const bodyPairs = [
+      [colors.plum, colors.whatsapp],
+      [colors.cyanText, colors.cyanLight],
+      [colors.plum, colors.yellowLight],
+      [colors.cyanText, colors.yellowLight],
+    ];
+    for (const [fg, bg] of bodyPairs) expect(contrast(fg, bg)).toBeGreaterThanOrEqual(4.5);
   });
 
-  describe('no duplicate color values', () => {
-    it('all colors have unique values', () => {
-      const values = Object.values(colors);
-      const uniqueValues = [...new Set(values)];
-      expect(uniqueValues).toHaveLength(values.length);
-    });
-  });
-
-  describe('color naming consistency', () => {
-    it('light variants follow "colorLight" naming convention', () => {
-      const lightColors = Object.keys(colors).filter(key => key.includes('Light'));
-
-      lightColors.forEach(lightColor => {
-        expect(lightColor).toMatch(/^[a-z]+Light$/);
-      });
-    });
-
-    it('base bright colors are lowercase', () => {
-      const brightColors = ['cyan', 'green', 'pink', 'yellow', 'orange'];
-
-      brightColors.forEach(color => {
-        expect(Object.keys(colors)).toContain(color);
-        expect(color).toMatch(/^[a-z]+$/);
-      });
-    });
+  it('computes a known ratio correctly, so the figures above are trustworthy', () => {
+    expect(contrast('#000000', WHITE)).toBeCloseTo(21, 1);
   });
 });

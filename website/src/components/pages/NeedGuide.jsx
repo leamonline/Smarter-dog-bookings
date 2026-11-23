@@ -67,21 +67,21 @@ function Item({ item }) {
 function Block({ block }) {
   if (block.type === 'p') {
     return (
-      <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+      <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
         {block.text}
       </p>
     );
   }
   if (block.type === 'lead') {
     return (
-      <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+      <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
         <strong>{block.strong}</strong> {block.rest}
       </p>
     );
   }
   if (block.type === 'rich') {
     return (
-      <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+      <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
         <Parts parts={block.parts} />
       </p>
     );
@@ -90,7 +90,7 @@ function Block({ block }) {
     const Tag = block.type === 'ol' ? 'ol' : 'ul';
     const marker = block.type === 'ol' ? 'list-decimal' : 'list-disc';
     return (
-      <Tag className={`${marker} pl-6 space-y-3 body-font text-lg leading-relaxed`} style={{ color: colors.teal }}>
+      <Tag className={`${marker} pl-6 space-y-3 body-font text-lg leading-relaxed`} style={{ color: colors.inkMuted }}>
         {block.items.map((item, index) => (
           <li key={index}>
             <Item item={item} />
@@ -105,7 +105,7 @@ function Block({ block }) {
         className="bg-white rounded-2xl p-6 shadow-sm border-l-4"
         style={{ borderLeftColor: colors.cyan }}
       >
-        <p className="body-font text-lg leading-relaxed italic" style={{ color: colors.teal }}>
+        <p className="body-font text-lg leading-relaxed italic" style={{ color: colors.inkMuted }}>
           &quot;{block.text}&quot; ({block.cite})
         </p>
       </blockquote>
@@ -143,7 +143,7 @@ export function SalonFactsNote() {
 
   return (
     <aside className="mt-12 bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-      <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+      <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
         <strong style={{ color: colors.plum }}>Smarter Dog Grooming Salon</strong>
         {beforePhone.slice('Smarter Dog Grooming Salon'.length)}
         <TextLink href={whatsAppUrl('07873 329440')}>07873 329440</TextLink>

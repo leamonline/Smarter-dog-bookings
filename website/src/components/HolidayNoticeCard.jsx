@@ -27,7 +27,7 @@ const HolidayNoticeCard = ({ onBookClick, children = null }) => {
                             boxShadow: '0 8px 24px rgba(45, 0, 75, 0.18)',
                         }}
                     >
-                        <span className="handwriting text-2xl block" style={{ color: colors.pink }}>
+                        <span className="handwriting text-2xl block" style={{ color: colors.cyanText }}>
                             {notice.phase === 'upcoming' ? 'A quick heads-up' : 'Back soon'}
                         </span>
                         <h2

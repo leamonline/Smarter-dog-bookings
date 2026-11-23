@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '../constants/colors';
+import { GOOGLE_RATING } from '../constants/salonFacts';
 
 // Curated reviews that tell a story
 // Featured: trust, longevity, complex needs
@@ -64,14 +65,14 @@ const ReviewCard = ({ name, tagline, text, featured = false }) => (
             </p>
             <span
                 className="text-base"
-                style={{ color: colors.teal, opacity: 0.85 }}
+                style={{ color: colors.inkMuted }}
             >
                 {tagline}
             </span>
         </div>
         <p
             className={`body-font leading-relaxed ${featured ? 'text-lg' : ''}`}
-            style={{ color: colors.teal }}
+            style={{ color: colors.inkMuted }}
         >
             "{text}"
         </p>
@@ -84,8 +85,8 @@ const GoogleReviews = () => {
             {/* Rating summary */}
             <div className="flex items-center justify-center gap-2 mb-10">
                 <Stars />
-                <span className="text-sm" style={{ color: colors.teal }}>
-                    4.9 on Google from local dog owners
+                <span className="text-sm" style={{ color: colors.inkMuted }}>
+                    {GOOGLE_RATING} on Google from local dog owners
                 </span>
             </div>
 
@@ -108,7 +109,7 @@ const GoogleReviews = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-70"
-                    style={{ color: colors.teal }}
+                    style={{ color: colors.inkMuted }}
                 >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

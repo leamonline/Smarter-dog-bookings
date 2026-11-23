@@ -113,7 +113,10 @@ describe("the Xcode project is the committed skeleton", () => {
     ]);
     // Xcode ignores custom INFOPLIST_KEY_ entries, so the three connection keys
     // live in this plist as references to Config.xcconfig. Never literal values.
-    expect(fontsPlist.match(/<key>/g)).toHaveLength(4);
+    expect(fontsPlist.match(/<key>/g)).toHaveLength(5);
+    // No dark mode (owner decision, 23 November 2026). The sanctioned way is this key.
+    // Screens must not force a scheme in Swift (iosColourType.test.ts forbids that).
+    expect(fontsPlist).toMatch(/<key>UIUserInterfaceStyle<\/key>\s*<string>Light<\/string>/);
     expect(fontsPlist).toContain("<string>$(SUPABASE_URL)</string>");
     expect(fontsPlist).toContain("<string>$(SUPABASE_PUBLISHABLE_KEY)</string>");
     expect(fontsPlist).toContain("<string>$(TURNSTILE_SITE_KEY)</string>");

@@ -78,10 +78,20 @@ fields.
 4. Does it say what happens next?
 5. If something has gone wrong: apology first, a person second, no sales prompt.
 
+## 4. Email
+
+Email is the last channel a customer reaches (WhatsApp, then SMS, then email; see
+[messaging policy](../messaging-policy.md)), and it carries the same words as the
+text. There is no separate email copy to write. Since 23 November 2026 every email
+goes as two parts: the plain text, word for word, and the same words in the salon's
+branded HTML (`supabase/functions/_shared/emailHtml.ts`): the flyer stripe, the
+salon name, the message on a white card, a yellow "Book or manage online" button to
+the customer portal and the salon's address. Staff emails (the waitlist alert) get
+the same frame without the button. So the rules above apply unchanged; the only new
+one is not to rely on formatting, because a reader may see either part.
+
 ## Not covered here
 
-- **Email.** I found no email templates in the repository, so there is nothing to
-  describe. Add a section when there are.
 - **Exact approved wording of each Meta template.** It lives with Meta, not in this
   repository; only the fields and the rules around them are recorded above.
 

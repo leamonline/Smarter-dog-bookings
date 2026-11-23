@@ -28,8 +28,11 @@
   /* 18px baseline for elderly readability */
 }
 
+/* Caveat 700, the flyer's handwriting (the only Caveat weight loaded). It is
+   unlayered, so it outranks any Tailwind weight utility on the same element. */
 .handwriting {
   font-family: 'Caveat', cursive;
+  font-weight: 700;
 }
 
 /* Global Noise Overlay */
@@ -282,6 +285,28 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* The flyer's yellow swash under the hero headline draws in once (420ms, the
+   booking app's timing). The path carries pathLength="1". Under reduced motion
+   the finished line shows straight away. */
+.swash-draw path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: swash-draw 420ms cubic-bezier(.3, .7, .4, 1) 350ms forwards;
+}
+
+@keyframes swash-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swash-draw path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Respect user preference for reduced motion */
