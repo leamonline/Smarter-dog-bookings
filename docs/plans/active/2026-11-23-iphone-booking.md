@@ -295,8 +295,22 @@ Each is its own pull request, merged only after the full CI bar.
      customer continue and limits the time step to the flagged times
      (`lastMinuteSlots`); choosing another day replaces it; a dog that no longer fits it
      drops it. The time screen is next. Needs a Mac to see.
-   - **After 3b-3:** the time step (`CapacityEngine.offeredSlots`), then the summary
-     screen.
+   - **3b-4, built:** the time screen. On every visit it reads the chosen day alone
+     and offers the times the capacity engine allows for this dog, as "Morning drop-offs"
+     and "Afternoon drop-offs" in the website's "9:30am" style. A chosen time that has
+     gone is dropped; a failed read is "We couldn't check availability just now", never
+     "Fully booked"; for today it asks the server again which flagged times are still
+     open (the 30-minute cut-off moves on) and shows the website's "Today's last-minute
+     times have gone". Not ported: the owner's preferred and blocked times ("Your usual
+     time") and the waitlist link; the database still refuses a blocked time. Needs a
+     Mac to see.
+     Review fixes (Codex, on #1289): today stays the customer's last-minute choice even after
+     every flagged time has gone, so going back and forward never offers the ordinary grid;
+     Continue is shut until the chosen time has been checked again on this visit (a failed
+     read leaves it shut); a day staff closed after it was picked shows "We're closed on ..."
+     with no times (not when the open-days read failed, which proves nothing); and leaving the
+     time step for the date step drops the remembered pages so the list is read again.
+   - **After the time step:** the summary screen (no confirm).
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.

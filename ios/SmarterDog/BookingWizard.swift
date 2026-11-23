@@ -175,6 +175,11 @@ struct BookingWizardState: Equatable, Sendable {
         time = nil
     }
 
+    /// Forgets the time, for when a fresh read shows it has gone.
+    mutating func clearTime() {
+        time = nil
+    }
+
     /// Forgets the date and time, for when a change of dog makes the date unavailable.
     mutating func clearDate() {
         date = nil
