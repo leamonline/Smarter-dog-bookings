@@ -1,8 +1,37 @@
 // Shared email sender for SendGrid. Used by all notify-* functions.
 // Reads SENDGRID_API_KEY and SENDGRID_FROM_EMAIL at module load.
+//
+// Every email goes as two parts: the plain text, word for word as the caller
+// wrote it, and the same words in the salon's branded HTML (emailHtml.ts).
+// Clients that cannot show HTML, and people who prefer plain text, get the text.
+
+import { portalUrlFrom, renderEmailHtml } from "./emailHtml.ts";
 
 const SENDGRID_KEY = Deno.env.get("SENDGRID_API_KEY")!;
 const SENDGRID_FROM = Deno.env.get("SENDGRID_FROM_EMAIL")!;
+const PORTAL_URL = portalUrlFrom(Deno.env.get("CUSTOMER_PORTAL_URL"));
+
+export interface EmailSendOptions {
+  /**
+   * Customer emails carry a "Book or manage online" button to the customer
+   * portal. Pass false for emails to staff (the waitlist alert).
+   */
+  portalButton?: boolean;
+}
+
+/** The SendGrid `content` array: text/plain must come before text/html. */
+export function emailContent(
+  subject: string,
+  text: string,
+  options: EmailSendOptions = {},
+  portalUrl: string = PORTAL_URL,
+): Array<{ type: "text/plain" | "text/html"; value: string }> {
+  const showButton = options.portalButton ?? true;
+  return [
+    { type: "text/plain", value: text },
+    { type: "text/html", value: renderEmailHtml(text, { subject, portalUrl: showButton ? portalUrl : null }) },
+  ];
+}
 
 export interface EmailSendResult {
   ok: boolean;
@@ -17,14 +46,15 @@ function boundProviderText(text: string): string {
 }
 
 /**
- * Send one plain-text email. `ok` is true only when SendGrid accepts it
- * (HTTP 2xx). A rejection carries SendGrid's message so notification_log
- * can record the real reason rather than a generic failure.
+ * Send one email (plain text plus its branded HTML). `ok` is true only when
+ * SendGrid accepts it (HTTP 2xx). A rejection carries SendGrid's message so
+ * notification_log can record the real reason rather than a generic failure.
  */
 export async function sendEmailDetailed(
   to: string,
   subject: string,
   text: string,
+  options: EmailSendOptions = {},
 ): Promise<EmailSendResult> {
   const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
@@ -36,7 +66,7 @@ export async function sendEmailDetailed(
       personalizations: [{ to: [{ email: to }] }],
       from: { email: SENDGRID_FROM, name: "Smarter Dog Grooming" },
       subject,
-      content: [{ type: "text/plain", value: text }],
+      content: emailContent(subject, text, options),
     }),
   });
   const ok = res.status >= 200 && res.status < 300;
@@ -55,6 +85,11 @@ export async function sendEmailDetailed(
   return { ok: false, status: res.status, errorMessage };
 }
 
-export async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
-  return (await sendEmailDetailed(to, subject, text)).ok;
+export async function sendEmail(
+  to: string,
+  subject: string,
+  text: string,
+  options: EmailSendOptions = {},
+): Promise<boolean> {
+  return (await sendEmailDetailed(to, subject, text, options)).ok;
 }

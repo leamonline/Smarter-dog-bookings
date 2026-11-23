@@ -221,12 +221,17 @@ Deno.test("a rejected SMS falls back to email and the log records that email was
   const mail = emailCalls(calls)[0].body as {
     personalizations: Array<{ to: Array<{ email: string }> }>;
     subject: string;
-    content: Array<{ value: string }>;
+    content: Array<{ type: string; value: string }>;
   };
   assertEquals(mail.personalizations[0].to[0].email, HUMAN.email);
   assertStringIncludes(mail.subject, "Bella");
   assertStringIncludes(mail.subject, "cancelled");
   assertStringIncludes(mail.content[0].value, "has been cancelled");
+  // The same words in the salon's branded HTML, with the customer portal button.
+  assertEquals(mail.content.map((part) => part.type), ["text/plain", "text/html"]);
+  assertStringIncludes(mail.content[1].value, "has been cancelled");
+  assertStringIncludes(mail.content[1].value, "Book or manage online");
+  assertStringIncludes(mail.content[1].value, 'href="https://smarterdog.co.uk/book/login"');
 
   const patch = finalPatch(calls);
   assertEquals(patch.status, "sent");

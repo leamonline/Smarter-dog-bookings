@@ -1,6 +1,6 @@
 # Flyer visual language for the web app
 
-Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website merged in #1269, hero tidy-up in review)
+Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website merged in #1269 and #1272, emails in review)
 Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
 Last verified: 2026-11-23
@@ -462,6 +462,30 @@ pass").** The hero said "easy" four ways at once and some details looked broken:
   `website/e2e/performance.spec.js` still has no headroom (79 on Chromium, 80 on
   WebKit, the same as before).
 
+
+**Emails, as built (23 November 2026).** The owner chose a "branded wrapper":
+one shared template for every email, the words unchanged.
+
+- Before: six edge functions sent plain text through SendGrid (booking
+  confirmed, cancelled, two reminder paths, welcome, and the staff waitlist
+  alert). Email is the last channel after WhatsApp and SMS, so it reaches few
+  customers (38 had neither when the messaging policy was written).
+- Now `supabase/functions/_shared/email.ts` sends two parts: the plain text,
+  word for word, then the same words in HTML from `_shared/emailHtml.ts`. No
+  caller's wording changed.
+- The HTML: the flyer stripe as nine coloured table cells (it shows with images
+  blocked), "Smarter Dog Grooming" in charcoal, the message on a white card on
+  cream, a yellow "Book or manage online" button to the customer portal
+  (`CUSTOMER_PORTAL_URL`, overridable per environment), and the salon's name and
+  address from `SALON_LOCATION` in the muted grey. The staff waitlist alert
+  passes `portalButton: false` and gets no button.
+- Email clients are not browsers: tables and inline styles only, no images, no
+  web fonts (Poppins or Montserrat where installed, Arial otherwise), no style
+  block. Every piece of text is escaped; web addresses in a staff-written
+  reminder become links, escaped piece by piece.
+- Not reachable from this repository: the staff password-reset email, whose
+  template lives in the Supabase dashboard. Customer sign-in codes go by SMS,
+  not email.
 ## Testing
 
 - Step 1: `npm run check:docs` (links). No code changed.

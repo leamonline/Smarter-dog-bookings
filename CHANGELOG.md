@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — flyer visual language, step 4: emails
+
+- The salon's emails (booking confirmed, cancelled, reminders, welcome) now arrive in the flyer's look: the blue and yellow stripe, the message on a white card on cream, a yellow "Book or manage online" button and the salon's address. The words are exactly as before, and a plain-text copy travels with every email for apps that prefer it. The staff waitlist alert gets the same look without the customer button. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
+
 ## Unreleased — the website hero, tidied
 
 - The homepage hero has one yellow button with "Easy peasy" handwritten beside it (the yellow tag that looked like a second button and the "quick and easy" sticker are gone), a "★ 4.9 on Google · Since 1982" line, the yellow swash under "gorgeous." only, yellow photo tape you can see on the blue, and a caption on the front photo only, so none is cut off. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
