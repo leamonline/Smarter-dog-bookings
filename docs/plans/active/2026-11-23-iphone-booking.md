@@ -240,8 +240,41 @@ Each is its own pull request, merged only after the full CI bar.
      "From £46+", exactly as the website renders it, under the website's sentence
      about starting prices. `service-prices.json` is generated from the website's
      own functions; refresh it with `UPDATE_IOS_SERVICE_PRICES=1`.
-   - **3b-3 onwards, next:** the date, time and summary screens, and the
-     availability read the date and time steps need.
+   - **3b-3, planned (decisions made with the owner):** the date step and the
+     app's first availability read. Time and summary screens follow.
+     - **Layout:** a week-by-week list, not the website's grid. Each day is one large
+       row ("Tuesday 1 December"). A closed or fully booked day stays in the list,
+       greyed, with the word "Closed" or "Fully booked", so the customer can see why
+       a day is missing. The salon is open Mon-Wed, so a seven-column grid would be
+       mostly closed cells with small targets.
+     - **Last minute is included.** A "Today — last minute" row sits above the list
+       only when staff have flagged a slot today, the server still offers it, and the
+       chosen dog can be placed in a flagged slot. The server's date is the date of
+       truth (`get_immediate_slots` returns it), never the phone's clock.
+     - **Reads, all existing customer-safe RPCs, no PII:** `get_open_days` (only dates
+       with a row come back, so a date with no row falls back to the weekday default,
+       Mon-Wed open), `get_occupancy_range` (date, slot, size), `get_blocked_seats` (in
+       14-day chunks, as the website does), `get_immediate_slots`. Pages of 28 days
+       with a "Show more weeks" row up to the customer's `bookingHorizonDays`; the
+       range RPCs refuse anything outside the booking window.
+     - **A day is "Fully booked" only if the engine says so.** It uses
+       `CapacityEngine.offeredSlots` for this dog's size, so no new rule is written.
+       If any read failed the page is marked incomplete and no day is called full: the
+       app shows it as open and the database stays the authority, the same as the
+       website. A failed read is shown as "couldn't load, try again", never as "no
+       dates".
+     - **Out of scope here:** the holiday-notice banner (`get_public_holiday_notices`;
+       a holiday closure already shows as Closed through `get_open_days`), several
+       dogs, and the time step.
+     - **Split into three small PRs:** (a) pure `BookingAvailability.swift`: row types,
+       lenient decoding, day states, the page and the last-minute row, with Linux
+       tests; (b) the Supabase reads behind `SalonBookingDataClient`, plus the
+       `-sampleBooking` stand-in; (c) the SwiftUI week list and its wiring.
+     - **What cannot be proved from Linux:** the screens (Xcode) and the real RPC
+       row shapes and refusals. The shapes are read from the migrations and decoded
+       leniently, but a real call needs the staging project (question 1).
+   - **After 3b-3:** the time step (`CapacityEngine.offeredSlots`), then the summary
+     screen.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.
