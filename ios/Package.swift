@@ -27,6 +27,8 @@ let package = Package(
                 "RootView.swift",
                 "SmarterDogApp.swift",
                 "SupabaseHomeClient.swift",
+                "SupabaseBookingClient.swift",
+                "BookingFlowView.swift",
                 "HomeView.swift",
                 "SupabaseDogsClient.swift",
                 "DogsView.swift",
@@ -40,6 +42,7 @@ let package = Package(
                 "BookingModels.swift",
                 "CapacityEngine.swift",
                 "BookingWizard.swift",
+                "BookingFlowModel.swift",
                 "DogsModels.swift",
             ]
         ),
