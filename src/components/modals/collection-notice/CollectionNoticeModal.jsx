@@ -406,7 +406,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
           </label>
 
           {READY_TEMPLATE && (
-            <div className="rounded-tile bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 italic">
+            <div className="rounded-tile bg-sd-cloud-tint border border-slate-100 p-3 text-xs text-slate-600 italic">
               “{previewText}”
             </div>
           )}

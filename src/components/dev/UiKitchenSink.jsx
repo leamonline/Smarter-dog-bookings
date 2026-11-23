@@ -179,7 +179,7 @@ export function UiKitchenSink() {
   const [shellFooterOpen, setShellFooterOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div className="min-h-screen bg-sd-cloud-tint text-slate-800">
       <div className="max-w-5xl mx-auto px-6 py-10">
         <header className="mb-12">
           <h1 className="text-3xl font-black font-display text-brand-ink">UI kitchen sink</h1>

@@ -69,11 +69,11 @@ export function AvailabilityCalendar({ bookingsByDate, dayOpenState, daySettings
     <div>
       {/* Month nav */}
       <div className="flex items-center justify-between mb-2.5">
-        <button type="button" onClick={prevMonth} aria-label="Previous month" className="tap-target bg-slate-50 border border-slate-200 rounded-md w-11 h-11 cursor-pointer flex items-center justify-center text-slate-800 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal">
+        <button type="button" onClick={prevMonth} aria-label="Previous month" className="tap-target bg-sd-cloud-tint border border-slate-200 rounded-md w-11 h-11 cursor-pointer flex items-center justify-center text-slate-800 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal">
           <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 3l-5 5 5 5" /></svg>
         </button>
         <div className="text-sm font-bold text-slate-800">{monthName}</div>
-        <button type="button" onClick={nextMonth} aria-label="Next month" className="tap-target bg-slate-50 border border-slate-200 rounded-md w-11 h-11 cursor-pointer flex items-center justify-center text-slate-800 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal">
+        <button type="button" onClick={nextMonth} aria-label="Next month" className="tap-target bg-sd-cloud-tint border border-slate-200 rounded-md w-11 h-11 cursor-pointer flex items-center justify-center text-slate-800 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal">
           <svg width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
         </button>
       </div>

@@ -77,7 +77,7 @@ export function PricingSettings({ config }) {
               type="button"
               disabled
               aria-label={`Delete ${s.name} service`}
-              className="tap-target w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-sm text-slate-500 transition-all cursor-not-allowed opacity-60"
+              className="tap-target w-8 h-8 rounded-lg border border-slate-200 bg-sd-cloud-tint flex items-center justify-center text-sm text-slate-500 transition-all cursor-not-allowed opacity-60"
             >
               {"\u2715"}
             </button>

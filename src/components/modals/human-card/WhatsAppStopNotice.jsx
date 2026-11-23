@@ -25,7 +25,7 @@ export function WhatsAppStopNotice({ human, onOpenHuman, onReenabled }) {
         <div
           role="status"
           className={`mb-3 rounded-tile border px-3.5 py-2.5 text-body leading-snug ${
-            stopped ? "border-rose-200 bg-rose-50 text-rose-900" : "border-slate-200 bg-slate-50 text-slate-800"
+            stopped ? "border-rose-200 bg-rose-50 text-rose-900" : "border-slate-200 bg-sd-cloud-tint text-slate-800"
           }`}
         >
           <p className="m-0 font-bold">

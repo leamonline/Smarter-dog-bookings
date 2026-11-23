@@ -16,7 +16,7 @@ const CATEGORIES = [
 
 function Notice({ children }) {
   return (
-    <div className="text-body text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-3 leading-relaxed">
+    <div className="text-body text-slate-600 bg-sd-cloud-tint border border-slate-200 rounded-lg px-3.5 py-3 leading-relaxed">
       {children}
     </div>
   );
