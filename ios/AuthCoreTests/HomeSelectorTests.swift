@@ -95,4 +95,15 @@ final class HomeSelectorTests: XCTestCase {
         let dogRows = try JSONDecoder().decode([DogRow].self, from: Data(dogJSON.utf8))
         XCTAssertEqual(dogRows.first?.size, "small")
     }
+
+    func testEachBookableServiceHasOneMascotAndWalkInsHaveNone() {
+        XCTAssertEqual(ServiceMascot.assetName(forService: "Full Groom"), "MascotFullGroom")
+        XCTAssertEqual(ServiceMascot.assetName(forService: "Bath & Brush"), "MascotBathBrush")
+        XCTAssertEqual(ServiceMascot.assetName(forService: "Bath & De-shed"), "MascotBathDeshed")
+        XCTAssertEqual(ServiceMascot.assetName(forService: " Puppy Groom "), "MascotPuppyGroom")
+        // Walk-in services are not booked, so they never get a mascot on a booking card.
+        XCTAssertNil(ServiceMascot.assetName(forService: "Nail clip"))
+        XCTAssertNil(ServiceMascot.assetName(forService: "Grooming"))
+        XCTAssertNil(ServiceMascot.assetName(forService: ""))
+    }
 }

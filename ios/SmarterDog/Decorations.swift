@@ -55,34 +55,6 @@ struct HighlightedWord: View {
     }
 }
 
-/// Navy and yellow dashes, 8pt tall. The dark appearance is a second PDF.
-struct DashRibbon: View {
-    var body: some View {
-        Image("AccentDashStrip")
-            .resizable(resizingMode: .tile)
-            .frame(height: AppSpace.s1)
-            .frame(maxWidth: .infinity)
-            .accessibilityHidden(true)
-    }
-}
-
-/// 8×8 squares of ink and paper, so the edge inverts in dark mode. Not a bitmap.
-struct CheckerboardEdge: View {
-    var body: some View {
-        Canvas { context, size in
-            let tile = AppSpace.s1
-            let columns = Int((size.width / tile).rounded(.up))
-            for column in 0..<max(columns, 1) {
-                let colour = column.isMultiple(of: 2) ? AppColor.brandInk : AppColor.brandPaper
-                let rect = CGRect(x: CGFloat(column) * tile, y: 0, width: tile, height: tile)
-                context.fill(Path(rect), with: .color(colour))
-            }
-        }
-        .frame(height: AppSpace.s1)
-        .accessibilityHidden(true)
-    }
-}
-
 /// Round illustrated icons: ink on a raised circle, 64pt. A drawn service set
 /// can reuse this. The waiting screen uses it for the paw until then.
 struct IconCircle: View {
@@ -100,8 +72,11 @@ struct IconCircle: View {
 }
 
 /// The flyer's segmented stripe: nine rounded segments, two yellow, one navy.
-/// Decoration only. 7pt across the top of a screen. Never inside content.
+/// Decoration only. 7pt across the top of a screen, 12pt on a hero screen.
+/// Never inside content.
 struct BrandStripe: View {
+    var height: CGFloat = 7
+
     private let segments: [(weight: CGFloat, colour: Color)] = [
         (1, AppColor.accentBlue), (2.1, AppColor.accentBlue), (1, AppColor.actionYellow),
         (1, AppColor.accentBlue), (1, AppColor.dashNavy), (2.1, AppColor.accentBlue),
@@ -120,7 +95,7 @@ struct BrandStripe: View {
                 }
             }
         }
-        .frame(height: 7)
+        .frame(height: height)
         .accessibilityHidden(true)
     }
 }
@@ -131,8 +106,7 @@ struct HeroTitle: View {
 
     var body: some View {
         Text(text)
-            .font(AppFont.poppinsBlack(relativeTo: .largeTitle, size: 40))
-            .tracking(-1.4)
+            .appHero()
             .foregroundStyle(AppColor.textPrimary)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityAddTraits(.isHeader)
@@ -149,6 +123,25 @@ struct HandwrittenLine: View {
             .font(AppFont.caveatBold(relativeTo: .title2, size: 28))
             .foregroundStyle(AppColor.accentBlueDeep)
             .rotationEffect(.degrees(-3), anchor: .leading)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A service mascot in a circle with the white ring and soft shadow from the
+/// style board. Decoration: it sits beside a service name, so VoiceOver skips it.
+/// The artwork is 250px, sharp up to about 80pt.
+struct MascotCircle: View {
+    let assetName: String
+    var size: CGFloat = AppSpace.s6
+
+    var body: some View {
+        Image(assetName)
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay(Circle().strokeBorder(AppColor.polaroidMount, lineWidth: max(2, size / 16)))
+            .appCardShadow()
             .accessibilityHidden(true)
     }
 }

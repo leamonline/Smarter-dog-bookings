@@ -149,6 +149,18 @@ private struct GroomCard: View {
     let groom: UpcomingGroom
 
     var body: some View {
+        HStack(alignment: .top, spacing: AppSpace.s1_5) {
+            if let mascot = ServiceMascot.assetName(forService: groom.service) {
+                MascotCircle(assetName: mascot)
+            }
+            details
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var details: some View {
         VStack(alignment: .leading, spacing: AppSpace.half) {
             HStack(alignment: .firstTextBaseline) {
                 Text(groom.dogName)
@@ -167,8 +179,6 @@ private struct GroomCard: View {
                 .foregroundStyle(AppColor.textPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface()
-        .accessibilityElement(children: .combine)
     }
 }
 

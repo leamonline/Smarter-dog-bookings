@@ -65,6 +65,20 @@ enum BookingStatusName {
     static let live: Set<String> = [booked, reconfirmed, arrived, ready]
 }
 
+/// Which mascot belongs to which bookable service. Walk-in services are not
+/// booked, so they have no entry. Names are the asset catalogue image sets.
+enum ServiceMascot {
+    static func assetName(forService service: String) -> String? {
+        switch service.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "Full Groom": "MascotFullGroom"
+        case "Bath & Brush": "MascotBathBrush"
+        case "Bath & De-shed": "MascotBathDeshed"
+        case "Puppy Groom": "MascotPuppyGroom"
+        default: nil
+        }
+    }
+}
+
 enum HomeSelector {
     static let london = TimeZone(identifier: "Europe/London")!
 
