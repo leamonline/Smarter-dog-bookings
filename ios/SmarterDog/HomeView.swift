@@ -126,11 +126,10 @@ struct CustomerHomeView: View {
         }
     }
 
-    @ViewBuilder
     private func dogs(_ dogs: [DogSummary]) -> some View {
-        if !dogs.isEmpty {
-            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
-                SectionLabel(text: "Your dogs")
+        VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+            SectionLabel(text: "Your dogs")
+            if !dogs.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(dogs.enumerated()), id: \.element.id) { index, dog in
                         DogRowView(dog: dog)
@@ -140,6 +139,14 @@ struct CustomerHomeView: View {
                     }
                 }
                 .cardSurface()
+            }
+            NavigationLink {
+                DogsView(onChanged: { Task { await model.load() } })
+            } label: {
+                Text(dogs.isEmpty ? "Add your dog" : "Manage your dogs")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppColor.accentBlueDeep)
+                    .frame(minHeight: 44, alignment: .leading)
             }
         }
     }
@@ -207,7 +214,7 @@ private struct DogRowView: View {
 
 /// Style board decision 7: only Large stands out. Small and Medium are plain
 /// outlined chips; Large is solid navy. The letter is always shown.
-private struct SizeChip: View {
+struct SizeChip: View {
     let letter: String?
 
     var body: some View {
@@ -231,7 +238,7 @@ private struct SizeChip: View {
     }
 }
 
-private struct SectionLabel: View {
+struct SectionLabel: View {
     let text: String
 
     var body: some View {
@@ -243,7 +250,7 @@ private struct SectionLabel: View {
     }
 }
 
-private extension View {
+extension View {
     /// White card on cream paper with the warm soft shadow.
     func cardSurface() -> some View {
         padding(AppSpace.s2)

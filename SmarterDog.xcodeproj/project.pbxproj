@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A100000000000000000000B3 /* DogsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A3 /* DogsModels.swift */; };
+		A100000000000000000000B2 /* DogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* DogsView.swift */; };
+		A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A1 /* SupabaseDogsClient.swift */; };
 		A10000000000000000000001 /* SmarterDogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* SmarterDogApp.swift */; };
 		A10000000000000000000002 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* SignInView.swift */; };
 		A10000000000000000000004 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* SupabaseConfig.swift */; };
@@ -36,6 +39,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A100000000000000000000A3 /* DogsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsModels.swift; sourceTree = "<group>"; };
+		A100000000000000000000A2 /* DogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsView.swift; sourceTree = "<group>"; };
+		A100000000000000000000A1 /* SupabaseDogsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseDogsClient.swift; sourceTree = "<group>"; };
 		A10000000000000000000011 /* SmarterDogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmarterDogApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
@@ -119,6 +125,9 @@
 				A10000000000000000000080 /* HomeModels.swift */,
 				A10000000000000000000081 /* SupabaseHomeClient.swift */,
 				A10000000000000000000082 /* HomeView.swift */,
+				A100000000000000000000A3 /* DogsModels.swift */,
+				A100000000000000000000A2 /* DogsView.swift */,
+				A100000000000000000000A1 /* SupabaseDogsClient.swift */,
 				A10000000000000000000067 /* Info.plist */,
 				A10000000000000000000016 /* Assets.xcassets */,
 				A10000000000000000000070 /* Fonts */,
@@ -240,6 +249,9 @@
 				A10000000000000000000090 /* HomeModels.swift in Sources */,
 				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
 				A10000000000000000000092 /* HomeView.swift in Sources */,
+				A100000000000000000000B3 /* DogsModels.swift in Sources */,
+				A100000000000000000000B2 /* DogsView.swift in Sources */,
+				A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */,
 				A10000000000000000000004 /* SupabaseConfig.swift in Sources */,
 				A10000000000000000000008 /* PhoneNumber.swift in Sources */,
 				A10000000000000000000009 /* AuthModels.swift in Sources */,
