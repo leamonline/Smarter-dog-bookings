@@ -9,5 +9,13 @@
 		<string>Poppins-Black.ttf</string>
 		<string>Caveat-Bold.ttf</string>
 	</array>
+	<!-- Xcode drops custom INFOPLIST_KEY_ entries, so the connection is read from
+	     Config.xcconfig here. These are build-setting references, not values. -->
+	<key>SupabaseURL</key>
+	<string>$(SUPABASE_URL)</string>
+	<key>SupabasePublishableKey</key>
+	<string>$(SUPABASE_PUBLISHABLE_KEY)</string>
+	<key>TurnstileSiteKey</key>
+	<string>$(TURNSTILE_SITE_KEY)</string>
 </dict>
 </plist>

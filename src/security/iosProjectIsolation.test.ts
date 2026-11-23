@@ -111,8 +111,14 @@ describe("the Xcode project is the committed skeleton", () => {
       "Poppins-Black.ttf",
       "Caveat-Bold.ttf",
     ]);
-    expect(fontsPlist.match(/<key>/g)).toHaveLength(1);
-    expect(fontsPlist).not.toContain("Supabase");
+    // Xcode ignores custom INFOPLIST_KEY_ entries, so the three connection keys
+    // live in this plist as references to Config.xcconfig. Never literal values.
+    expect(fontsPlist.match(/<key>/g)).toHaveLength(4);
+    expect(fontsPlist).toContain("<string>$(SUPABASE_URL)</string>");
+    expect(fontsPlist).toContain("<string>$(SUPABASE_PUBLISHABLE_KEY)</string>");
+    expect(fontsPlist).toContain("<string>$(TURNSTILE_SITE_KEY)</string>");
+    expect(fontsPlist).not.toContain("supabase.co");
+    expect(fontsPlist).not.toContain("sb_publishable_");
   });
 
   it("links supabase-swift 2.x and signs in with that client", () => {

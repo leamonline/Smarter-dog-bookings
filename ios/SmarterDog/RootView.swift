@@ -15,7 +15,9 @@ struct RootView: View {
             case .signedOut:
                 SignInView(auth: auth)
             case .customer(let account):
-                CustomerHomeView(account: account, auth: auth)
+                NavigationStack {
+                    CustomerHomeView(account: account, auth: auth)
+                }
             case .staff(let account):
                 HomeRoot(account: account, auth: auth)
             case .pending(let account):
