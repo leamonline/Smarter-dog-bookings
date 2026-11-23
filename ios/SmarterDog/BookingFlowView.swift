@@ -339,4 +339,8 @@ private struct PreviewBookingClient: SalonBookingDataClient {
             BookingDogRow(id: "4", name: "Bella", breed: "Poodle", size: "small", is_pregnant: true),
         ]
     }
+
+    func loadRules() async -> Data? { nil }
+    func loadCalendar(from: String, to: String) async -> SalonCalendar { .empty }
+    func loadLastMinuteSlots() async -> [ImmediateSlotRow] { [] }
 }

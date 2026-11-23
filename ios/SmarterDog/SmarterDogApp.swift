@@ -61,5 +61,29 @@ struct SampleBookingClient: SalonBookingDataClient {
             BookingDogRow(id: "d4", name: "Bella", breed: "Poodle", size: "small", is_pregnant: true),
         ]
     }
+
+    func loadRules() async -> Data? {
+        Data(#"{"bookingHorizonDays":28}"#.utf8)
+    }
+
+    /// A calendar that shows every state: the second open weekday in the window is full,
+    /// the third has been closed by staff, and the rest are quiet.
+    func loadCalendar(from: String, to: String) async -> SalonCalendar {
+        let open = BookingWindow.dates(now: Date(), horizonDays: 28).filter(DatePlanner.isOpenByDefault)
+        var closed: [OpenDayRow] = []
+        var bookings: [OccupancyRow] = []
+        if open.count > 2 {
+            closed = [OpenDayRow(setting_date: open[2], is_open: false)]
+        }
+        if open.count > 1 {
+            bookings = (0..<14).map { OccupancyRow(booking_date: open[1], slot: BookingSlots.canonical[$0 % 10], size: "small") }
+        }
+        return SalonCalendar(openRows: closed, occupancyRows: bookings, blockedRows: [])
+    }
+
+    func loadLastMinuteSlots() async -> [ImmediateSlotRow] {
+        let today = HomeSelector.londonDate(Date())
+        return ["10:00", "10:30"].map { ImmediateSlotRow(setting_date: today, slot: $0) }
+    }
 }
 #endif
