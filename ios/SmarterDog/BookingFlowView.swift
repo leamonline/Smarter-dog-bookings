@@ -34,7 +34,15 @@ struct BookingFlowView: View {
         .task { await model.loadDogs() }
         // The date step reads the calendar the first time it appears, not before.
         .task(id: model.step) {
-            if model.step == .date, model.calendarState == .idle { await model.loadDateStep() }
+            if model.step == .date {
+                if model.calendarState == .idle {
+                    await model.loadDateStep()
+                } else {
+                    // Coming back from the time step: the remembered pages were dropped, so this reads
+                    // the page again and shows any change staff have made since.
+                    await model.showDatePage(model.datePage)
+                }
+            }
             // The time step reads the chosen day afresh every time it appears: a slot may have gone.
             if model.step == .time { await model.loadTimes() }
         }
@@ -201,6 +209,17 @@ struct BookingFlowView: View {
                 ErrorNote(message: "We couldn't check availability just now. Please try again.")
                 PrimaryButton(title: "Try again") { Task { await model.loadTimes() } }
             }
+        case .closed:
+            VStack(alignment: .leading, spacing: AppSpace.s1) {
+                Text("We're closed on \(model.selectedDateText ?? "this day")")
+                    .appHeading(.title3)
+                    .foregroundStyle(AppColor.textPrimary)
+                Text("Go back and pick a different day.")
+                    .font(.body)
+                    .foregroundStyle(AppColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .cardSurface()
         case .loaded:
             if model.timeGroups.isEmpty {
                 VStack(alignment: .leading, spacing: AppSpace.s1) {

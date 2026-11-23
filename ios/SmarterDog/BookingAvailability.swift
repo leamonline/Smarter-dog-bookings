@@ -71,11 +71,15 @@ struct SalonCalendar: Equatable, Sendable {
     private(set) var blockedByDate: [String: [String: [Int: SeatOverride]]] = [:]
     /// False if any read failed. The database stays the authority, so the screen carries on.
     private(set) var complete: Bool
+    /// Whether `get_open_days` answered. Without it a day is only open by the weekday default, which
+    /// is a guess, so nothing may be called closed on that basis.
+    private(set) var openDaysRead: Bool
 
     static let empty = SalonCalendar(openRows: [], occupancyRows: [], blockedRows: [])
 
     init(openRows: [OpenDayRow]?, occupancyRows: [OccupancyRow]?, blockedRows: [BlockedSeatRow]?) {
         var ok = true
+        openDaysRead = openRows != nil
         if let openRows {
             for row in openRows {
                 if let date = row.setting_date.map(Self.dateOnly), let isOpen = row.is_open {

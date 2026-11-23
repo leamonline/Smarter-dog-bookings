@@ -304,6 +304,12 @@ Each is its own pull request, merged only after the full CI bar.
      times have gone". Not ported: the owner's preferred and blocked times ("Your usual
      time") and the waitlist link; the database still refuses a blocked time. Needs a
      Mac to see.
+     Review fixes (Codex, on #1289): today stays the customer's last-minute choice even after
+     every flagged time has gone, so going back and forward never offers the ordinary grid;
+     Continue is shut until the chosen time has been checked again on this visit (a failed
+     read leaves it shut); a day staff closed after it was picked shows "We're closed on ..."
+     with no times (not when the open-days read failed, which proves nothing); and leaving the
+     time step for the date step drops the remembered pages so the list is read again.
    - **After the time step:** the summary screen (no confirm).
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).

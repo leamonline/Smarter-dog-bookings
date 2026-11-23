@@ -61,6 +61,8 @@ final class BookingFlowModel {
         case loaded
         /// The day's bookings could not be read. Never shown as "fully booked".
         case failed
+        /// Staff closed the day after it was picked. No times, and not "fully booked" either.
+        case closed
     }
     /// Bumped on every page request so a slow answer for an old page is dropped.
     private var calendarRequest = 0
@@ -79,7 +81,15 @@ final class BookingFlowModel {
     // MARK: reading
 
     var step: BookingStep { wizard.step }
-    var canContinue: Bool { wizard.canContinue }
+    /// The time step is only finished with a time that a successful read of the day, made on this
+    /// visit, still offers. A time remembered from an earlier visit is not trusted until then.
+    var canContinue: Bool {
+        if wizard.step == .time {
+            guard timesState == .loaded, let time = wizard.time else { return false }
+            return offeredTimes.contains(time)
+        }
+        return wizard.canContinue
+    }
     var selectedDogId: String? { wizard.dog?.id }
 
     /// "Step 2 of 5".
@@ -142,6 +152,7 @@ final class BookingFlowModel {
         // A day that was open for the last dog may be full for this one (a large dog needs more room).
         if let date = wizard.date, !isSelectable(date: date) {
             wizard.clearDate()
+            lastMinuteDate = nil
         }
     }
 
@@ -151,16 +162,29 @@ final class BookingFlowModel {
     }
 
     func next() {
+        guard canContinue else { return }
         wizard.next()
-        // Arriving at the time step: forget any times from an earlier visit, so a stale list is
-        // never on screen or pickable while the day is read again.
-        if wizard.step == .time {
-            timesRequest += 1
-            timesState = .idle
-            offeredTimes = []
-        }
+        arrived()
     }
-    func back() { wizard.back() }
+
+    func back() {
+        let from = wizard.step
+        wizard.back()
+        // Leaving the time step for the date step: drop the remembered pages, so a day staff have
+        // closed or filled since it was picked shows as such when the list is read again.
+        if from == .time, wizard.step == .date { calendarCache = [:] }
+        arrived()
+    }
+
+    /// Arriving at the time step, from either side: forget any times from an earlier visit, so a
+    /// stale list is never on screen or pickable, and the remembered time is not trusted until the
+    /// day has been read again.
+    private func arrived() {
+        guard wizard.step == .time else { return }
+        timesRequest += 1
+        timesState = .idle
+        offeredTimes = []
+    }
 
     // MARK: the date step
 
@@ -194,10 +218,15 @@ final class BookingFlowModel {
         datePage == 0 ? lastMinuteForDog : nil
     }
 
+    /// The date the customer chose as today's last-minute opening, remembered for as long as it
+    /// is the chosen date, even after every flagged time has gone. Otherwise a refresh that finds
+    /// nothing left would turn today into an ordinary day and offer the whole grid.
+    private var lastMinuteDate: String?
+
     /// Whether the customer chose today's last-minute opening. Holds on every page.
     var isLastMinuteSelected: Bool {
-        guard let offer = lastMinuteForDog else { return false }
-        return wizard.date == offer.date
+        guard let chosen = lastMinuteDate else { return false }
+        return wizard.date == chosen
     }
 
     /// Choose today's last-minute opening. Today is outside the normal window (tomorrow on),
@@ -205,6 +234,7 @@ final class BookingFlowModel {
     func selectLastMinute() {
         guard let offer = lastMinuteForDog else { return }
         try? wizard.choose(date: offer.date, window: windowDates + [offer.date])
+        if wizard.date == offer.date { lastMinuteDate = offer.date }
     }
 
     /// The times the time step may offer if today was chosen, else nil.
@@ -252,6 +282,7 @@ final class BookingFlowModel {
     func select(date: String) {
         guard dateWeeks.flatMap(\.days).first(where: { $0.date == date })?.isSelectable == true else { return }
         try? wizard.choose(date: date, window: windowDates)
+        if wizard.date == date { lastMinuteDate = nil }
     }
 
     var selectedDate: String? { wizard.date }
@@ -296,6 +327,13 @@ final class BookingFlowModel {
             return
         }
         timesAreLastMinute = lastMinute
+        // Staff closed the day after it was picked. Say so, rather than "fully booked" or a list
+        // the database would refuse.
+        if !lastMinute, day.openDaysRead, !day.isOpen(date) {
+            offeredTimes = []
+            timesState = .closed
+            return
+        }
         offeredTimes = TimePlanner.offered(
             date: date, size: size, calendar: day, lastMinuteRows: lastMinuteRows, isLastMinute: lastMinute
         )

@@ -37,6 +37,9 @@ enum TimePlanner {
         isLastMinute: Bool
     ) -> [String] {
         guard let bookings = calendar.bookings(on: date) else { return [] }
+        // A day staff have closed offers nothing. The database refuses it too (`calendar_closed`).
+        // Today's last-minute opening was already checked as open by the server.
+        if !isLastMinute, calendar.openDaysRead, !calendar.isOpen(date) { return [] }
         if isLastMinute {
             guard let offer = DatePlanner.lastMinute(rows: lastMinuteRows, size: size, calendar: calendar),
                   offer.date == date else { return [] }
