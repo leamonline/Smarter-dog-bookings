@@ -135,4 +135,57 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertEqual(model.dogsState, .failed)
         XCTAssertEqual(model.selectedDogId, "1", "a network blip does not throw the customer's choice away")
     }
+
+    // MARK: the service step
+
+    func testNoServicesUntilADogIsChosenThenTheOnesItsSizeCanHave() async {
+        let (model, _) = await loaded([row("1", "Biscuit"), row("2", "Moose", size: "large")])
+        XCTAssertTrue(model.offeredServices.isEmpty)
+        XCTAssertNil(model.priceLine(for: .fullGroom))
+        XCTAssertNil(model.selectedDogName)
+
+        model.select(dog: model.dogs.first { $0.name == "Biscuit" }!)
+        XCTAssertEqual(model.selectedDogName, "Biscuit")
+        XCTAssertEqual(model.offeredServices.map(\.rawValue), ["Full Groom", "Bath & Brush", "Bath & De-shed", "Puppy Groom"])
+        XCTAssertEqual(model.priceLine(for: .fullGroom), "From £46+")
+
+        model.select(dog: model.dogs.first { $0.name == "Moose" }!)
+        XCTAssertEqual(model.offeredServices.map(\.rawValue), ["Full Groom", "Bath & Brush", "Bath & De-shed"])
+        XCTAssertEqual(model.priceLine(for: .fullGroom), "From £60+")
+        XCTAssertNil(model.priceLine(for: .puppyGroom))
+    }
+
+    func testChoosingAServiceLetsYouContinueAndAServiceTheDogCannotHaveIsIgnored() async {
+        let (model, _) = await loaded([row("1", "Moose", size: "large")])
+        model.select(service: .fullGroom)
+        XCTAssertNil(model.selectedService, "no dog yet")
+        model.select(dog: model.dogs[0])
+        model.next()
+        XCTAssertEqual(model.step, .service)
+        XCTAssertFalse(model.canContinue)
+
+        model.select(service: .puppyGroom)
+        XCTAssertNil(model.selectedService, "Puppy Groom is not offered for a large dog")
+        XCTAssertFalse(model.canContinue)
+
+        model.select(service: .bathAndDeshed)
+        XCTAssertEqual(model.selectedService, .bathAndDeshed)
+        XCTAssertTrue(model.canContinue)
+        model.next()
+        XCTAssertEqual(model.step, .date)
+        XCTAssertEqual(model.stepCaption, "Step 3 of 5")
+    }
+
+    func testGoingBackAndChoosingALargeDogDropsAPuppyGroom() async {
+        let (model, _) = await loaded([row("1", "Pip", size: "small"), row("2", "Moose", size: "large")])
+        model.select(dog: model.dogs.first { $0.name == "Pip" }!)
+        model.next()
+        model.select(service: .puppyGroom)
+        XCTAssertEqual(model.selectedService, .puppyGroom)
+        model.back()
+        model.select(dog: model.dogs.first { $0.name == "Moose" }!)
+        XCTAssertNil(model.selectedService, "a large dog cannot keep Puppy Groom")
+        model.next()
+        XCTAssertFalse(model.canContinue, "a service has to be chosen again")
+    }
 }

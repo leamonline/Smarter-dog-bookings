@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. This slice has
-/// the first step (pick a dog); the other steps arrive in the next ones, and nothing here can
-/// send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
+/// the first two steps (pick a dog, choose a service); the others arrive in the next ones, and
+/// nothing here can send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
 /// so no customer sees a half-built flow.
 struct BookingFlowView: View {
     @State private var model: BookingFlowModel
@@ -58,6 +58,8 @@ struct BookingFlowView: View {
         switch model.step {
         case .dog:
             dogStep
+        case .service:
+            serviceStep
         default:
             Text("This step is coming next.")
                 .font(.body)
@@ -100,6 +102,29 @@ struct BookingFlowView: View {
                     }
                 }
                 blockedDogNotes
+            }
+        }
+    }
+
+    /// The website's service step for one dog: its sentence about starting prices, then a tile
+    /// per service the dog's size can have (Puppy Groom is not offered for large dogs).
+    private var serviceStep: some View {
+        VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+            Text(BookingService.startingPriceNote)
+                .font(.subheadline)
+                .foregroundStyle(AppColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let name = model.selectedDogName {
+                SectionLabel(text: name)
+            }
+            ForEach(model.offeredServices, id: \.self) { service in
+                ServiceChoiceRow(
+                    service: service,
+                    priceLine: model.priceLine(for: service),
+                    selected: model.selectedService == service
+                ) {
+                    model.select(service: service)
+                }
             }
         }
     }
@@ -153,7 +178,6 @@ private struct DogChoiceRow: View {
     let action: () -> Void
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
         Button(action: action) {
             HStack(spacing: AppSpace.s1_5) {
                 SizeChip(letter: HomeSelector.sizeLetter(dog.confirmedSize?.rawValue))
@@ -182,13 +206,68 @@ private struct DogChoiceRow: View {
             }
             .frame(minHeight: 44)
             .cardSurface()
-            .overlay(shape.fill(selected ? AppColor.accentBlueDeep.opacity(0.08) : Color.clear).allowsHitTesting(false))
-            .overlay(shape.strokeBorder(selected ? AppColor.accentBlueDeep : Color.clear, lineWidth: 2))
+            .choiceHighlight(selected: selected)
         }
         .buttonStyle(.plain)
         .disabled(!dog.isBookable)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// One service: its mascot, name, one-line description and starting price. Selected looks the
+/// same as a selected dog.
+private struct ServiceChoiceRow: View {
+    let service: BookingService
+    let priceLine: String?
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                if let mascot = ServiceMascot.assetName(forService: service.rawValue) {
+                    MascotCircle(assetName: mascot, size: 52)
+                }
+                VStack(alignment: .leading, spacing: AppSpace.half) {
+                    Text(service.rawValue)
+                        .font(.headline)
+                        .foregroundStyle(AppColor.textPrimary)
+                    Text(service.summary)
+                        .font(.caption)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let priceLine {
+                        Text(priceLine)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppColor.textPrimary)
+                    }
+                }
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+private extension View {
+    /// Style board decision 5: brand blue marks "selected". A ring, a tint (and the tick the
+    /// row draws), never colour alone.
+    func choiceHighlight(selected: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+        return overlay(shape.fill(selected ? AppColor.accentBlueDeep.opacity(0.08) : Color.clear).allowsHitTesting(false))
+            .overlay(shape.strokeBorder(selected ? AppColor.accentBlueDeep : Color.clear, lineWidth: 2))
     }
 }
 
