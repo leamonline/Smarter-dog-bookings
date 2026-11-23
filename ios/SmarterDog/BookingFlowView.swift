@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. This slice has
-/// the first three steps (pick a dog, choose a service, pick a date); the others arrive in the next ones, and
+/// the first four steps (pick a dog, choose a service, pick a date, choose a time); the others arrive in the next ones, and
 /// nothing here can send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
 /// so no customer sees a half-built flow.
 struct BookingFlowView: View {
@@ -35,6 +35,8 @@ struct BookingFlowView: View {
         // The date step reads the calendar the first time it appears, not before.
         .task(id: model.step) {
             if model.step == .date, model.calendarState == .idle { await model.loadDateStep() }
+            // The time step reads the chosen day afresh every time it appears: a slot may have gone.
+            if model.step == .time { await model.loadTimes() }
         }
     }
 
@@ -66,6 +68,8 @@ struct BookingFlowView: View {
             serviceStep
         case .date:
             dateStep
+        case .time:
+            timeStep
         default:
             Text("This step is coming next.")
                 .font(.body)
@@ -178,6 +182,56 @@ struct BookingFlowView: View {
                 if model.canShowLaterDates {
                     Button("Show later dates") { Task { await model.showDatePage(model.datePage + 1) } }
                         .buttonStyle(BackButtonStyle())
+                }
+            }
+        }
+    }
+
+    /// The time step: only the times this dog can be booked at, as morning and afternoon drop-offs.
+    @ViewBuilder
+    private var timeStep: some View {
+        switch model.timesState {
+        case .idle, .loading:
+            ProgressView()
+                .tint(AppColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Checking availability")
+        case .failed:
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                ErrorNote(message: "We couldn't check availability just now. Please try again.")
+                PrimaryButton(title: "Try again") { Task { await model.loadTimes() } }
+            }
+        case .loaded:
+            if model.timeGroups.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpace.s1) {
+                    Text(model.timesAreLastMinute
+                         ? "Today's last-minute times have gone"
+                         : "Fully booked on \(model.selectedDateText ?? "this day")")
+                        .appHeading(.title3)
+                        .foregroundStyle(AppColor.textPrimary)
+                    Text(model.timesAreLastMinute
+                         ? "They do get snapped up fast — pick another day and we'll see you then."
+                         : "Try a different day.")
+                        .font(.body)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .cardSurface()
+            } else {
+                VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                    if let name = model.selectedDogName, let day = model.selectedDateText {
+                        Text("\(name) on \(day)")
+                            .font(.subheadline)
+                            .foregroundStyle(AppColor.textSecondary)
+                    }
+                    ForEach(model.timeGroups) { group in
+                        SectionLabel(text: group.title)
+                        ForEach(group.slots, id: \.self) { slot in
+                            TimeChoiceRow(slot: slot, selected: model.selectedTime == slot) {
+                                model.select(time: slot)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -349,6 +403,40 @@ private struct DateChoiceRow: View {
         .disabled(!option.isSelectable)
         .accessibilityElement(children: .combine)
         .accessibilityValue(option.state.label ?? "")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// One drop-off time, written as the website writes it ("9:30am").
+private struct TimeChoiceRow: View {
+    let slot: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                Image(systemName: "clock")
+                    .font(.title3)
+                    .foregroundStyle(AppColor.textSecondary)
+                    .accessibilityHidden(true)
+                Text(TimePlanner.label(slot))
+                    .font(.headline)
+                    .foregroundStyle(AppColor.textPrimary)
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }

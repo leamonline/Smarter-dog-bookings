@@ -47,6 +47,21 @@ final class BookingFlowModel {
     private(set) var calendar: SalonCalendar = .empty
     private(set) var lastMinuteRows: [ImmediateSlotRow] = []
     private var calendarCache: [Int: SalonCalendar] = [:]
+
+    /// The time step.
+    private(set) var timesState: TimesState = .idle
+    private(set) var offeredTimes: [String] = []
+    /// Whether the times on show are for today's last-minute opening, for the empty-state wording.
+    private(set) var timesAreLastMinute = false
+    private var timesRequest = 0
+
+    enum TimesState: Equatable {
+        case idle
+        case loading
+        case loaded
+        /// The day's bookings could not be read. Never shown as "fully booked".
+        case failed
+    }
     /// Bumped on every page request so a slow answer for an old page is dropped.
     private var calendarRequest = 0
 
@@ -135,7 +150,16 @@ final class BookingFlowModel {
         try? wizard.choose(service: service)
     }
 
-    func next() { wizard.next() }
+    func next() {
+        wizard.next()
+        // Arriving at the time step: forget any times from an earlier visit, so a stale list is
+        // never on screen or pickable while the day is read again.
+        if wizard.step == .time {
+            timesRequest += 1
+            timesState = .idle
+            offeredTimes = []
+        }
+    }
     func back() { wizard.back() }
 
     // MARK: the date step
@@ -239,5 +263,48 @@ final class BookingFlowModel {
         // Not in the normal window means it was today's opening, which this dog no longer fits.
         if !windowDates.contains(date) { return false }
         return dateWeeks.flatMap(\.days).first(where: { $0.date == date })?.isSelectable ?? true
+    }
+
+    // MARK: the time step
+
+    var timeGroups: [TimeGroup] { TimePlanner.groups(offeredTimes) }
+    var selectedTime: String? { wizard.time }
+
+    /// For example "Tuesday 1 December", for the screen's sentence and empty state.
+    var selectedDateText: String? { wizard.date.map(HomeSelector.dateText) }
+
+    /// Reads the chosen day afresh and works out which times to offer. Called every time the step
+    /// appears, because someone else may have taken a slot since the date was picked. A chosen
+    /// time that has gone is dropped.
+    func loadTimes() async {
+        guard let client, let date = wizard.date, let size = chosenSize else { return }
+        timesRequest += 1
+        let request = timesRequest
+        timesState = .loading
+        let lastMinute = isLastMinuteSelected
+        if lastMinute {
+            // The 30-minute cut-off moves on, so ask the server again which times are still open.
+            let rows = await client.loadLastMinuteSlots()
+            guard request == timesRequest else { return }
+            lastMinuteRows = rows
+        }
+        let day = await client.loadCalendar(from: date, to: date)
+        guard request == timesRequest else { return } // the customer has moved on
+        guard day.bookings(on: date) != nil else {
+            offeredTimes = []
+            timesState = .failed
+            return
+        }
+        timesAreLastMinute = lastMinute
+        offeredTimes = TimePlanner.offered(
+            date: date, size: size, calendar: day, lastMinuteRows: lastMinuteRows, isLastMinute: lastMinute
+        )
+        timesState = .loaded
+        if let chosen = wizard.time, !offeredTimes.contains(chosen) { wizard.clearTime() }
+    }
+
+    /// A time that is not on the list is ignored.
+    func select(time: String) {
+        try? wizard.choose(time: time, offered: offeredTimes)
     }
 }

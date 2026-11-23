@@ -387,6 +387,100 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertNil(model.lastMinuteSlots)
     }
 
+    // MARK: the time step
+
+    private func timeStep(
+        rows: [BookingDogRow]? = nil,
+        pick: String = "2026-11-24",
+        configure: (FakeClient) -> Void = { _ in }
+    ) async -> (BookingFlowModel, FakeClient) {
+        let (model, client) = await dateStep(rows: rows, configure: configure)
+        if pick == "today" { model.selectLastMinute() } else { model.select(date: pick) }
+        model.next()
+        XCTAssertEqual(model.step, .time)
+        await model.loadTimes()
+        return (model, client)
+    }
+
+    func testTheTimeStepReadsTheChosenDayAloneAndOffersTheFreeTimes() async {
+        let (model, client) = await timeStep()
+        XCTAssertEqual(client.calendarCalls.last?.from, "2026-11-24")
+        XCTAssertEqual(client.calendarCalls.last?.to, "2026-11-24")
+        XCTAssertEqual(model.timesState, .loaded)
+        XCTAssertEqual(model.offeredTimes, BookingSlots.canonical)
+        XCTAssertEqual(model.timeGroups.map(\.title), ["Morning drop-offs", "Afternoon drop-offs"])
+        XCTAssertEqual(model.selectedDateText, "Tuesday 24 November")
+    }
+
+    func testPickingATimeOnTheListLetsYouContinueAndOneOffTheListIsIgnored() async {
+        let (model, _) = await timeStep()
+        model.select(time: "03:00")
+        XCTAssertNil(model.selectedTime)
+        XCTAssertFalse(model.canContinue)
+        model.select(time: "09:30")
+        XCTAssertEqual(model.selectedTime, "09:30")
+        XCTAssertTrue(model.canContinue)
+        model.next()
+        XCTAssertEqual(model.step, .summary)
+    }
+
+    func testAFailedReadOfTheDayIsAnErrorNeverAnEmptyDay() async {
+        let (model, _) = await timeStep { client in
+            // Only the single-day read fails; the page read before it was fine.
+            client.calendarFor = { from, to in
+                from == to ? SalonCalendar(openRows: [], occupancyRows: nil, blockedRows: []) : .empty
+            }
+        }
+        XCTAssertFalse(model.calendarIsIncomplete, "the page was read before the day failed")
+        XCTAssertEqual(model.timesState, .failed)
+        XCTAssertTrue(model.offeredTimes.isEmpty)
+    }
+
+    func testAChosenTimeThatHasGoneByTheNextVisitIsDropped() async {
+        let (model, client) = await timeStep()
+        model.select(time: "09:30")
+        XCTAssertEqual(model.selectedTime, "09:30")
+        client.calendarFor = { _, _ in
+            SalonCalendar(openRows: [], occupancyRows: [
+                OccupancyRow(booking_date: "2026-11-24", slot: "09:30", size: "small"),
+                OccupancyRow(booking_date: "2026-11-24", slot: "09:30", size: "small"),
+            ], blockedRows: [])
+        }
+        await model.loadTimes()
+        XCTAssertFalse(model.offeredTimes.contains("09:30"))
+        XCTAssertNil(model.selectedTime, "someone else took it")
+    }
+
+    func testComingBackToTheTimeStepStartsFromNothingWhileItReloads() async {
+        let (model, _) = await timeStep()
+        XCTAssertEqual(model.timesState, .loaded)
+        model.back()
+        model.next()
+        XCTAssertEqual(model.step, .time)
+        XCTAssertEqual(model.timesState, .idle, "no stale list is shown or pickable")
+        XCTAssertTrue(model.offeredTimes.isEmpty)
+        model.select(time: "09:30")
+        XCTAssertNil(model.selectedTime)
+    }
+
+    func testTodaysLastMinuteTimesAreOnlyTheFlaggedOnesAndAreReadAgain() async {
+        let (model, client) = await timeStep(pick: "today") { client in
+            client.flagged = [ImmediateSlotRow(setting_date: "2026-11-23", slot: "10:00"),
+                              ImmediateSlotRow(setting_date: "2026-11-23", slot: "10:30")]
+        }
+        XCTAssertEqual(model.offeredTimes, ["10:00", "10:30"])
+        XCTAssertTrue(model.timesAreLastMinute)
+        // By the next visit the 10:00 cut-off has passed.
+        client.flagged = [ImmediateSlotRow(setting_date: "2026-11-23", slot: "10:30")]
+        await model.loadTimes()
+        XCTAssertEqual(model.offeredTimes, ["10:30"])
+        client.flagged = []
+        await model.loadTimes()
+        XCTAssertTrue(model.offeredTimes.isEmpty, "the times have gone")
+        XCTAssertEqual(model.timesState, .loaded)
+        XCTAssertTrue(model.timesAreLastMinute)
+    }
+
     func testNoClientMeansTheDateStepDoesNothingRatherThanCrash() async {
         let model = BookingFlowModel(client: nil, now: now)
         await model.loadDateStep()
