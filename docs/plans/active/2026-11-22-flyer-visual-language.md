@@ -382,6 +382,8 @@ here rather than rewriting the outline above:
 
 ### Step 4: website, iPhone app, emails
 
+**iPhone progress (23 November 2026):** customer Home, sign-in, the stripe on every screen and the four service mascots are in `ios/` (PR #1265 and its follow-up). Still to do on the iPhone: staff screens and the booked moment (polaroid) when booking arrives.
+
 Separate plans in their own codebases, reusing these values.
 
 ## Testing

@@ -65,6 +65,20 @@ enum BookingStatusName {
     static let live: Set<String> = [booked, reconfirmed, arrived, ready]
 }
 
+/// Which mascot belongs to which bookable service. Walk-in services are not
+/// booked, so they have no entry. Names are the asset catalogue image sets.
+enum ServiceMascot {
+    static func assetName(forService service: String) -> String? {
+        switch service.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "Full Groom": "MascotFullGroom"
+        case "Bath & Brush": "MascotBathBrush"
+        case "Bath & De-shed": "MascotBathDeshed"
+        case "Puppy Groom": "MascotPuppyGroom"
+        default: nil
+        }
+    }
+}
+
 enum HomeSelector {
     static let london = TimeZone(identifier: "Europe/London")!
 
@@ -126,7 +140,7 @@ enum HomeSelector {
         let today = londonDate(now)
         let names = Dictionary(uniqueKeysWithValues: dogs.map { ($0.id, nonEmpty($0.name) ?? "Your dog") })
         return bookings
-            .filter { $0.booking_date >= today && BookingStatusName.live.contains($0.status ?? "") }
+            .filter { $0.booking_date >= today && BookingStatusName.live.contains(effectiveStatus($0.status)) }
             .sorted { ($0.booking_date, $0.slot) < ($1.booking_date, $1.slot) }
             .map { row in
                 UpcomingGroom(
@@ -135,10 +149,19 @@ enum HomeSelector {
                     service: nonEmpty(row.service) ?? "Grooming",
                     dateText: dateText(row.booking_date),
                     timeText: "Drop off \(timeText(row.slot))",
-                    statusText: row.status ?? "",
+                    statusText: effectiveStatus(row.status),
                     isToday: row.booking_date == today
                 )
             }
+    }
+
+    /// The database treats a missing status as Booked (`booking_occupies_seat` does
+    /// `coalesce(status, 'Booked')`) and so does the website. A blank one is the same.
+    static func effectiveStatus(_ status: String?) -> String {
+        guard let trimmed = status?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return BookingStatusName.booked
+        }
+        return trimmed
     }
 
     static func snapshot(bookings: [BookingRow], dogs: [DogRow], now: Date) -> HomeSnapshot {

@@ -298,10 +298,19 @@ describe("sign-in screens use the catalogue", () => {
     expect(error).not.toContain("actionYellow");
     expect(signIn).toContain('Text("Come scruffy.")');
     expect(signIn).toContain('HighlightedWord(text: "gorgeous.")');
-    expect(signIn).toContain("DashRibbon()");
-    expect(signIn).toContain("CheckerboardEdge()");
     expect(signIn).toContain("DogWordmark()");
     expect(signIn).toContain("WordmarkAccent()");
+    // Flyer style board (22 November 2026): the stripe replaces the dash ribbon, the
+    // checkerboard is out (decision 4), heroes are Poppins Black, one Caveat line.
+    expect(signIn).toContain("BrandStripe(");
+    expect(signIn).toContain(".appHero()");
+    expect(signIn).toContain('HandwrittenLine(text: "Book your groom online")');
+    expect(signIn).toContain('MascotCircle(assetName: "MascotBathBrush"');
+    for (const file of walk("ios/SmarterDog").filter((name) => name.endsWith(".swift"))) {
+      const source = read(file);
+      expect(source, file).not.toContain("CheckerboardEdge");
+      expect(source, file).not.toContain("DashRibbon");
+    }
     expect(read("ios/SmarterDog/RootView.swift")).toContain('IconCircle(systemName: "pawprint.fill")');
     expect(read("ios/SmarterDog/SecurityCheckView.swift")).toContain('data-theme="auto"');
   });
@@ -334,6 +343,20 @@ describe("sign-in screens use the catalogue", () => {
     };
     expect(dog.properties["template-rendering-intent"]).toBe("template");
     expect(dog.properties["preserves-vector-representation"]).toBe(true);
+  });
+
+  it("ships one mascot image set per bookable service, as opaque PNGs", () => {
+    const sets = ["MascotFullGroom", "MascotBathBrush", "MascotBathDeshed", "MascotPuppyGroom"];
+    for (const name of sets) {
+      const dir = `ios/SmarterDog/Assets.xcassets/${name}.imageset`;
+      const json = JSON.parse(read(`${dir}/Contents.json`)) as { images: { filename: string }[] };
+      expect(json.images.map((image) => image.filename)).toEqual([`${name}.png`]);
+      const png = readFileSync(join(root, `${dir}/${name}.png`));
+      expect(png.subarray(1, 4).toString()).toBe("PNG");
+      // The 250px website artwork: sharp up to about 80pt on screen.
+      expect(png.readUInt32BE(16)).toBe(250);
+      expect(png.readUInt32BE(20)).toBe(250);
+    }
   });
 
   // The home-screen icon and the public salon connection are pinned by
