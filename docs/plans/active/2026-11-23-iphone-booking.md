@@ -5,7 +5,7 @@ Issue: Not yet assigned; link a dedicated iOS issue before implementation
 Base: `main` at `a4b8efc` (after #1266)
 Last verified: 2026-11-23
 Owners: `ios/**`, shared booking rules (`src/engine/capacity.ts`, `supabase/functions/_shared/capacity.ts`, the capacity trigger)
-Dependencies: A decision on open question 1 (where the first real writes happen). Customer Home and My dogs already merged (#1265, #1266).
+Dependencies: The deposit decision (question 3) before the confirm step. A staging project with a test customer (question 1). Customer Home and My dogs already merged (#1265, #1266).
 Related requirements: REQ-A11Y-001, REQ-UX-001
 Related ADRs: ADR 001 (PostgreSQL is the capacity authority), ADR 002 (visit commands stay off), ADR 009
 
@@ -182,7 +182,7 @@ works at large Dynamic Type. The size letter is always shown.
 | The Swift engine hides a slot that is fine | Same test, and the website remains the reference for any disagreement |
 | A confirm that times out is read as a failure and retried | Unknown outcome rule above: reload, never retry blindly. A unique index also stops the same dog booking the same slot twice |
 | A booking is created and the phone then claims it was not | The app never decides from its own memory. After any uncertainty it reads the server |
-| First real writes hit production data | Open question 1 |
+| First real writes hit production data | Decided: they go to a staging project (question 1) |
 | Rules drift between four copies over time | Fixtures export plus freshness test, and the wording in the capacity docs |
 
 ## Implementation sequence
@@ -197,7 +197,7 @@ Each is its own pull request, merged only after the full CI bar.
 3. **Read-only wizard.** Dogs, services, date and time screens ending at a
    summary with **no confirm button**. Sample data mode for screenshots.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
-   chosen test target (open question 1).
+   staging project (question 1).
 5. **Booked screen** and its motion.
 6. **Release.** Turn the confirm on for the internal TestFlight build, then
    widen.
@@ -212,8 +212,8 @@ the exported scenarios, the freshness check. Repository bar for any change:
 
 Needs a Mac and a simulator: every SwiftUI screen, Dynamic Type, VoiceOver,
 Reduce Motion and the booked-moment animation. Needs a real project: the confirm
-itself and row-level security, so a test account and a test target are
-required (open question 1). Nothing from the Linux side proves a screen works.
+itself and row-level security, so a staging project and a test customer are
+required (question 1). Nothing from the Linux side proves a screen works.
 
 ## Migration/rollout
 
@@ -244,18 +244,27 @@ records is open question 4.
   large text, with VoiceOver and Reduce Motion checked on the screens that move.
 - The owner has seen it on a real phone.
 
-## Open questions
+## Decisions and open questions
 
-1. **Where do the first real writes happen?** A staging Supabase project, or a
-   clearly marked test customer on production? The app points at production by
-   default and `Config.local.xcconfig` can override it. A staging project is
-   safer if one exists.
-2. **One dog first?** Recommended. Several dogs (1 to 4) is a separate slice.
-3. **Deposits.** The website's confirm step warns about deposits when policy
-   needs one (see the deposit tests under `src/components/customer/booking/`).
-   The contract says Square deposit charging is not in the app. The app must
-   not call a booking confirmed if the website would not. This needs reading
-   and a decision before step 4.
+Decided by the owner on 23 November 2026:
+
+1. **First real writes go to a staging project**, not production. The app is
+   pointed at it through `Config.local.xcconfig` (public URL and publishable key
+   only, never a service-role key). Needs: the staging project's URL and
+   publishable key from the owner, and a test customer and test dog on it.
+2. **One dog first.** A customer with several dogs books them on the website
+   until a later slice adds grouped allocation.
+3. **Deposits: undecided.** The website reads a per-customer `depositRequired`
+   flag from `current_customer_booking_rules`, the database stamps a reference,
+   amount and due date at insert, and the website reads the rows back and shows
+   bank instructions. The app cannot take payment. Options are to send
+   deposit-required customers to the website (recommended, and to do the same
+   when the flag cannot be read), or to show the instructions in the app. Until
+   decided, **the confirm step stays switched off** and everything before it is
+   built.
+
+Still open:
+
 4. **Funnel telemetry.** Send the website's funnel events from the app, or only
-   denials?
+   denials via `log_booking_denial`?
 5. **Waitlist.** Link to the website when a day is full, or build it later?
