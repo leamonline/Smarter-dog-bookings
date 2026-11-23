@@ -4,12 +4,13 @@ import { colors } from '../../constants/colors';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
 import { BOOKING_URL } from '../../constants/links';
+import BrandStripe from '../BrandStripe';
 
 const Navigation = ({ isLoaded }) => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
     const [scrolled, setScrolled] = React.useState(false);
     const prefersReducedMotion = usePrefersReducedMotion();
-    const navLinkColor = scrolled ? colors.teal : colors.plum;
+    const navLinkColor = scrolled ? colors.inkMuted : colors.plum;
 
     const closeMenu = React.useCallback(() => setIsMenuOpen(false), []);
     const menuRef = useFocusTrap(isMenuOpen, closeMenu);
@@ -34,10 +35,14 @@ const Navigation = ({ isLoaded }) => {
     return (
         <nav
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-                ? 'bg-white/80 backdrop-blur-md shadow-sm py-3'
+                ? 'bg-white/80 backdrop-blur-md shadow-sm pt-5 pb-3'
                 : 'bg-transparent py-6'
                 } ${isLoaded && !prefersReducedMotion ? 'animate-fade-in' : ''}`}
         >
+            {/* The flyer's stripe on a strip of white paper, inside the nav's top padding */}
+            <div className="absolute top-0 inset-x-0 bg-white px-2 pt-1.5 pb-1">
+                <BrandStripe />
+            </div>
             <a
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-md focus:bg-white focus:text-black focus:shadow-md"
@@ -143,7 +148,7 @@ const Navigation = ({ isLoaded }) => {
                     <Link
                         to="/services"
                         className="text-lg font-medium py-2 border-b border-gray-50"
-                        style={{ color: colors.teal }}
+                        style={{ color: colors.inkMuted }}
                         onClick={closeMenu}
                         role="menuitem"
                     >
@@ -154,7 +159,7 @@ const Navigation = ({ isLoaded }) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-lg font-medium py-2 border-b border-gray-50"
-                        style={{ color: colors.teal }}
+                        style={{ color: colors.inkMuted }}
                         onClick={closeMenu}
                         role="menuitem"
                     >
@@ -163,7 +168,7 @@ const Navigation = ({ isLoaded }) => {
                     <Link
                         to="/approach"
                         className="text-lg font-medium py-2 border-b border-gray-50"
-                        style={{ color: colors.teal }}
+                        style={{ color: colors.inkMuted }}
                         onClick={closeMenu}
                         role="menuitem"
                     >
@@ -172,7 +177,7 @@ const Navigation = ({ isLoaded }) => {
                     <Link
                         to="/community"
                         className="text-lg font-medium py-2 border-b border-gray-50"
-                        style={{ color: colors.teal }}
+                        style={{ color: colors.inkMuted }}
                         onClick={closeMenu}
                         role="menuitem"
                     >
@@ -181,7 +186,7 @@ const Navigation = ({ isLoaded }) => {
                     <Link
                         to="/faq"
                         className="text-lg font-medium py-2 border-b border-gray-50"
-                        style={{ color: colors.teal }}
+                        style={{ color: colors.inkMuted }}
                         onClick={closeMenu}
                         role="menuitem"
                     >

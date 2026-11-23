@@ -6,8 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The flyer palette, shared with the booking app: coral (`pink`), `teal`, `green`, `orange`, `mutedGreen`, `blueSlate` and their tints are retired. Services and closing CTA bands are brand blue (`blueBand`), Houndsly is the sky tint, the Services page bands are sky blue and navy. Text teal is now `inkMuted` (`#57677C`); every booking button is yellow; WhatsApp buttons use `whatsapp` (`#25D366`). `cyanLight` is the app's sky tint (`#EAF4FF`).
+- The homepage hero is Poppins 900; `.handwriting` is Caveat 700. Google Fonts loads Poppins 900 and only Caveat 700.
+- Fixed all 15 colour-contrast failures an axe scan found across the routes (coral walk-in headings, faded review captions, yellow and coral Community links, the 404 button).
+
 ### Added
 
+- `BrandStripe`: the flyer's nine-segment stripe, across the top of every page inside the navigation.
 - `colors.cyanText` (`#2A62A8`): the calm blue for type and links, which passes WCAG AA on white and cream where the bright sky does not. `ErrorBoundary`'s WhatsApp link uses it (2.07:1 before, 6.16:1 now).
 - Scheduled holiday notice card in the homepage hero (`HolidayNoticeCard`), driven only by the booking database's `get_public_holiday_notices` RPC. Shows "Upcoming holiday" before the closure and "We're taking a little break" during it, with the reopening date and a "Book for our return" action; disappears automatically on the reopening date (Europe/London). Nothing is shown unless the salon's actual diary confirms the dates.
 - Automated dependency updates via Dependabot (weekly on Mondays)

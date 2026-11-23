@@ -28,7 +28,7 @@ class ErrorBoundary extends React.Component {
 
                         <h1
                             className="heading-font font-bold text-3xl md:text-4xl mb-4"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             Something went wrong
                         </h1>
@@ -41,22 +41,22 @@ class ErrorBoundary extends React.Component {
                           */}
                         <p
                             className="body-font text-lg mb-8"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             We're sorry, but something unexpected happened. Please try refreshing the page.
                         </p>
 
                         <button
                             onClick={() => window.location.reload()}
-                            className="px-8 py-4 rounded-full font-bold text-lg text-white transition-all hover:scale-105 hover:shadow-lg"
-                            style={{ backgroundColor: colors.green }}
+                            className="px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 hover:shadow-lg"
+                            style={{ backgroundColor: colors.yellow, color: colors.plum }}
                         >
                             Refresh Page
                         </button>
 
                         <p
                             className="body-font text-sm mt-6"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             Or message us on{' '}
                             <a

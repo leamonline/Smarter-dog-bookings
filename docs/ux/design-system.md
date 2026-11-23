@@ -1,7 +1,7 @@
 # Current design-system rules
 
 Status: Active
-Last verified: 2026-11-22
+Last verified: 2026-11-23
 Scope: Shared staff controls, customer action semantics and exported-kit guidance
 
 ## Source of truth
@@ -20,7 +20,9 @@ Use charcoal ink, warm paper, sky blue and sun yellow, taken from the salon's
 printed flyer. On 22 November 2026 the owner approved the
 [flyer visual language](../plans/active/2026-11-22-flyer-visual-language.md),
 which brings the flyer's character into both the staff dashboard and the
-customer portal at the same level of boldness. It rolls out in steps; where a
+customer portal at the same level of boldness. The marketing website uses the
+same values in its own palette file (`website/src/constants/colors.js`) since
+step 4. It rolls out in steps; where a
 rule below names a step, today's rendering holds until that step ships, and the
 plan holds the exact values.
 

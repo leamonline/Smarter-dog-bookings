@@ -38,6 +38,13 @@ describe('community listing link colours', () => {
     expect(contrast(walks.color, '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('gives every category a link colour that clears AA on white', () => {
+    // Yellow (1.5:1) and coral (3.6:1) links shipped here until November 2026.
+    for (const category of communityCategories) {
+      expect(contrast(category.color, '#FFFFFF'), category.id).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it('computes a known ratio correctly, so the helper above is trustworthy', () => {
     // Black on white is 21:1 exactly; white on white is 1:1.
     expect(contrast('#000000', '#FFFFFF')).toBeCloseTo(21, 1);

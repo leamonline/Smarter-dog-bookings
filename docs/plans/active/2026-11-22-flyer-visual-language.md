@@ -1,9 +1,9 @@
 # Flyer visual language for the web app
 
-Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264; step 3 follow-ups in review)
+Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website in review)
 Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
-Last verified: 2026-11-22
+Last verified: 2026-11-23
 Owners: `docs/ux/**`, `src/index.css`, `src/customer-portal.css`, `src/constants/statusPalette.ts`, `src/components/ui/**`, `src/components/customer/**`, `src/components/auth/**`, `public/app/fonts/**`, `.design-sync/**`
 Dependencies: None in-repo. Builds on the [brand reskin](2026-09-20-brand-reskin.md) palette and the [design-system components and tokens](2026-10-25-design-system-components-and-tokens.md) work.
 Related requirements: `REQ-A11Y-001`
@@ -400,6 +400,44 @@ here rather than rewriting the outline above:
 **iPhone progress (23 November 2026):** customer Home, sign-in, the stripe on every screen and the four service mascots are in `ios/` (PR #1265 and its follow-up). Still to do on the iPhone: staff screens and the booked moment (polaroid) when booking arrives.
 
 Separate plans in their own codebases, reusing these values.
+
+**Website, as built (23 November 2026).** The owner chose "Flyer palette, keep
+bands": the bold full-width section bands stay, recoloured to the flyer family,
+and coral, teal-green and orange are retired. All in `website/`; nothing shared
+at code level (ADR 009).
+
+- `website/src/constants/colors.js` holds the app's values: `plum` (ink),
+  `offWhite` (paper), `cyan` (flyer blue), `cyanText` (brand blue), `navy`,
+  `yellow`, `cyanLight` (now the app's sky tint, `#EAF4FF`), plus `inkMuted`
+  (`#57677C`, the app's muted text) and `whatsapp` (`#25D366`). `pink`, `teal`,
+  `green`, `orange`, `mutedGreen`, `blueSlate` and their tints are gone; a test
+  keeps them out and pins every contrast ratio the file quotes.
+- Bands on the homepage: sky-blue hero (unchanged), brand-blue services and
+  closing CTA (`blueBand`, the two former coral bands, with white text at
+  6.2:1), yellow gallery (unchanged), sky-tint Houndsly (was muted green),
+  charcoal footer. The Services page cards sit on sky blue and its timeline on
+  navy (were teal and blue slate). Community categories alternate sky and
+  yellow tints.
+- The text teal (about 200 uses) becomes the app's muted ink; titles that used
+  it become charcoal. Every link colour on the Community page is brand blue (the
+  yellow and coral links were 1.5:1 and 3.6:1).
+- Buttons: every booking button is yellow with charcoal text, including the
+  former green, coral, white and sky-blue ones; WhatsApp buttons use WhatsApp's
+  own green; the cookie Accept and scroll-to-top buttons are charcoal; selected
+  chips are brand blue over the sky tint.
+- Gallery and Houndsly tape alternates blue and yellow; decorative stickers are
+  brand blue.
+- Type: the homepage hero is Poppins 900 with −3.5% tracking. Google Fonts now
+  loads Poppins 900 (nothing else on the site asks for 800 or 900, so no
+  heading changes weight) and only Caveat 700, which `.handwriting` uses.
+- The stripe (`website/src/components/BrandStripe.jsx`) runs across the top of
+  every page on a thin strip of white inside the navigation, because the flyer
+  blue segments vanish on the sky-blue hero.
+- Contrast: an axe scan of every route found 15 failures on the live site before
+  this change and none after.
+- **Not done:** the hero still carries more than one handwritten line (the
+  "Easy peasy" tag and the polaroid captions), against the one-line rule;
+  left for the owner to decide. Emails are not started.
 
 ## Testing
 

@@ -27,10 +27,10 @@ describe('CTASection', () => {
     expect(screen.getByRole('link', { name: /WhatsApp us/i })).toHaveAttribute('href', 'https://wa.me/447873329440');
   });
 
-  it('uses brand pink background', () => {
+  it('uses the brand-blue band', () => {
     const { container } = render(<CTASection onBookClick={() => {}} />);
     const section = container.querySelector('section');
 
-    expect(section).toHaveStyle({ backgroundColor: colors.pink });
+    expect(section).toHaveStyle({ backgroundColor: colors.blueBand });
   });
 });

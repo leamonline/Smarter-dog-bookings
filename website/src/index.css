@@ -28,8 +28,11 @@
   /* 18px baseline for elderly readability */
 }
 
+/* Caveat 700, the flyer's handwriting (the only Caveat weight loaded). It is
+   unlayered, so it outranks any Tailwind weight utility on the same element. */
 .handwriting {
   font-family: 'Caveat', cursive;
+  font-weight: 700;
 }
 
 /* Global Noise Overlay */

@@ -30,7 +30,7 @@ const TrustSection = () => {
                                     </div>
                                     <div
                                         className="body-font text-base font-medium"
-                                        style={{ color: colors.teal }}
+                                        style={{ color: colors.inkMuted }}
                                     >
                                         {stat.label}
                                     </div>
@@ -41,10 +41,10 @@ const TrustSection = () => {
                 </div>
             </section>
 
-            {/* Slant Transition: White -> Pink (Services) */}
+            {/* Slant Transition: White -> brand blue (Services) */}
             <div style={{ backgroundColor: 'white', lineHeight: 0, position: 'relative' }}>
                 <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style={{ width: '100%', height: '60px' }}>
-                    <path d="M0 100L1440 100L1440 0L0 100Z" fill={colors.pink} />
+                    <path d="M0 100L1440 100L1440 0L0 100Z" fill={colors.blueBand} />
                 </svg>
             </div>
         </>

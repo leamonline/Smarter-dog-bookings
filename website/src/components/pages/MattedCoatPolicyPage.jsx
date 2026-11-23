@@ -76,7 +76,7 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
             <main id="main-content" className="pt-24 pb-16 px-6">
                 <div className="max-w-3xl mx-auto">
                     {/* Breadcrumb */}
-                    <p className="body-font text-base mb-4" style={{ color: colors.teal }}>
+                    <p className="body-font text-base mb-4" style={{ color: colors.inkMuted }}>
                         Policies & Terms
                     </p>
 
@@ -88,7 +88,7 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                         >
                             Matted Coat Policy
                         </h1>
-                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                             Your dog's comfort always comes first. A matted coat is uncomfortable, restricts movement, and can cause skin problems. This policy explains how we handle matted coats so you know exactly what to expect.
                         </p>
                     </div>
@@ -108,7 +108,7 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                                     {section.title}
                                 </h2>
                                 {section.intro && (
-                                    <p className="body-font text-lg mb-4" style={{ color: colors.teal }}>
+                                    <p className="body-font text-lg mb-4" style={{ color: colors.inkMuted }}>
                                         {section.intro}
                                     </p>
                                 )}
@@ -117,9 +117,9 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                                         <li
                                             key={j}
                                             className="body-font text-lg leading-relaxed flex gap-3"
-                                            style={{ color: colors.teal }}
+                                            style={{ color: colors.inkMuted }}
                                         >
-                                            <span style={{ color: colors.teal }} className="flex-shrink-0">•</span>
+                                            <span style={{ color: colors.inkMuted }} className="flex-shrink-0">•</span>
                                             <span>{item}</span>
                                         </li>
                                     ))}
@@ -132,20 +132,20 @@ const MattedCoatPolicyPage = ({ onBookClick }) => {
                     <div className="mt-12 text-center bg-white rounded-2xl p-8 shadow-sm">
                         <p
                             className="body-font text-lg italic mb-6"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             Our goal is always a calm, safe, and positive grooming experience.
                         </p>
-                        <p className="body-font text-base mb-4" style={{ color: colors.teal }}>
+                        <p className="body-font text-base mb-4" style={{ color: colors.inkMuted }}>
                             For cockapoos, cavapoos and other doodle coats, see our{' '}
                             <Link to="/doodle-grooming-matted-coats" className="font-semibold underline" style={{ color: colors.cyanText }}>
                                 doodle and matted coat guide
                             </Link>
                             .
                         </p>
-                        <p className="body-font text-base" style={{ color: colors.teal }}>
+                        <p className="body-font text-base" style={{ color: colors.inkMuted }}>
                             If you have questions about your dog's coat or how to care for it between grooms, please message us on{' '}
-                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
+                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.inkMuted }}>
                                 WhatsApp
                             </a>
                         </p>
