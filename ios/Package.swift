@@ -38,6 +38,7 @@ let package = Package(
                 "AuthService.swift",
                 "HomeModels.swift",
                 "BookingModels.swift",
+                "CapacityEngine.swift",
                 "DogsModels.swift",
             ]
         ),
@@ -45,7 +46,7 @@ let package = Package(
             name: "AuthCoreTests",
             dependencies: ["AuthCore"],
             path: "AuthCoreTests",
-            exclude: ["denial-cases.json"]
+            exclude: ["denial-cases.json", "capacity-parity.json"]
         ),
     ]
 )
