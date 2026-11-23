@@ -106,4 +106,13 @@ final class HomeSelectorTests: XCTestCase {
         XCTAssertNil(ServiceMascot.assetName(forService: "Grooming"))
         XCTAssertNil(ServiceMascot.assetName(forService: ""))
     }
+
+    func testAMissingStatusIsBookedNotHidden() {
+        let nullStatus = BookingRow(id: "n", booking_date: "2026-12-01", slot: "09:30", service: "Full Groom", status: nil, dog_id: "d1")
+        let blankStatus = BookingRow(id: "b", booking_date: "2026-12-02", slot: "09:30", service: "Full Groom", status: "  ", dog_id: "d1")
+        let cancelled = booking("c", "2026-12-03", "09:30", "Cancelled")
+        let result = HomeSelector.upcoming(from: [nullStatus, blankStatus, cancelled], dogs: dogs, now: now)
+        XCTAssertEqual(result.map(\.id), ["n", "b"])
+        XCTAssertEqual(result.map(\.statusText), ["Booked", "Booked"])
+    }
 }
