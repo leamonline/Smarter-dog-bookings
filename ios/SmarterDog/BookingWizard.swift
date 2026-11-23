@@ -106,9 +106,11 @@ enum BookingWizardError: Error, Equatable {
     case notFinished
 }
 
-/// What the summary step shows, in the customer's words. No price yet: prices come from the
-/// salon's pricing settings, which the app does not read in this slice, and a guess would be
-/// worse than saying nothing.
+/// What the summary step shows, in the customer's words, laid out as the website's confirm
+/// step does: when, then the dog with its service and starting price, then the total.
+/// Prices are the website's guide prices (`BookingServices.swift`), quoted as "From £46+"
+/// because the final cost depends on coat condition. Nothing here says what is paid when:
+/// whether a deposit is due is not known to the app yet.
 struct BookingSummary: Equatable, Sendable {
     var dogName: String
     var service: String
@@ -117,6 +119,20 @@ struct BookingSummary: Equatable, Sendable {
     var dateText: String
     /// For example "09:30".
     var timeText: String
+    /// For example "Tuesday 1 December 2026", as the website's confirm step writes it.
+    var longDateText: String = ""
+    /// For example "9:30am".
+    var timeLabel: String = ""
+    var breed: String = ""
+    /// For example "Medium".
+    var sizeLabel: String = ""
+    /// For example "From £46+".
+    var priceLine: String?
+    /// For example "From £46": the guide price, with no "+".
+    var totalText: String?
+
+    /// "Tuesday 1 December 2026 at 9:30am".
+    var whenText: String { longDateText.isEmpty ? "\(dateText) at \(timeLabel)" : "\(longDateText) at \(timeLabel)" }
 }
 
 // MARK: - State
@@ -242,12 +258,19 @@ struct BookingWizardState: Equatable, Sendable {
 
     var summary: BookingSummary? {
         guard isFinished, let dog, let service, let date, let time else { return nil }
+        let size = dog.confirmedSize
         return BookingSummary(
             dogName: dog.name,
             service: service.rawValue,
             addOns: addOns,
             dateText: HomeSelector.dateText(date),
-            timeText: HomeSelector.timeText(time)
+            timeText: HomeSelector.timeText(time),
+            longDateText: HomeSelector.dateText(date, withYear: true),
+            timeLabel: TimePlanner.label(time),
+            breed: dog.breed,
+            sizeLabel: size.map { $0.rawValue.capitalized } ?? "",
+            priceLine: size.flatMap { service.priceLine(for: $0) },
+            totalText: size.flatMap { service.pricePence(for: $0) }.map { "From " + BookingService.formatPounds($0) }
         )
     }
 

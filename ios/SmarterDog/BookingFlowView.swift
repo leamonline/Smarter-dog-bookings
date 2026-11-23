@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. This slice has
-/// the first four steps (pick a dog, choose a service, pick a date, choose a time); the others arrive in the next ones, and
+/// the five steps (pick a dog, choose a service, pick a date, choose a time, check the summary); the others arrive in the next ones, and
 /// nothing here can send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
 /// so no customer sees a half-built flow.
 struct BookingFlowView: View {
@@ -78,11 +78,8 @@ struct BookingFlowView: View {
             dateStep
         case .time:
             timeStep
-        default:
-            Text("This step is coming next.")
-                .font(.body)
-                .foregroundStyle(AppColor.textSecondary)
-                .cardSurface()
+        case .summary:
+            summaryStep
         }
     }
 
@@ -256,6 +253,40 @@ struct BookingFlowView: View {
         }
     }
 
+    /// The last step, laid out as the website's confirm step is: when, the dog with its service and
+    /// starting price, then the total. There is no confirm button yet: booking is switched off in
+    /// the app until deposits are decided, and the screen says so rather than hide it. Left out on
+    /// purpose, for now: any claim about when payment is due, the change-your-appointment note
+    /// and the essential-messages notice. They need the deposit decision and one more server read.
+    @ViewBuilder
+    private var summaryStep: some View {
+        if let summary = model.summary {
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                Text("Here's what you've chosen.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppColor.textSecondary)
+                VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                    SummaryRow(label: "When", value: summary.whenText)
+                    SummaryRow(
+                        label: summary.dogName,
+                        value: [summary.service, summary.priceLine].compactMap { $0 }.joined(separator: " · "),
+                        detail: [summary.breed, summary.sizeLabel].filter { !$0.isEmpty }.joined(separator: " · ")
+                    )
+                    if let total = summary.totalText {
+                        SummaryRow(label: "Total", value: total)
+                    }
+                }
+                .cardSurface()
+                Text("Booking isn't switched on in this version of the app yet, so there is nothing to confirm.")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            ErrorNote(message: "Something is missing from your choices. Go back and check each step.")
+        }
+    }
+
     /// The website's explanations, with a way to unblock: message the salon.
     @ViewBuilder
     private var blockedDogNotes: some View {
@@ -423,6 +454,33 @@ private struct DateChoiceRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityValue(option.state.label ?? "")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// One line of the summary: a small label, the value, and optionally a quieter line under it.
+private struct SummaryRow: View {
+    let label: String
+    let value: String
+    var detail: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpace.half) {
+            Text(label.uppercased())
+                .font(.caption.weight(.bold))
+                .tracking(1.2)
+                .foregroundStyle(AppColor.textSecondary)
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(AppColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(AppColor.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 

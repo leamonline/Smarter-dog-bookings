@@ -301,8 +301,11 @@ final class BookingFlowModel {
     var timeGroups: [TimeGroup] { TimePlanner.groups(offeredTimes) }
     var selectedTime: String? { wizard.time }
 
+    /// What the last step shows. Nil until a dog, service, date and time are all chosen.
+    var summary: BookingSummary? { wizard.summary }
+
     /// For example "Tuesday 1 December", for the screen's sentence and empty state.
-    var selectedDateText: String? { wizard.date.map(HomeSelector.dateText) }
+    var selectedDateText: String? { wizard.date.map { HomeSelector.dateText($0) } }
 
     /// Reads the chosen day afresh and works out which times to offer. Called every time the step
     /// appears, because someone else may have taken a slot since the date was picked. A chosen
