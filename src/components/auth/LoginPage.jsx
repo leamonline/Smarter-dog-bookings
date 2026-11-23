@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { useStaffAuthActions } from "../../supabase/hooks/useStaffAuthActions";
 import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
+import { BrandStripe } from "../ui/BrandStripe.jsx";
 import { Input } from "../ui/index.js";
 import { DogSilhouetteScatter } from "./DogSilhouetteScatter.jsx";
 import { turnstileConfig, CAPTCHA_PENDING_ERROR, isCaptchaRejection } from "../../lib/turnstile";
@@ -38,9 +39,11 @@ const linkButtonClass =
 function PortalShell({ children }) {
   return (
     <div
-      className="min-h-dvh flex flex-col items-center justify-center px-4 py-3 sm:py-12 font-['Montserrat',sans-serif]"
+      className="relative min-h-dvh flex flex-col items-center justify-center px-4 py-3 sm:py-12 font-['Montserrat',sans-serif]"
       style={{ background: pageBackground }}
     >
+      {/* The flyer stripe across the top of the sign-in page (flyer visual language, decision 8). */}
+      <BrandStripe size="hero" className="absolute top-3 left-3 right-3" />
       <div className="w-full max-w-md bg-white rounded-3xl shadow-elevated px-6 py-4 sm:px-10 sm:py-12 border border-[rgba(31,31,31,0.06)] relative overflow-hidden">
         <DogSilhouetteScatter mobileSparse />
         <div className="relative">
@@ -184,7 +187,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   if (isOffline) {
     return (
       <PortalShell>
-        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
+        <h1 className="font-hero font-black text-3xl sm:text-4xl leading-tight tracking-tight mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
           <span className="relative inline-block">
             Sample data
             <ScribbleUnderline />
@@ -204,7 +207,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
+          <h1 className="font-hero font-black text-3xl sm:text-4xl leading-tight tracking-tight mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
             <span className="relative inline-block">
               Hello again
               <ScribbleUnderline />
@@ -316,7 +319,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
     return (
       <PortalShell>
         <div aria-live="polite">
-          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
+          <h1 className="font-hero font-black text-3xl sm:text-4xl leading-tight tracking-tight mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
             <span className="relative inline-block">
               Check your inbox
               <ScribbleUnderline />
@@ -342,7 +345,7 @@ export function LoginPage({ onSignIn, error, isOffline }) {
   return (
     <PortalShell>
       <div aria-live="polite">
-        <h1 className="font-display font-bold text-2xl sm:text-3xl mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
+        <h1 className="font-hero font-black text-3xl sm:text-4xl leading-tight tracking-tight mb-2 sm:mb-4 text-center text-[var(--color-ink)]">
           <span className="relative inline-block">
             Reset your password
             <ScribbleUnderline />

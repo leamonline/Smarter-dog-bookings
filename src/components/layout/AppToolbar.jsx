@@ -4,7 +4,7 @@ import { Menu, UserPlus, Settings as SettingsIcon, LogOut, ExternalLink, Clipboa
 import { useWhatsAppUnread } from "../../supabase/hooks/useWhatsAppUnread";
 import { usePendingSignupsCount } from "../../supabase/hooks/usePendingSignupsCount";
 import { navTargetFor, PRIMARY_NAV } from "./navConfig.jsx";
-import { Button } from "../ui";
+import { Button, BrandStripe } from "../ui";
 
 // The plus in front of "New booking": drawn once, used by the desktop and mobile buttons.
 function PlusGlyph() {
@@ -92,6 +92,10 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           Quiet chrome: white surface, hairline rule, ink typography. The
           nav frames the work rather than competing with it — the only
           saturated colour up here is signal (badges, the one CTA). */}
+      {/* The flyer stripe across the top of every staff screen (flyer visual language, decision 4). */}
+      <div className="staff-stripe hidden lg:block">
+        <BrandStripe />
+      </div>
       <div className="hidden lg:flex items-center gap-2 -mx-[var(--app-gutter)] px-[var(--app-gutter)] py-2 bg-white text-slate-700 border-b border-slate-200">
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <BrandWordmark className="h-7 w-[132px]" />
@@ -117,7 +121,7 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
                 className={({ isActive }) =>
                   `group relative inline-flex shrink-0 items-center gap-1 h-10 px-0.5 xl:px-2.5 rounded-tile no-underline transition-all duration-150 ${
                     isActive
-                      ? "bg-brand-ink/[0.07] text-brand-ink font-bold"
+                      ? "bg-sd-sky-tint text-brand-cyan font-bold"
                       : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-brand-ink font-semibold"
                   }`
                 }
@@ -290,7 +294,11 @@ export function AppToolbar({ onSignOut, isOnline, user, onNewBooking, onNewClien
           Both step aside on phones while the on-screen keyboard is up
           (see useKeyboardOpen) so the field being typed into keeps its
           room. */}
-      <div className="lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 short:pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] short:pt-[calc(env(safe-area-inset-top)+0.25rem)] flex items-center gap-2 bg-white text-slate-700">
+      <div className="relative lg:hidden max-md:keyboard:hidden -mx-[var(--app-gutter)] px-3 sm:px-5 pb-2 short:pb-1 pt-[calc(env(safe-area-inset-top)+0.5rem)] short:pt-[calc(env(safe-area-inset-top)+0.25rem)] flex items-center gap-2 bg-white text-slate-700">
+        {/* Phones: a 4px flyer stripe drawn inside the bar's own bottom padding,
+            so it adds no height. Phone layouts (the day stack's toast against
+            Check out, #1001) depend on every pixel up here. */}
+        <BrandStripe className="staff-stripe-phone" />
         <NavLink to="/" className="shrink-0 no-underline" aria-label="Smarter Dog home">
           <BrandWordmark className="h-6 w-[113px]" />
         </NavLink>

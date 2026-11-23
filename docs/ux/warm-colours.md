@@ -12,10 +12,8 @@ borrowed.
 | Job | Token | Value | Use it for | Never use it for |
 | --- | --- | --- | --- | --- |
 | Action | `color-brand-yellow` | `#FECC13` | The primary button, with a charcoal label | Warnings, status, decoration that looks clickable |
-| Action hover | `color-brand-yellow-dark` | `#D4A500` | Primary button hover, small-dog dot border | Text, or a focus ring (focus is charcoal) |
-| Small dog | `color-size-small` | `#F5C518` | The small `SizeDot` fill and its size accents, always with the letter S | A button, or a second kind of "good" |
-| Small-dog wash | `size-small-tint` | `#FFF8E0` | Small-dog card and header wash | Any background that should read as a notice |
-| Ready for collection | `status-ready-tint` / `-edge` | `#F7E6BE` / `#B8860B` | The Ready status badge and the edge rule on that card | Text; a general "attention" tint |
+| Action hover | `color-brand-yellow-dark` | `#D4A500` | Primary button hover | Text, or a focus ring (focus is charcoal) |
+| Ready for collection | `STATUS_TONES.ready` tint / edge | `#FCEAB0` / `#D49A00` | The Ready status badge and the edge rule on that card | Text; a general "attention" tint |
 | Unknown status | `status-unknown-tint` | `#FFF7DC` | A status the system does not recognise, so bad data gets noticed | Anything expected, including empty or pending states |
 | Waitlist, waiting | `color-brand-mustard` (+ `-tint`, `-paper`) | `#B8860B` | The waitlist tab, tags and notes: edges, icons and borders | Text (3.25:1 on white) |
 
@@ -32,7 +30,7 @@ a separate clean-up.
 ## Picking quickly
 
 - A thing the person can do: yellow.
-- A dog's size: the size colour plus the letter.
+- A dog's size: the letter; only Large adds a colour (navy).
 - A booking's state: `BookingStatusBadge`, never a hand-picked tint.
 - Something waiting on someone: mustard edge, with the word "Waitlist" or "Pending".
 - Something wrong with the data: unknown tint, ink and a sentence.
@@ -56,4 +54,5 @@ colours, and it tightens the rule above rather than loosening it:
 - The action yellow, its hover, the mustard waitlist family and the unknown
   status tone do not change.
 
-Until step 3 ships, the table above describes what renders.
+Shipped in step 3. The table above now describes what renders: small dogs are no
+longer yellow, so the yellow family has one job fewer.

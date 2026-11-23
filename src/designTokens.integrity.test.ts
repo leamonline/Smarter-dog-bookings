@@ -47,7 +47,7 @@ function contrast(a: string, b: string): number {
 
 const WHITE = "#FFFFFF";
 const PAPER = () => resolve("color-brand-paper");
-const PAGE = "#F8FAFC"; // --color-surface-page is theme(--color-slate-50)
+const PAGE = "#F8FAFC"; // slate-50: the cool panel some staff surfaces still use. The page itself is paper since the flyer step 3 (PAPER below).
 
 describe("design tokens: published contrast ratios match the CSS", () => {
   // [foreground token, background, ratio the design system documents]. When a

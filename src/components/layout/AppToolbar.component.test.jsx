@@ -50,25 +50,25 @@ describe("AppToolbar", () => {
     expect(within(nav).queryByRole("link", { name: "Booking Desk" })).toBeNull();
   });
 
-  it("marks the current section with one uniform quiet active state", () => {
+  it("marks the current section with one uniform brand-blue active state", () => {
     renderToolbar({}, { route: "/today" });
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const active = within(nav).getByRole("link", { name: "Today" });
     expect(active).toHaveAttribute("aria-current", "page");
     // The active treatment is the same soft purple tint for every section —
     // no per-section saturated fill (the quiet-nav contract).
-    expect(active.className).toContain("bg-brand-ink/[0.07]");
+    expect(active.className).toContain("bg-sd-sky-tint");
     const inactive = within(nav).getByRole("link", { name: "Dogs" });
     expect(inactive).not.toHaveAttribute("aria-current", "page");
-    expect(inactive.className).not.toContain("bg-brand-ink/[0.07]");
+    expect(inactive.className).not.toContain("bg-sd-sky-tint");
   });
 
-  it("uses the same quiet active tint on every section, not per-section colours", () => {
+  it("uses the same brand-blue active tint on every section, not per-section colours", () => {
     renderToolbar({}, { route: "/dogs" });
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const active = within(nav).getByRole("link", { name: "Dogs" });
     expect(active).toHaveAttribute("aria-current", "page");
-    expect(active.className).toContain("bg-brand-ink/[0.07]");
+    expect(active.className).toContain("bg-sd-sky-tint");
   });
 
   it("fires the New booking and New customer handlers", () => {
@@ -114,7 +114,7 @@ describe("MobileNavStrip", () => {
     }
     const active = within(nav).getByRole("link", { name: "Customers" });
     expect(active).toHaveAttribute("aria-current", "page");
-    expect(active.className).toContain("bg-brand-ink/[0.07]");
+    expect(active.className).toContain("bg-sd-sky-tint");
   });
 
   it("carries the unread badge into the Inbox tab's accessible name", () => {

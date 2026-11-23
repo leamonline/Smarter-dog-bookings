@@ -42,7 +42,7 @@ const IDLE = "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:b
  *   `pressed` is the state; pass `onClick` to change it.
  */
 export const ToggleChip = forwardRef(function ToggleChip(
-  { pressed, tone = "ink", size = "md", count, className = "", children, type = "button", ...rest },
+  { pressed, tone = "cyan", size = "md", count, className = "", children, type = "button", ...rest },
   ref,
 ) {
   return (

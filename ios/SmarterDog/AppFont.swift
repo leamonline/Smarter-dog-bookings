@@ -78,6 +78,13 @@ enum AppFont {
 }
 
 extension View {
+    /// Hero title: Poppins Black at 40pt with tight tracking. Heroes only
+    /// (sign-in, step titles, confirmations, done states).
+    func appHero() -> some View {
+        font(AppFont.poppinsBlack(relativeTo: .largeTitle, size: 40))
+            .tracking(-1.4)
+    }
+
     /// A Poppins heading at the spec size, with its tracking. Body copy stays on `.font(.body)`.
     func appHeading(_ style: Font.TextStyle) -> some View {
         font(AppFont.heading(style))

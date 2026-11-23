@@ -43,7 +43,7 @@ export function MobileNavStrip({ currentDateStr }) {
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[52px] px-0.5 rounded-tile no-underline motion-safe:transition-colors duration-150 ${
                 isActive
-                  ? "bg-brand-ink/[0.07] text-brand-ink font-bold"
+                  ? "bg-sd-sky-tint text-brand-cyan font-bold"
                   : "text-slate-600 hover:bg-slate-100 hover:text-brand-ink font-semibold"
               }`
             }

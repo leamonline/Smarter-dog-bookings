@@ -40,8 +40,9 @@ describe("design system: WCAG AA text pairs", () => {
 
   it("uses a contrasting focus/selected border and keeps decorative yellow separate", () => {
     expect(css).toContain("--color-border-focus: var(--color-brand-ink);");
-    expect(css).toContain("--color-border-accent: var(--color-brand-ink);");
-    expect(contrast(literal("color-brand-ink"), "#FFFFFF")).toBeGreaterThanOrEqual(3);
+    // Selection is brand blue (flyer visual language, decision 5); focus stays charcoal.
+    expect(css).toMatch(/--color-border-accent: var\(--color-brand-cyan\);/);
+    expect(contrast(literal("color-brand-cyan"), "#FFFFFF")).toBeGreaterThanOrEqual(3);
     expect(css).toContain("--color-border-accent-decorative: var(--color-brand-yellow);");
     expect(css).toMatch(/:focus-visible\s*\{\s*outline: 3px solid var\(--color-border-focus\)/);
   });

@@ -102,19 +102,19 @@ describe("resolveDayStatus", () => {
   });
 });
 
-// The prototype (salon-day-view.html) is the reference for these five. Pinning
-// them means a later "tidy-up" that nudges the olive back towards mint, or the
-// gold back towards yellow, fails here rather than on a till.
-describe("palette matches the prototype", () => {
+// The flyer visual language (22 November 2026, decision 6) is the reference for
+// these. Pinning them means a later "tidy-up" that drifts a status back towards
+// the brand blue or the action yellow fails here rather than on a till.
+describe("palette matches the approved flyer palette", () => {
   it.each([
-    ["expected", BOOKING_STATUS.BOOKED, null, "#E8ECF0", "#97A6B5"],
-    ["reconfirmed", BOOKING_STATUS.RECONFIRMED, null, "#DBEAFE", "#3B82F6"],
-    ["arrived", BOOKING_STATUS.ARRIVED, null, "#D3EAE4", "#2E8B76"],
-    ["ready", BOOKING_STATUS.READY_FOR_COLLECTION, null, "#F7E6BE", "#B8860B"],
-    ["no-show (status)", BOOKING_STATUS.NO_SHOW, null, "#F2D9D9", "#B33A3A"],
+    ["expected", BOOKING_STATUS.BOOKED, null, "#F1E9DC", "#B8A68A"],
+    ["reconfirmed", BOOKING_STATUS.RECONFIRMED, null, "#E4E4FB", "#7C80DC"],
+    ["arrived", BOOKING_STATUS.ARRIVED, null, "#D5EFE5", "#2E9D78"],
+    ["ready", BOOKING_STATUS.READY_FOR_COLLECTION, null, "#FCEAB0", "#D49A00"],
+    ["no-show (status)", BOOKING_STATUS.NO_SHOW, null, "#F7D9D2", "#C4442D"],
     // The pre-migration shape still resolves to the no-show tone, so a row
     // that escaped conversion is not mislabelled a plain cancellation.
-    ["no-show (legacy shape)", BOOKING_STATUS.CANCELLED, NO_SHOW_REASON, "#F2D9D9", "#B33A3A"],
+    ["no-show (legacy shape)", BOOKING_STATUS.CANCELLED, NO_SHOW_REASON, "#F7D9D2", "#C4442D"],
   ] as Array<[string, string, string | null, string, string]>)(
     "%s",
     (_name, status, reason, tint, edge) => {
@@ -123,6 +123,14 @@ describe("palette matches the prototype", () => {
       expect(tone.edge).toBe(edge);
     },
   );
+
+  it("keeps Confirmed off the brand blue that marks a selected item", () => {
+    const { tint, edge } = resolveDayStatus(BOOKING_STATUS.RECONFIRMED);
+    for (const brandBlue of ["#2A62A8", "#5595DC", "#1F4E8C", "#EAF4FF"]) {
+      expect(tint).not.toBe(brandBlue);
+      expect(edge).not.toBe(brandBlue);
+    }
+  });
 
   it("gives Expected a neutral ink, not a blue one — it is the resting state", () => {
     const { ink } = resolveDayStatus(BOOKING_STATUS.BOOKED);

@@ -578,7 +578,7 @@ export function DogsView({
               {displayList.length === 0 && !isSearching && !loadError && (
                 <div className="col-span-full">
                   <EmptyState
-                    mark={!showArchived && !searchQuery && !narrowed ? "dog" : null}
+                    mark={!showArchived && !searchQuery && !narrowed ? "mascot" : null}
                     title={
                       showArchived
                         ? "No archived dogs here"

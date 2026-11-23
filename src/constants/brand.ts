@@ -6,25 +6,26 @@ export const SIZE_FALLBACK = {
   headerTextSub: "rgba(255,255,255,0.8)",
 };
 
+// Flyer visual language, decision 7 (22 November 2026): only Large stands out.
+// Small and Medium cost the same seat in the capacity engine, so they share one
+// neutral look (charcoal fill, grey wash); Large, the size that changes what a
+// slot can hold, is navy. `primary` and `gradient` are fills under `headerText`;
+// `light` is a wash under dark text. The size letter is always shown as well.
+const NEUTRAL_SIZE = {
+  primary: "var(--color-brand-ink)",
+  light: "#F6F4F2",
+  gradient: ["var(--color-ink-soft)", "var(--color-brand-ink)"],
+  headerText: "#FFFFFF",
+  headerTextSub: "rgba(255,255,255,0.8)",
+};
+
 export const SIZE_THEME = {
-  small: {
-    primary: "var(--color-brand-yellow-dark)",
-    light: "#FFF8E0",
-    gradient: ["var(--color-size-small)", "var(--color-brand-yellow-dark)"],
-    headerText: "#5C4600",
-    headerTextSub: "rgba(92,70,0,0.7)",
-  },
-  medium: {
-    primary: "var(--color-brand-teal-dark)",
-    light: "#E6F5F2",
-    gradient: ["var(--color-brand-teal)", "var(--color-brand-teal-dark)"],
-    headerText: "#FFFFFF",
-    headerTextSub: "rgba(255,255,255,0.8)",
-  },
+  small: NEUTRAL_SIZE,
+  medium: NEUTRAL_SIZE,
   large: {
-    primary: "var(--color-brand-coral-dark)",
-    light: "#FDE8EE",
-    gradient: ["var(--color-brand-coral)", "var(--color-brand-coral-dark)"],
+    primary: "var(--color-brand-cyan-dark)",
+    light: "#EAF4FF",
+    gradient: ["var(--color-brand-cyan)", "var(--color-brand-cyan-dark)"],
     headerText: "#FFFFFF",
     headerTextSub: "rgba(255,255,255,0.8)",
   },
