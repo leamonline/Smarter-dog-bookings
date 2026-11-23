@@ -37,13 +37,15 @@ let package = Package(
                 "SessionClient.swift",
                 "AuthService.swift",
                 "HomeModels.swift",
+                "BookingModels.swift",
                 "DogsModels.swift",
             ]
         ),
         .testTarget(
             name: "AuthCoreTests",
             dependencies: ["AuthCore"],
-            path: "AuthCoreTests"
+            path: "AuthCoreTests",
+            exclude: ["denial-cases.json"]
         ),
     ]
 )

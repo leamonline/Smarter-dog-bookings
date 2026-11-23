@@ -190,7 +190,14 @@ works at large Dynamic Type. The size letter is always shown.
 Each is its own pull request, merged only after the full CI bar.
 
 1. **Models and mappings (pure).** Draft, payload builder, date window,
-   denial-code mapping with its drift test. Linux tests.
+   denial-code mapping with its drift test. Linux tests. **Built** in
+   `ios/SmarterDog/BookingModels.swift` (denial mapping and copy, rules parser,
+   date window, services, request builder). The drift guard is
+   `src/security/iosBookingDenials.test.ts`, and
+   `ios/AuthCoreTests/denial-cases.json` is the one message table both runtimes
+   read. Not yet used by any screen. The per-owner deposit flag is not in
+   `current_customer_booking_rules()` (the website reads it elsewhere), so it is
+   deliberately not modelled here; it belongs to the deposit decision.
 2. **Slot engine (single dog) and fixtures export.** Swift `canBookSlot` and
    daily cap, the export script and its freshness test, the capacity docs
    wording.
