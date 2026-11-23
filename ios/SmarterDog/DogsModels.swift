@@ -58,16 +58,52 @@ enum DogDraftCheck {
         return nil
     }
 
-    /// `yyyy-MM-dd` for a calendar date picked on the phone, in the phone's calendar.
-    static func isoDate(_ date: Date, calendar: Calendar = .current) -> String {
+    /// The database stores Gregorian dates whatever calendar the phone shows. On a
+    /// Buddhist-calendar phone `.current` would write 2020 as 2563, which validation
+    /// then rejects as a future birthday. The phone's time zone still applies, so the
+    /// day the customer picked is the day that is saved.
+    static var gregorian: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    /// `yyyy-MM-dd` for a calendar date picked on the phone.
+    static func isoDate(_ date: Date, calendar: Calendar = DogDraftCheck.gregorian) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
-    static func date(fromISO iso: String, calendar: Calendar = .current) -> Date? {
+    /// Reads `yyyy-MM-dd`, and `yyyy-MM`, which is what the website's birth month and
+    /// year pickers store. A month alone is read as the first of that month.
+    static func date(fromISO iso: String, calendar: Calendar = DogDraftCheck.gregorian) -> Date? {
         let pieces = iso.prefix(10).split(separator: "-").compactMap { Int($0) }
-        guard pieces.count == 3 else { return nil }
-        return calendar.date(from: DateComponents(year: pieces[0], month: pieces[1], day: pieces[2], hour: 12))
+        guard pieces.count == 2 || pieces.count == 3 else { return nil }
+        return calendar.date(from: DateComponents(
+            year: pieces[0], month: pieces[1], day: pieces.count == 3 ? pieces[2] : 1, hour: 12
+        ))
+    }
+
+    /// True for a stored `yyyy-MM`: the customer gave a month and year, not a day.
+    static func isMonthOnly(_ iso: String) -> Bool {
+        iso.split(separator: "-").compactMap { Int($0) }.count == 2 && iso.count <= 7
+    }
+
+    /// The birthday to send on save. It keeps what is stored, month-only included,
+    /// unless the customer changed it or turned it off. Sending a rounded-up full
+    /// date, or nothing, would overwrite what they gave the website.
+    static func birthdayToSend(
+        original: String?,
+        hasBirthday: Bool,
+        picked: Date,
+        edited: Bool,
+        calendar: Calendar = DogDraftCheck.gregorian
+    ) -> String? {
+        guard hasBirthday else { return nil }
+        if !edited, let original, !original.isEmpty, date(fromISO: original, calendar: calendar) != nil {
+            return original
+        }
+        return isoDate(picked, calendar: calendar)
     }
 }
 

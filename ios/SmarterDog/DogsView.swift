@@ -174,11 +174,18 @@ private struct DogEditorSheet: View {
     @State private var draft: DogDraft
     @State private var hasBirthday: Bool
     @State private var birthday: Date
+    /// True once the customer moves the date picker. Until then the stored value,
+    /// including a month-only one from the website, is sent back as it was.
+    @State private var birthdayEdited = false
     @State private var saving = false
     @State private var message: String?
     @FocusState private var focused: Field?
 
     private enum Field { case name, breed }
+
+    private var monthOnly: Bool {
+        target.draft.dob.map(DogDraftCheck.isMonthOnly) ?? false
+    }
 
     init(target: DogsView.EditorTarget, save: @escaping (DogDraft) async -> String?) {
         self.target = target
@@ -219,12 +226,22 @@ private struct DogEditorSheet: View {
                             .foregroundStyle(AppColor.textSecondary)
                     }
 
-                    VStack(alignment: .leading, spacing: AppSpace.s1) {
-                        Toggle("I know their birthday", isOn: $hasBirthday)
-                            .font(.body)
-                        if hasBirthday {
-                            DatePicker("Birthday", selection: $birthday, in: ...Date(), displayedComponents: .date)
-                                .datePickerStyle(.compact)
+                    // The create call can't save a birthday, so it is only offered when editing.
+                    if target.dogId != nil {
+                        VStack(alignment: .leading, spacing: AppSpace.s1) {
+                            Toggle("I know their birthday", isOn: $hasBirthday)
+                                .font(.body)
+                            if hasBirthday {
+                                DatePicker("Birthday", selection: $birthday, in: ...Date(), displayedComponents: .date)
+                                    .datePickerStyle(.compact)
+                                    .environment(\.calendar, DogDraftCheck.gregorian)
+                                    .onChange(of: birthday) { _, _ in birthdayEdited = true }
+                                if monthOnly && !birthdayEdited {
+                                    Text("Saved as month and year. Pick a date to add the day.")
+                                        .font(.footnote)
+                                        .foregroundStyle(AppColor.textSecondary)
+                                }
+                            }
                         }
                     }
 
@@ -270,7 +287,16 @@ private struct DogEditorSheet: View {
         saving = true
         message = nil
         var toSend = draft
-        toSend.dob = hasBirthday ? DogDraftCheck.isoDate(birthday) : nil
+        if target.dogId == nil {
+            toSend.dob = nil
+        } else {
+            toSend.dob = DogDraftCheck.birthdayToSend(
+                original: target.draft.dob,
+                hasBirthday: hasBirthday,
+                picked: birthday,
+                edited: birthdayEdited
+            )
+        }
         let result = await save(toSend)
         saving = false
         if let result {

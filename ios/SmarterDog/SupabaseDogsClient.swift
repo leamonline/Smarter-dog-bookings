@@ -52,6 +52,8 @@ final class SupabaseDogsClient: SalonDogsClient, Sendable {
         return rows.first?.id
     }
 
+    /// `create_customer_dog` has no birthday parameter, so a new dog is created without
+    /// one. The Add a dog sheet doesn't offer the field, and `draft.dob` is not sent.
     func addDog(_ draft: DogDraft, humanId: String) async throws {
         try await supabase
             .rpc("create_customer_dog", params: CreateParams(
