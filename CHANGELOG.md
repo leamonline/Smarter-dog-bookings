@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — plan: the iPhone staff app
+
+- A plan for the iPhone app's staff side ([plan](docs/plans/active/2026-11-23-iphone-staff.md)), for the owner's approval before any code: native for the salon floor (Today, status moves, check-out, staff notifications), links to the website for the desk (calendar, bookings, customers, reports, settings), in phases that each reach TestFlight, with a go/no-go after the first two.
+
 ## Unreleased — flyer visual language, step 4: emails
 
 - The salon's emails (booking confirmed, cancelled, reminders, welcome) now arrive in the flyer's look: the blue and yellow stripe, the message on a white card on cream, a yellow "Book or manage online" button and the salon's address. The words are exactly as before, and a plain-text copy travels with every email for apps that prefer it. The staff waitlist alert gets the same look without the customer button. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
