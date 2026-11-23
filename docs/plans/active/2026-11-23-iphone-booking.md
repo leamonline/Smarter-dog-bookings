@@ -69,12 +69,16 @@ Mirror the website, step for step, with the same rules and the same words.
    rest, and the RPC would refuse them with `dog_size_unconfirmed`. A pregnant
    dog is greyed as a preflight (the trigger is the authority). 1 to 4 dogs.
 2. **Choose services.** Four bookable services only: Full Groom, Bath & Brush,
-   Bath & De-shed, Puppy Groom (not for large dogs). Add-ons as the website
-   offers them. Each service shows its mascot. Prices come from the same
-   precedence as the website (booking override, then the dog's custom price,
-   then `salon_config.pricing`, then the fallback table in
-   [`salon.ts`](../../../src/constants/salon.ts)). Where the website says
-   "From", the app says "From".
+   Bath & De-shed, Puppy Groom (not for large dogs). Each service shows its
+   mascot, the website's one-line description and its starting price.
+   **Correction (23 November 2026):** an earlier version of this plan said the
+   app would offer add-ons and use the full price precedence. Both were wrong.
+   The customer wizard on the website has **no add-ons** (they are staff-only),
+   and every price a customer sees there (service step, summary, confirmation)
+   comes from one fixed table, `PRICING` in
+   [`salon.ts`](../../../src/constants/salon.ts), with no settings override.
+   The app mirrors that table and the website's wording ("From £46+"), guarded
+   by `src/security/iosBookingServices.test.ts`.
 3. **Pick a date.** Open days only, inside the horizon
    `current_customer_booking_rules` returns. Today appears only when staff have
    flagged a slot, and only until 30 minutes before it.
@@ -216,8 +220,8 @@ Each is its own pull request, merged only after the full CI bar.
      website's words). A change upstream drops what it makes wrong: a different
      dog clears the time and, for a large dog, a Puppy Groom; a different date
      clears the time. Tapping a step never jumps past the first unfinished one.
-     The summary shows no price: prices come from the salon's pricing settings,
-     which the app does not read yet, and a guess is worse than saying nothing.
+     The summary has no price yet; the summary screen (3b-5) will show the same
+     "From £…" label as the website, from the same mirrored table.
      The website's "ask staff to confirm this dog's size" button writes a to-do,
      so the app does not have it yet and says only what is true.
    - **3b-1, built:** the dog picker. `BookingFlowModel` (in the Linux-tested package)
@@ -229,9 +233,15 @@ Each is its own pull request, merged only after the full CI bar.
      website's two explanations with a WhatsApp link) and Back and Continue.
      **Reachable only from Debug builds with the launch argument `-sampleBooking`**
      (made-up dogs covering every state), so no customer sees a half-built flow.
-   - **3b-2 onwards, next:** services, date, time and summary screens, each
-     reading `BookingFlowModel`, and the availability read for the date and time
-     steps.
+   - **3b-2, built:** the service step. `BookingServices.swift` holds the website's
+     four descriptions, the `PRICING` table, the "from" marks and each service's
+     mascot, and lists only the services a dog's size can have (Puppy Groom is not
+     offered for a large dog). The tile shows the mascot, name, description and
+     "From £46+", exactly as the website renders it, under the website's sentence
+     about starting prices. `service-prices.json` is generated from the website's
+     own functions; refresh it with `UPDATE_IOS_SERVICE_PRICES=1`.
+   - **3b-3 onwards, next:** the date, time and summary screens, and the
+     availability read the date and time steps need.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.

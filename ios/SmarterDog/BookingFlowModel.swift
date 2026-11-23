@@ -52,6 +52,23 @@ final class BookingFlowModel {
     /// Whether to show the website's note about pregnant dogs.
     var hasPregnantDog: Bool { dogs.contains { $0.blocker == .pregnant } }
 
+    // MARK: the service step
+
+    var selectedDogName: String? { wizard.dog?.name }
+    var selectedService: BookingService? { wizard.service }
+
+    /// The services this dog's size can have, as the website lists them. Empty until a dog is chosen.
+    var offeredServices: [BookingService] {
+        guard let size = wizard.dog?.confirmedSize else { return [] }
+        return BookingService.offered(for: size)
+    }
+
+    /// The starting price line for a service on this dog, for example "From £46+".
+    func priceLine(for service: BookingService) -> String? {
+        guard let size = wizard.dog?.confirmedSize else { return nil }
+        return service.priceLine(for: size)
+    }
+
     // MARK: loading
 
     func loadDogs() async {
@@ -78,6 +95,11 @@ final class BookingFlowModel {
     /// wizard would refuse it anyway.
     func select(dog: BookingDog) {
         try? wizard.choose(dog: dog)
+    }
+
+    /// A service this dog cannot have is ignored (the screen does not list it).
+    func select(service: BookingService) {
+        try? wizard.choose(service: service)
     }
 
     func next() { wizard.next() }
