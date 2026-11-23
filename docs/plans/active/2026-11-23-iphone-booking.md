@@ -270,6 +270,13 @@ Each is its own pull request, merged only after the full CI bar.
        lenient decoding, day states, the page and the last-minute row, with Linux
        tests; (b) the Supabase reads behind `SalonBookingDataClient`, plus the
        `-sampleBooking` stand-in; (c) the SwiftUI week list and its wiring.
+     - **3b-3a, built:** `BookingAvailability.swift` (pure, no network). It parses the
+       four RPC rows leniently, decides open, full or closed for a dog's size with
+       `CapacityEngine.offeredSlots`, groups days by week, pages the window 28 days at
+       a time and builds the "Today — last minute" offer. A read that failed is `nil`:
+       the page is incomplete, no day is called full, and the last-minute row still
+       shows for the database to judge. The wizard does not yet accept today's date
+       for a last-minute choice; that comes with the wiring in (c).
      - **What cannot be proved from Linux:** the screens (Xcode) and the real RPC
        row shapes and refusals. The shapes are read from the migrations and decoded
        leniently, but a real call needs the staging project (question 1).
