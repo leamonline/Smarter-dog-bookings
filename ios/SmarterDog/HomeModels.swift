@@ -90,6 +90,12 @@ enum HomeSelector {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
+    /// A date as `yyyy-MM-dd` in the given calendar.
+    static func isoDate(_ date: Date, in calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
     /// "2026-12-01" becomes "Tuesday 1 December". Anything unreadable is returned as given.
     static func dateText(_ iso: String) -> String {
         let pieces = iso.split(separator: "-").compactMap { Int($0) }

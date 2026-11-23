@@ -247,6 +247,30 @@ enum DatePlanner {
         return Array(dates[start..<min(start + pageSize, dates.count)])
     }
 
+    // MARK: reading in pieces
+
+    /// `get_blocked_seats` is read in two-week pieces, as the website does, so one page of 28 days
+    /// never asks the RPC for more than it is tuned to return. Both ends are inclusive.
+    static func chunks(from start: String, to end: String, days: Int = 14) -> [(from: String, to: String)] {
+        guard days >= 1, var cursor = parse(start), let last = parse(end), cursor <= last else { return [] }
+        var pieces: [(from: String, to: String)] = []
+        while cursor <= last {
+            let pieceEnd = min(utc.date(byAdding: .day, value: days - 1, to: cursor) ?? last, last)
+            pieces.append((HomeSelector.isoDate(cursor, in: utc), HomeSelector.isoDate(pieceEnd, in: utc)))
+            guard let next = utc.date(byAdding: .day, value: 1, to: pieceEnd) else { break }
+            cursor = next
+        }
+        return pieces
+    }
+
+    /// The first and last day to read for a page of the window. Page 0 starts today, not tomorrow:
+    /// the "Today — last minute" row needs today's bookings.
+    static func readRange(page: Int, dates: [String], today: String) -> (from: String, to: String)? {
+        let days = Self.page(dates, index: page)
+        guard let first = days.first, let last = days.last else { return nil }
+        return (page == 0 ? today : first, last)
+    }
+
     // MARK: last minute
 
     /// The "Today — last minute" row, or nil. The server's date is trusted over the phone's clock.

@@ -280,6 +280,14 @@ Each is its own pull request, merged only after the full CI bar.
      - **What cannot be proved from Linux:** the screens (Xcode) and the real RPC
        row shapes and refusals. The shapes are read from the migrations and decoded
        leniently, but a real call needs the staging project (question 1).
+   - **3b-3b, built:** the booking model reads the date step: rules and today's
+     flagged slots once, then one 28-day page at a time (page 0 reads from today for
+     the last-minute row; a complete page is remembered, one with a failed read is
+     read again; a slow answer for a page the customer has left is dropped). The four
+     reads are in `SupabaseBookingClient` (two-week pieces for blocked seats; a failed
+     read is `nil`, never empty). Changing dog drops a chosen date the new dog cannot
+     have. `-sampleBooking` carries a calendar with a full day, a closed day and two
+     last-minute slots. Still no screen.
    - **After 3b-3:** the time step (`CapacityEngine.offeredSlots`), then the summary
      screen.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
