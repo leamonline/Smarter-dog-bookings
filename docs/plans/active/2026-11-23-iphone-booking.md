@@ -288,6 +288,13 @@ Each is its own pull request, merged only after the full CI bar.
      read is `nil`, never empty). Changing dog drops a chosen date the new dog cannot
      have. `-sampleBooking` carries a calendar with a full day, a closed day and two
      last-minute slots. Still no screen.
+   - **3b-3c, built:** the date screen. A week-by-week list under the website's
+     sentence, with "Closed" and "Fully booked" days greyed and labelled, "Show earlier
+     dates" and "Show later dates" for the 28-day pages, a "Check again" note when a read
+     failed, and the "Today — last minute" row above the list. Choosing today lets the
+     customer continue and limits the time step to the flagged times
+     (`lastMinuteSlots`); choosing another day replaces it; a dog that no longer fits it
+     drops it. The time screen is next. Needs a Mac to see.
    - **After 3b-3:** the time step (`CapacityEngine.offeredSlots`), then the summary
      screen.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the

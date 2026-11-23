@@ -337,6 +337,56 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertNil(paged.lastMinuteOffer, "today is only offered on the first page")
     }
 
+    func testChoosingTodaysLastMinuteOpeningLetsYouContinueAndLimitsTheTimes() async {
+        let (model, _) = await dateStep { client in
+            client.flagged = [ImmediateSlotRow(setting_date: "2026-11-23", slot: "10:30"),
+                              ImmediateSlotRow(setting_date: "2026-11-23", slot: "10:00")]
+        }
+        XCTAssertFalse(model.isLastMinuteSelected)
+        XCTAssertNil(model.lastMinuteSlots)
+        model.selectLastMinute()
+        XCTAssertEqual(model.selectedDate, "2026-11-23")
+        XCTAssertTrue(model.isLastMinuteSelected)
+        XCTAssertEqual(model.lastMinuteSlots, ["10:00", "10:30"], "only the flagged times, never the whole day")
+        XCTAssertTrue(model.canContinue)
+        model.next()
+        XCTAssertEqual(model.step, .time)
+    }
+
+    func testTodayCannotBeChosenWhenNothingIsOpenForIt() async {
+        let (model, _) = await dateStep()
+        model.selectLastMinute()
+        XCTAssertNil(model.selectedDate)
+    }
+
+    func testTodayStaysChosenOnAnotherPageAndGoesIfTheNewDogDoesNotFit() async {
+        let (model, _) = await dateStep { client in
+            client.rulesJSON = Data(#"{"bookingHorizonDays":60}"#.utf8)
+            // 13:30 is an extra slot, which a large dog is never offered.
+            client.flagged = [ImmediateSlotRow(setting_date: "2026-11-23", slot: "13:30")]
+        }
+        model.selectLastMinute()
+        XCTAssertTrue(model.isLastMinuteSelected)
+        await model.showDatePage(1)
+        XCTAssertNil(model.lastMinuteOffer, "the row itself is shown on the first page only")
+        XCTAssertTrue(model.isLastMinuteSelected, "but the choice is kept")
+
+        model.select(dog: model.dogs.first { $0.name == "Moose" }!)
+        XCTAssertNil(model.selectedDate, "a large dog does not fit a 13:30 extra slot")
+        XCTAssertFalse(model.isLastMinuteSelected)
+    }
+
+    func testPickingARegularDayAfterTodayReplacesIt() async {
+        let (model, _) = await dateStep { client in
+            client.flagged = [ImmediateSlotRow(setting_date: "2026-11-23", slot: "10:00")]
+        }
+        model.selectLastMinute()
+        model.select(date: "2026-11-24")
+        XCTAssertEqual(model.selectedDate, "2026-11-24")
+        XCTAssertFalse(model.isLastMinuteSelected)
+        XCTAssertNil(model.lastMinuteSlots)
+    }
+
     func testNoClientMeansTheDateStepDoesNothingRatherThanCrash() async {
         let model = BookingFlowModel(client: nil, now: now)
         await model.loadDateStep()

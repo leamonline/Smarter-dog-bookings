@@ -125,8 +125,7 @@ final class BookingFlowModel {
     func select(dog: BookingDog) {
         try? wizard.choose(dog: dog)
         // A day that was open for the last dog may be full for this one (a large dog needs more room).
-        if let date = wizard.date,
-           dateWeeks.flatMap(\.days).first(where: { $0.date == date })?.isSelectable == false {
+        if let date = wizard.date, !isSelectable(date: date) {
             wizard.clearDate()
         }
     }
@@ -160,10 +159,33 @@ final class BookingFlowModel {
         return DatePlanner.weeks(DatePlanner.options(for: days, size: size, calendar: calendar))
     }
 
-    /// "Today — last minute", only on the first page.
-    var lastMinuteOffer: LastMinuteOffer? {
-        guard datePage == 0, let size = chosenSize else { return nil }
+    /// What staff opened for today that the chosen dog fits, on any page.
+    private var lastMinuteForDog: LastMinuteOffer? {
+        guard let size = chosenSize else { return nil }
         return DatePlanner.lastMinute(rows: lastMinuteRows, size: size, calendar: calendar)
+    }
+
+    /// "Today — last minute", shown above the list on the first page only.
+    var lastMinuteOffer: LastMinuteOffer? {
+        datePage == 0 ? lastMinuteForDog : nil
+    }
+
+    /// Whether the customer chose today's last-minute opening. Holds on every page.
+    var isLastMinuteSelected: Bool {
+        guard let offer = lastMinuteForDog else { return false }
+        return wizard.date == offer.date
+    }
+
+    /// Choose today's last-minute opening. Today is outside the normal window (tomorrow on),
+    /// so it is allowed in by name. The time step then offers only `lastMinuteForDog`'s slots.
+    func selectLastMinute() {
+        guard let offer = lastMinuteForDog else { return }
+        try? wizard.choose(date: offer.date, window: windowDates + [offer.date])
+    }
+
+    /// The times the time step may offer if today was chosen, else nil.
+    var lastMinuteSlots: [String]? {
+        isLastMinuteSelected ? lastMinuteForDog?.slots : nil
     }
 
     /// Whether a read failed, so the screen can say the list may be out of date.
@@ -209,4 +231,13 @@ final class BookingFlowModel {
     }
 
     var selectedDate: String? { wizard.date }
+
+    /// Whether the chosen date is still one this dog can have. Today's last-minute opening counts
+    /// while the dog fits it. A day on another page is kept, since only the current page is known.
+    private func isSelectable(date: String) -> Bool {
+        if lastMinuteForDog?.date == date { return true }
+        // Not in the normal window means it was today's opening, which this dog no longer fits.
+        if !windowDates.contains(date) { return false }
+        return dateWeeks.flatMap(\.days).first(where: { $0.date == date })?.isSelectable ?? true
+    }
 }
