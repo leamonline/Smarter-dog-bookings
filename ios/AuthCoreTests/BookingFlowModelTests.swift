@@ -1,6 +1,8 @@
 import XCTest
 @testable import AuthCore
 
+// Every test in this class is `async`. The class runs on the main actor, and Swift 6.0 on Linux
+// (what CI uses) cannot list a plain synchronous test from a main-actor class: the build fails.
 @MainActor
 final class BookingFlowModelTests: XCTestCase {
     private final class FakeClient: SalonBookingDataClient, @unchecked Sendable {
@@ -223,7 +225,7 @@ final class BookingFlowModelTests: XCTestCase {
         return (model, client)
     }
 
-    func testTheClockUsedByTheTestsIsTheMondayItClaims() {
+    func testTheClockUsedByTheTestsIsTheMondayItClaims() async {
         XCTAssertEqual(HomeSelector.londonDate(now()), "2026-11-23")
     }
 
@@ -342,7 +344,7 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertTrue(model.dateWeeks.isEmpty)
     }
 
-    func testChunksSplitARangeIntoFortnightsWithBothEndsInclusive() {
+    func testChunksSplitARangeIntoFortnightsWithBothEndsInclusive() async {
         let pieces = DatePlanner.chunks(from: "2026-11-23", to: "2026-12-21")
         XCTAssertEqual(pieces.map(\.from), ["2026-11-23", "2026-12-07", "2026-12-21"])
         XCTAssertEqual(pieces.map(\.to), ["2026-12-06", "2026-12-20", "2026-12-21"])
