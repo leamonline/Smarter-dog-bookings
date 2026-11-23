@@ -7,7 +7,7 @@ import FadeIn from '../FadeIn';
 const ServicesSection = () => {
     return (
         <>
-            <section className="py-20 relative overflow-hidden" style={{ backgroundColor: colors.pink }}>
+            <section className="py-20 relative overflow-hidden" style={{ backgroundColor: colors.blueBand }}>
                 <div className="px-6 relative">
                     {/* Background Dog */}
                     <div className="absolute bottom-0 left-0 md:left-20 z-0 opacity-10 pointer-events-none">
@@ -79,7 +79,7 @@ const ServicesSection = () => {
                                 desc="The full works — bath, dry, brush, trim, nails, ears, the lot. They'll leave looking like a million quid and smelling even better."
                                 bestFor="first visits or long-overdue tidy-ups"
                                 bgColor={'white'}
-                                accentColor={colors.pink}
+                                accentColor={colors.yellow}
                             />
                         </FadeIn>
                         <FadeIn delay={400} className="h-full">
@@ -94,7 +94,7 @@ const ServicesSection = () => {
                                 desc="Not due a full groom but looking a bit scruffy? This keeps them fresh and tidy in between."
                                 bestFor="regulars between full grooms"
                                 bgColor={'white'}
-                                accentColor={colors.pink}
+                                accentColor={colors.yellow}
                             />
                         </FadeIn>
                         <FadeIn delay={600} className="h-full">
@@ -109,7 +109,7 @@ const ServicesSection = () => {
                                 desc="For the fluffier breeds who like to redecorate your house with fur. A proper deep clean and undercoat blowout."
                                 bestFor="double coats and heavy shedders"
                                 bgColor={'white'}
-                                accentColor={colors.pink}
+                                accentColor={colors.yellow}
                             />
                         </FadeIn>
                         <FadeIn delay={800} className="h-full">
@@ -124,16 +124,16 @@ const ServicesSection = () => {
                                 desc="First salon visit? We take it nice and slow — no rushing, no drama. Just gentle introductions for pups under six months."
                                 bestFor="puppies under six months or nervous first-timers"
                                 bgColor={'white'}
-                                accentColor={colors.pink}
+                                accentColor={colors.yellow}
                             />
                         </FadeIn>
                     </div>
 
                     <div className="max-w-7xl mx-auto mt-16 relative z-10 text-center">
-                        <h3 className="heading-font text-2xl font-bold" style={{ color: colors.plum }}>
+                        <h3 className="heading-font text-2xl font-bold" style={{ color: 'white' }}>
                             Walk-ins — no booking needed
                         </h3>
-                        <p className="body-font mt-2" style={{ color: colors.plum }}>
+                        <p className="body-font mt-2" style={{ color: 'white' }}>
                             Nail clipping, ear cleaning and anal glands: Monday to Wednesday before 1pm.
                         </p>
                     </div>
@@ -155,13 +155,13 @@ const ServicesSection = () => {
                                 <div>
                                     <h4
                                         className="heading-font font-semibold text-xl mb-2"
-                                        style={{ color: colors.pink }}
+                                        style={{ color: colors.cyanText }}
                                     >
                                         Ear Cleaning
                                     </h4>
                                     <p
                                         className="body-font text-base"
-                                        style={{ color: colors.teal }}
+                                        style={{ color: colors.inkMuted }}
                                     >
                                         We give their ears a good clean and check for any issues. Keeps them clean, comfy, and stops nasties building up.
                                     </p>
@@ -185,13 +185,13 @@ const ServicesSection = () => {
                                 <div>
                                     <h4
                                         className="heading-font font-semibold text-xl mb-2"
-                                        style={{ color: colors.pink }}
+                                        style={{ color: colors.cyanText }}
                                     >
                                         Anal Gland Expression
                                     </h4>
                                     <p
                                         className="body-font text-base"
-                                        style={{ color: colors.teal }}
+                                        style={{ color: colors.inkMuted }}
                                     >
                                         Nobody's favourite topic, but sometimes it needs doing — relieves discomfort and prevents impaction. We handle it so you don't have to.
                                     </p>
@@ -215,13 +215,13 @@ const ServicesSection = () => {
                                 <div>
                                     <h4
                                         className="heading-font font-semibold text-xl mb-2"
-                                        style={{ color: colors.pink }}
+                                        style={{ color: colors.cyanText }}
                                     >
                                         Nail Clipping
                                     </h4>
                                     <p
                                         className="body-font text-base"
-                                        style={{ color: colors.teal }}
+                                        style={{ color: colors.inkMuted }}
                                     >
                                         Quick, stress-free nail clips. Healthier paws, fewer scratches on your floors. Everyone wins.
                                     </p>
@@ -232,10 +232,10 @@ const ServicesSection = () => {
                 </div>
             </section>
 
-            {/* Curve Transition: Pink -> Yellow */}
-            <div style={{ backgroundColor: colors.pink, lineHeight: 0 }}>
+            {/* Curve Transition: brand blue -> Yellow */}
+            <div style={{ backgroundColor: colors.blueBand, lineHeight: 0 }}>
                 <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style={{ width: '100%', height: '80px' }}>
-                    <path d="M0 0L1440 0L1440 80C1440 80 1100 120 720 120C340 120 0 80 0 80L0 0Z" fill={colors.pink} />
+                    <path d="M0 0L1440 0L1440 80C1440 80 1100 120 720 120C340 120 0 80 0 80L0 0Z" fill={colors.blueBand} />
                     <path d="M0 120L1440 120L1440 80C1440 80 1100 120 720 120C340 120 0 80 0 80L0 120Z" fill={colors.yellow} />
                 </svg>
             </div>

@@ -68,7 +68,7 @@ const FAQPage = ({ onBookClick }) => {
                         >
                             Frequently Asked Questions
                         </h1>
-                        <p className="body-font text-lg" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg" style={{ color: colors.inkMuted }}>
                             Answers to the questions we hear most — especially from first-time visitors and nervous dog parents.
                         </p>
                     </div>
@@ -93,7 +93,7 @@ const FAQPage = ({ onBookClick }) => {
                                     <span
                                         className="text-2xl transition-transform duration-300 flex-shrink-0"
                                         style={{
-                                            color: colors.teal,
+                                            color: colors.inkMuted,
                                             transform: openIndex === i ? 'rotate(45deg)' : 'rotate(0)'
                                         }}
                                     >
@@ -106,7 +106,7 @@ const FAQPage = ({ onBookClick }) => {
                                 >
                                     <p
                                         className="body-font px-6"
-                                        style={{ color: colors.teal }}
+                                        style={{ color: colors.inkMuted }}
                                     >
                                         {faq.answer}
                                     </p>
@@ -121,10 +121,10 @@ const FAQPage = ({ onBookClick }) => {
 
                     {/* CTA */}
                     <div className="text-center mt-16">
-                        <p className="body-font mb-2" style={{ color: colors.teal }}>
+                        <p className="body-font mb-2" style={{ color: colors.inkMuted }}>
                             Got a question we haven't answered?
                         </p>
-                        <p className="body-font mb-6" style={{ color: colors.teal }}>
+                        <p className="body-font mb-6" style={{ color: colors.inkMuted }}>
                             Send us a message — we're happy to help.
                         </p>
                         {/* The question above is answered by a message, so WhatsApp leads
@@ -143,7 +143,7 @@ const FAQPage = ({ onBookClick }) => {
                                 onClick={() => onBookClick?.('FAQ Page')}
                                 className="px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
                                 style={{
-                                    backgroundColor: colors.cyan,
+                                    backgroundColor: colors.yellow,
                                     color: colors.plum
                                 }}
                             >

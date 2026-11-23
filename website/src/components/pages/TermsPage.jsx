@@ -119,7 +119,7 @@ const TermsPage = ({ onBookClick }) => {
             <main id="main-content" className="pt-24 pb-16 px-6">
                 <div className="max-w-3xl mx-auto">
                     {/* Breadcrumb */}
-                    <p className="body-font text-base mb-4" style={{ color: colors.teal }}>
+                    <p className="body-font text-base mb-4" style={{ color: colors.inkMuted }}>
                         Policies & Terms
                     </p>
 
@@ -131,7 +131,7 @@ const TermsPage = ({ onBookClick }) => {
                         >
                             Terms & Conditions
                         </h1>
-                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                             These guidelines help us keep every dog comfortable and safe while running the salon smoothly. By booking an appointment with Smarter Dog Grooming Salon, you agree to the following:
                         </p>
                     </div>
@@ -155,9 +155,9 @@ const TermsPage = ({ onBookClick }) => {
                                         <li
                                             key={j}
                                             className="body-font text-lg leading-relaxed flex gap-3"
-                                            style={{ color: colors.teal }}
+                                            style={{ color: colors.inkMuted }}
                                         >
-                                            <span style={{ color: colors.teal }} className="flex-shrink-0">•</span>
+                                            <span style={{ color: colors.inkMuted }} className="flex-shrink-0">•</span>
                                             <span>{item}</span>
                                         </li>
                                     ))}
@@ -170,13 +170,13 @@ const TermsPage = ({ onBookClick }) => {
                     <div className="mt-12 text-center bg-white rounded-2xl p-8 shadow-sm">
                         <p
                             className="body-font text-lg italic mb-6"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             Thank you for supporting a safe, calm, and welfare-focused grooming environment for every dog who visits us.
                         </p>
-                        <p className="body-font text-base" style={{ color: colors.teal }}>
+                        <p className="body-font text-base" style={{ color: colors.inkMuted }}>
                             If you have questions about any of these policies, please message us on{' '}
-                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
+                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.inkMuted }}>
                                 WhatsApp
                             </a>
                         </p>

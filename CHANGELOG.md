@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — flyer visual language, step 4: the website
+
+- smarterdog.co.uk takes on the flyer palette, keeping its bold full-width bands: the coral services and closing bands are now brand blue, the green Houndsly band a pale sky blue, and coral, teal-green and orange are gone from the site. Body text that was teal is the booking app's muted grey; every booking button is yellow.
+- The flyer stripe runs across the top of every page, the homepage hero is in Poppins 900, and the handwriting is Caveat 700.
+- 15 colour-contrast failures on the live site (coral headings, faded captions, yellow and coral links on Community, a white-on-green 404 button) are fixed. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
+
 ## Unreleased — flyer visual language, step 3 follow-ups
 
 - The yellow swash under the Bookings and Today date titles.

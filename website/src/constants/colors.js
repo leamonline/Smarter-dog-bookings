@@ -1,40 +1,33 @@
 // Brand Colors — Smarter Dog Colour System
-// Rule: Colour communicates emotion. Emotion must follow intention.
+//
+// The salon's printed flyer: cream paper, charcoal ink, sky blue and sun yellow.
+// The same values as the booking app (docs/ux/design-system.md and
+// docs/plans/active/2026-11-22-flyer-visual-language.md). Coral, teal, green,
+// orange, muted green and blue slate were retired in November 2026.
+// Contrast figures are WCAG ratios; body text needs 4.5:1, large text 3:1.
 
 export const colors = {
-    // === ANCHORS (Typography & Foundations) ===
-    plum: '#1F1F1F',        // Charcoal ink; backwards-compatible name, not actual purple
-    teal: '#2A6F6B',        // Website-specific readable text teal; brand teal is #2D8B7A
+    // === INK & PAPER ===
+    plum: '#1F1F1F',        // Charcoal ink; backwards-compatible name, not actual purple. 16.5:1 on white
+    inkMuted: '#57677C',    // The booking app's muted text: 5.8:1 on white, 5.1:1 on offWhite, 5.2:1 on cyanLight
     offWhite: '#F7EFE6',    // Cream paper
     warmBeige: '#FDFBF7',
 
-    // === CALM (Trust, Safety, Reviews) ===
-    // Use for: Hero, Stats, Reviews, Footer
-    cyan: '#5595DC',        // Primary calm colour — surfaces, tape and strokes only (3.1:1 as text)
-    cyanText: '#2A62A8',    // The same blue for type and links: 6.2:1 on white, 5.4:1 on offWhite
+    // === BLUES ===
+    cyan: '#5595DC',        // Flyer sky blue: the hero band, tape, decoration. Charcoal text on it 5.3:1; never small white text (3.1:1)
+    cyanText: '#2A62A8',    // Brand blue for type and links: 6.2:1 on white, 5.4:1 on offWhite
+    blueBand: '#2A62A8',    // The same brand blue as a full-width band carrying white text (6.2:1): services and the closing CTA
+    navy: '#1F4E8C',        // Flyer stripe accent and deep surfaces: white on navy 8.3:1
 
-    // === ACTION (CTAs Only — never decorative) ===
+    // === ACTION ===
     // If it's this colour, it must do something
-    green: '#00D94A',       // Retained accent; booking actions use yellow
-    yellow: '#FECC13',      // Lead booking actions and existing accents
+    yellow: '#FECC13',      // Lead booking actions, the swash and the stripe. Charcoal on yellow 10.9:1
+    whatsapp: '#25D366',    // WhatsApp's own green, only on WhatsApp links (with charcoal text)
 
-    // === JOY (Personality, Warmth) ===
-    // Never stacked back-to-back. Joy must be brief to feel special.
-    pink: '#E7546C',        // Services, CTA sections (softened ~15% for warmth over urgency)
-    orange: '#FF6B00',      // Highlight accents only
-
-    // === CARE (Natural, Gentle — Houndsly) ===
-    // Never used in urgent CTAs. Signals care, not urgency.
-    mutedGreen: '#7AB8A8',  // Houndsly, sustainability
-
-    // === UTILITY (Backgrounds & Text) ===
-    blueSlate: '#4A6FA5',   // Timeline section background
+    // === UTILITY ===
     darkGray: '#4A4A4A',    // Price text
 
-    // === TINTS (Cards & elements only) ===
-    cyanLight: '#E0EFFF',
-    greenLight: '#E3FCE8',
-    tealLight: '#E8F5F5',
-    pinkLight: '#FFE3EB',
+    // === TINTS (cards, bands and chips) ===
+    cyanLight: '#EAF4FF',   // Sky tint: the booking app's selected fill, and the Houndsly band
     yellowLight: '#FFF9DB',
 };

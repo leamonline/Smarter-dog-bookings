@@ -26,9 +26,9 @@ describe('ServicesSection', () => {
     expect(screen.getByText('Nail Clipping')).toBeInTheDocument();
   });
 
-  it('uses brand pink background on main section', () => {
+  it('uses the brand-blue band on the main section', () => {
     const { container } = render(<ServicesSection />);
     const section = container.querySelector('section');
-    expect(section).toHaveStyle({ backgroundColor: colors.pink });
+    expect(section).toHaveStyle({ backgroundColor: colors.blueBand });
   });
 });

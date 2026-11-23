@@ -9,7 +9,7 @@ describe('ServiceCard', () => {
     title: 'Full Groom',
     desc: 'Complete grooming service',
     bgColor: 'white',
-    accentColor: colors.pink,
+    accentColor: colors.yellow,
   };
 
   it('renders with all required props', () => {
@@ -33,7 +33,7 @@ describe('ServiceCard', () => {
     const decorativeCircle = container.querySelector('.absolute.-top-10.-right-10');
 
     expect(decorativeCircle).toBeInTheDocument();
-    expect(decorativeCircle).toHaveStyle({ backgroundColor: colors.pink });
+    expect(decorativeCircle).toHaveStyle({ backgroundColor: colors.yellow });
   });
 
   it('displays icon in white background container', () => {
@@ -45,18 +45,18 @@ describe('ServiceCard', () => {
     expect(iconContainer).toHaveTextContent('✂️');
   });
 
-  it('applies teal color to title from colors constants', () => {
+  it('sets the title in charcoal ink', () => {
     render(<ServiceCard {...defaultProps} />);
     const title = screen.getByText('Full Groom');
 
-    expect(title).toHaveStyle({ color: colors.teal });
+    expect(title).toHaveStyle({ color: colors.plum });
   });
 
-  it('applies teal color to description from colors constants', () => {
+  it('sets the description in the muted ink', () => {
     render(<ServiceCard {...defaultProps} />);
     const description = screen.getByText('Complete grooming service');
 
-    expect(description).toHaveStyle({ color: colors.teal });
+    expect(description).toHaveStyle({ color: colors.inkMuted });
   });
 
   it('has hover transition classes', () => {

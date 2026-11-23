@@ -37,11 +37,11 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
 
                             {/* Headline — styled like a logo, not a paragraph */}
                             <h1
-                                className="heading-font font-semibold text-5xl md:text-6xl mb-8"
+                                className="heading-font font-black text-5xl md:text-6xl mb-8"
                                 style={{
                                     color: colors.plum,
                                     lineHeight: '1.0',
-                                    letterSpacing: '-0.02em'
+                                    letterSpacing: '-0.035em'
                                 }}
                             >
                                 Come scruffy.<br />

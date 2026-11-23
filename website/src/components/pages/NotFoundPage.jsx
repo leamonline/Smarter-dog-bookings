@@ -17,7 +17,7 @@ const NotFoundPage = () => {
                     {/* Background Dog */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-5 pointer-events-none">
                         <DogSilhouette
-                            color={colors.teal}
+                            color={colors.inkMuted}
                             className="w-96 h-auto"
                         />
                     </div>
@@ -27,7 +27,7 @@ const NotFoundPage = () => {
 
                         <h1
                             className="heading-font font-bold text-6xl md:text-7xl mb-4"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             404
                         </h1>
@@ -41,7 +41,7 @@ const NotFoundPage = () => {
 
                         <p
                             className="body-font text-lg mb-10 max-w-md mx-auto"
-                            style={{ color: colors.teal, opacity: 0.8 }}
+                            style={{ color: colors.inkMuted }}
                         >
                             Looks like this page went chasing squirrels. Let's get you back on track!
                         </p>
@@ -49,15 +49,15 @@ const NotFoundPage = () => {
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Link
                                 to="/"
-                                className="px-8 py-4 rounded-full font-bold text-lg text-white transition-all hover:scale-105 hover:shadow-lg"
-                                style={{ backgroundColor: colors.green }}
+                                className="px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 hover:shadow-lg"
+                                style={{ backgroundColor: colors.yellow, color: colors.plum }}
                             >
                                 Go Home
                             </Link>
                             <Link
                                 to="/services"
                                 className="px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 border-2"
-                                style={{ borderColor: colors.teal, color: colors.teal }}
+                                style={{ borderColor: colors.plum, color: colors.plum }}
                             >
                                 View Services
                             </Link>

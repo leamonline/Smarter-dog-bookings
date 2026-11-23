@@ -59,7 +59,7 @@ const ProcessTimeline = ({ steps }) => {
                                 className={`bg-white p-5 rounded-2xl shadow-lg relative group hover:-translate-y-1 transition-transform duration-300 ${index % 2 === 0 ? 'md:text-left' : 'md:text-right'
                                     }`}
                             >
-                                <h3 className="heading-font text-xl font-bold mb-1" style={{ color: colors.teal }}>
+                                <h3 className="heading-font text-xl font-bold mb-1" style={{ color: colors.plum }}>
                                     {step.title}
                                 </h3>
                                 <p className="body-font text-sm text-gray-600 leading-relaxed">
@@ -77,7 +77,7 @@ const ProcessTimeline = ({ steps }) => {
                         <div className="relative z-10 flex-shrink-0 w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-bold text-lg md:text-xl shadow-xl border-4 border-white transform transition-transform duration-300 hover:scale-110"
                             style={{
                                 backgroundColor: colors.yellow,
-                                color: colors.teal
+                                color: colors.plum
                             }}
                         >
                             {step.step}

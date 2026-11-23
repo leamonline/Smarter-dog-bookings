@@ -41,7 +41,7 @@ const SupportPage = ({ onBookClick }) => {
 
             <main id="main-content" className="pt-24 pb-16 px-6">
                 <div className="max-w-3xl mx-auto">
-                    <p className="body-font text-base mb-4" style={{ color: colors.teal }}>
+                    <p className="body-font text-base mb-4" style={{ color: colors.inkMuted }}>
                         Support
                     </p>
 
@@ -52,7 +52,7 @@ const SupportPage = ({ onBookClick }) => {
                         >
                             {SUPPORT_TITLE}
                         </h1>
-                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                             If you need a hand with the Smarter Dog Grooming iPhone app, or with a booking you have made in it, you can reach us using the details below. We are a small independent salon in Ashton-under-Lyne, and we read everything that comes in.
                         </p>
                     </div>
@@ -62,11 +62,11 @@ const SupportPage = ({ onBookClick }) => {
                             <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
                                 Email
                             </h2>
-                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                                 <a
                                     href={`mailto:${facts.businessEmail}`}
                                     className="underline hover:opacity-70"
-                                    style={{ color: colors.teal }}
+                                    style={{ color: colors.inkMuted }}
                                 >
                                     {facts.businessEmail}
                                 </a>
@@ -77,13 +77,13 @@ const SupportPage = ({ onBookClick }) => {
                             <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
                                 WhatsApp
                             </h2>
-                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                                 <a
                                     href={whatsAppHref}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="underline hover:opacity-70"
-                                    style={{ color: colors.teal }}
+                                    style={{ color: colors.inkMuted }}
                                 >
                                     {phoneDisplay}
                                 </a>
@@ -98,7 +98,7 @@ const SupportPage = ({ onBookClick }) => {
                             </h2>
                             <address
                                 className="body-font text-lg leading-relaxed not-italic"
-                                style={{ color: colors.teal }}
+                                style={{ color: colors.inkMuted }}
                             >
                                 {addressLines.map((line) => (
                                     <span key={line} className="block">{line}</span>
@@ -110,9 +110,9 @@ const SupportPage = ({ onBookClick }) => {
                             <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
                                 Typical salon hours
                             </h2>
-                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                                 Monday to Wednesday, 8:30am to 3:00pm. We are usually closed Thursday to Sunday. We close on bank holidays and often open the Thursday after instead. If you are unsure, please check{' '}
-                                <Link to="/" className="underline hover:opacity-70" style={{ color: colors.teal }}>
+                                <Link to="/" className="underline hover:opacity-70" style={{ color: colors.inkMuted }}>
                                     smarterdog.co.uk
                                 </Link>
                                 {' '}
@@ -124,10 +124,10 @@ const SupportPage = ({ onBookClick }) => {
                             <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
                                 The app
                             </h2>
-                            <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.inkMuted }}>
                                 With the app you can book a groom, keep your dogs’ details and appointments, message us, and get an optional reminder before you visit. If we have asked for a deposit after a missed appointment, you can pay it in the app with Apple Pay or a card.
                             </p>
-                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                                 If something in the app is not working, please tell us which iPhone and which version of the app you are using, and what you were trying to do. We will help as quickly as we can.
                             </p>
                         </div>
@@ -136,10 +136,10 @@ const SupportPage = ({ onBookClick }) => {
                             <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
                                 Your account
                             </h2>
-                            <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.inkMuted }}>
                                 You sign in with your mobile number and a password, or with a one-time code sent by SMS.
                             </p>
-                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                                 To delete your customer account, email or message us and we will help.
                             </p>
                         </div>
@@ -148,9 +148,9 @@ const SupportPage = ({ onBookClick }) => {
                             <h2 className="heading-font font-bold text-2xl mb-4" style={{ color: colors.plum }}>
                                 Privacy
                             </h2>
-                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                                 Our privacy policy is at{' '}
-                                <Link to="/privacy" className="underline hover:opacity-70" style={{ color: colors.teal }}>
+                                <Link to="/privacy" className="underline hover:opacity-70" style={{ color: colors.inkMuted }}>
                                     smarterdog.co.uk/privacy
                                 </Link>
                                 . It explains what we collect in the app and how we use it.
@@ -159,7 +159,7 @@ const SupportPage = ({ onBookClick }) => {
                     </div>
 
                     <div className="mt-12 text-center bg-white rounded-2xl p-8 shadow-sm">
-                        <p className="body-font text-lg italic" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg italic" style={{ color: colors.inkMuted }}>
                             Thank you for visiting us.
                         </p>
                     </div>
@@ -168,7 +168,7 @@ const SupportPage = ({ onBookClick }) => {
                         <Link
                             to="/"
                             className="inline-flex items-center gap-2 font-bold transition-all hover:opacity-70 body-font text-lg"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             ← Back to Home
                         </Link>
