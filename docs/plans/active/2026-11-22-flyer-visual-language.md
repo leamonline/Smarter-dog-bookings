@@ -1,6 +1,6 @@
 # Flyer visual language for the web app
 
-Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website in review)
+Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website merged in #1269, hero tidy-up in review)
 Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
 Last verified: 2026-11-23
@@ -435,9 +435,32 @@ at code level (ADR 009).
   blue segments vanish on the sky-blue hero.
 - Contrast: an axe scan of every route found 15 failures on the live site before
   this change and none after.
-- **Not done:** the hero still carries more than one handwritten line (the
-  "Easy peasy" tag and the polaroid captions), against the one-line rule;
-  left for the owner to decide. Emails are not started.
+- **Not done in #1269:** the hero still carried more than one handwritten
+  line. Emails are not started.
+
+**Website hero tidy-up (23 November 2026, the owner's choice of "full tidy
+pass").** The hero said "easy" four ways at once and some details looked broken:
+
+- One yellow control, the booking button. The yellow "Easy peasy" tag looked
+  like a second button and did nothing; it is now the hero's single Caveat line,
+  in charcoal beside the button (below it on tablets). The "quick and easy"
+  sticker is gone.
+- In its place a proof line, "★ 4.9 on Google · Since 1982", from
+  `GOOGLE_RATING` and `FOUNDED_YEAR` in `website/src/constants/salonFacts.js`,
+  which the stats strip and the reviews now read too. It also shows on phones,
+  where the button lives in the sticky footer.
+- The swash sits under "gorgeous." only, clear of the descenders, and draws in
+  once (420ms), with the finished line under reduced motion.
+- The polaroids take translucent yellow tape (the blue vanished on the sky
+  blue) and only the front one keeps its caption; the other two were clipped by
+  the front photo. They keep their descriptions as alt text through a new `alt`
+  prop on `PolaroidImage`.
+- Headline tracking eases from −3.5% to −2.5% so "Leave gorgeous" no longer
+  runs together; "Ashton-under-Lyne" no longer breaks at its hyphen; the hero's
+  bottom padding is smaller, so the stats strip starts sooner.
+- No new module: the dev-server module budget in
+  `website/e2e/performance.spec.js` still has no headroom (79 on Chromium, 80 on
+  WebKit, the same as before).
 
 ## Testing
 

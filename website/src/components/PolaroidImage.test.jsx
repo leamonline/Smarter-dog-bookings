@@ -9,6 +9,11 @@ describe('PolaroidImage', () => {
     expect(screen.getByText("Bella's spa day")).toBeInTheDocument();
   });
 
+  it('uses its alt prop when there is no caption to show', () => {
+    render(<PolaroidImage src="/assets/client-dog-1.jpg" alt="Fluffy pup" />);
+    expect(screen.getByAltText('Fluffy pup')).toBeInTheDocument();
+  });
+
   it('renders image with provided src and alt', () => {
     render(<PolaroidImage src="/assets/client-dog-1.jpg" caption="Happy pup" />);
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '../constants/colors';
+import { GOOGLE_RATING } from '../constants/salonFacts';
 
 // Curated reviews that tell a story
 // Featured: trust, longevity, complex needs
@@ -85,7 +86,7 @@ const GoogleReviews = () => {
             <div className="flex items-center justify-center gap-2 mb-10">
                 <Stars />
                 <span className="text-sm" style={{ color: colors.inkMuted }}>
-                    4.9 on Google from local dog owners
+                    {GOOGLE_RATING} on Google from local dog owners
                 </span>
             </div>
 
