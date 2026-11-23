@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `BrandStripe`: the flyer's nine-segment stripe, across the top of every page inside the navigation.
+- `BrandStripe` (in `Navigation.jsx`): the flyer's nine-segment stripe, across the top of every page inside the navigation.
 - `colors.cyanText` (`#2A62A8`): the calm blue for type and links, which passes WCAG AA on white and cream where the bright sky does not. `ErrorBoundary`'s WhatsApp link uses it (2.07:1 before, 6.16:1 now).
 - Scheduled holiday notice card in the homepage hero (`HolidayNoticeCard`), driven only by the booking database's `get_public_holiday_notices` RPC. Shows "Upcoming holiday" before the closure and "We're taking a little break" during it, with the reopening date and a "Book for our return" action; disappears automatically on the reopening date (Europe/London). Nothing is shown unless the salon's actual diary confirms the dates.
 - Automated dependency updates via Dependabot (weekly on Mondays)

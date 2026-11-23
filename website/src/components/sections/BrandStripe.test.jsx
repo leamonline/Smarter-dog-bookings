@@ -1,8 +1,8 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import BrandStripe from './BrandStripe';
-import { colors } from '../constants/colors';
+import { BrandStripe } from './Navigation';
+import { colors } from '../../constants/colors';
 
 describe('BrandStripe', () => {
   it('draws the flyer stripe: nine segments, two of them double width', () => {

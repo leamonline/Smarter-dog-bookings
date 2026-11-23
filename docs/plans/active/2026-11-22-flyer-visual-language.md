@@ -430,7 +430,7 @@ at code level (ADR 009).
 - Type: the homepage hero is Poppins 900 with −3.5% tracking. Google Fonts now
   loads Poppins 900 (nothing else on the site asks for 800 or 900, so no
   heading changes weight) and only Caveat 700, which `.handwriting` uses.
-- The stripe (`website/src/components/BrandStripe.jsx`) runs across the top of
+- The stripe (`BrandStripe` in `website/src/components/sections/Navigation.jsx`, its only user, because the website's dev-server module budget has no headroom) runs across the top of
   every page on a thin strip of white inside the navigation, because the flyer
   blue segments vanish on the sky-blue hero.
 - Contrast: an axe scan of every route found 15 failures on the live site before
