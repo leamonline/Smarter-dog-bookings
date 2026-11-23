@@ -98,3 +98,57 @@ struct IconCircle: View {
             .accessibilityHidden(true)
     }
 }
+
+/// The flyer's segmented stripe: nine rounded segments, two yellow, one navy.
+/// Decoration only. 7pt across the top of a screen. Never inside content.
+struct BrandStripe: View {
+    private let segments: [(weight: CGFloat, colour: Color)] = [
+        (1, AppColor.accentBlue), (2.1, AppColor.accentBlue), (1, AppColor.actionYellow),
+        (1, AppColor.accentBlue), (1, AppColor.dashNavy), (2.1, AppColor.accentBlue),
+        (1, AppColor.accentBlue), (1, AppColor.accentBlue), (1, AppColor.actionYellow),
+    ]
+
+    var body: some View {
+        GeometryReader { proxy in
+            let gaps = CGFloat(segments.count - 1) * 4
+            let unit = (proxy.size.width - gaps) / segments.reduce(0) { $0 + $1.weight }
+            HStack(spacing: 4) {
+                ForEach(segments.indices, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(segments[index].colour)
+                        .frame(width: unit * segments[index].weight)
+                }
+            }
+        }
+        .frame(height: 7)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Poppins Black hero title, tight tracking. Heroes only.
+struct HeroTitle: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(AppFont.poppinsBlack(relativeTo: .largeTitle, size: 40))
+            .tracking(-1.4)
+            .foregroundStyle(AppColor.textPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// One handwritten line in Caveat Bold, brand blue, tilted about 3 degrees.
+/// Hidden from VoiceOver on purpose: it never carries information.
+struct HandwrittenLine: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(AppFont.caveatBold(relativeTo: .title2, size: 28))
+            .foregroundStyle(AppColor.accentBlueDeep)
+            .rotationEffect(.degrees(-3), anchor: .leading)
+            .accessibilityHidden(true)
+    }
+}

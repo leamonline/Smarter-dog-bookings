@@ -8,7 +8,10 @@ import SwiftUI
 enum AppFont {
     /// Filenames in `UIAppFonts` and in the app bundle. Each entry is its own
     /// array item, not one space-separated string.
-    static let bundledFileNames = ["Poppins-Bold.ttf", "Poppins-SemiBold.ttf"]
+    /// `Poppins-Black.ttf` and `Caveat-Bold.ttf` are skipped quietly until they are in the app.
+    static let bundledFileNames = [
+        "Poppins-Bold.ttf", "Poppins-SemiBold.ttf", "Poppins-Black.ttf", "Caveat-Bold.ttf",
+    ]
 
     /// Makes Poppins available before the first heading draws. `Info.plist`
     /// lists the same files. Registering again is harmless if the system
@@ -30,6 +33,17 @@ enum AppFont {
 
     static func poppinsSemiBold(relativeTo style: Font.TextStyle, size: CGFloat) -> Font {
         .custom("Poppins-SemiBold", size: size, relativeTo: style)
+    }
+
+    /// Hero titles only (sign-in, step titles, confirmations, done states).
+    /// Falls back to the system heavy weight if the font file is not in the app.
+    static func poppinsBlack(relativeTo style: Font.TextStyle, size: CGFloat) -> Font {
+        .custom("Poppins-Black", size: size, relativeTo: style)
+    }
+
+    /// One short handwritten line per hero screen. Never carries information.
+    static func caveatBold(relativeTo style: Font.TextStyle, size: CGFloat) -> Font {
+        .custom("Caveat-Bold", size: size, relativeTo: style)
     }
 
     static func heading(_ style: Font.TextStyle) -> Font {

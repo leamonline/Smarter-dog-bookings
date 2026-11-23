@@ -108,6 +108,8 @@ describe("the Xcode project is the committed skeleton", () => {
     expect([...fontArray.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1])).toEqual([
       "Poppins-Bold.ttf",
       "Poppins-SemiBold.ttf",
+      "Poppins-Black.ttf",
+      "Caveat-Bold.ttf",
     ]);
     expect(fontsPlist.match(/<key>/g)).toHaveLength(1);
     expect(fontsPlist).not.toContain("Supabase");
