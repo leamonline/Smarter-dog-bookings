@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors } from '../../constants/colors';
+import { GOOGLE_RATING, FOUNDED_YEAR } from '../../constants/salonFacts';
 import FadeIn from '../FadeIn';
 
 const TrustSection = () => {
@@ -13,9 +14,9 @@ const TrustSection = () => {
                 <div className="max-w-6xl mx-auto px-6 flex flex-wrap justify-center items-center gap-8 md:gap-16 relative z-10">
                     {
                         [
-                            { number: 'Since 1982', label: 'Serving Ashton' },
+                            { number: `Since ${FOUNDED_YEAR}`, label: 'Serving Ashton' },
                             { number: 'Thousands', label: 'of happy pups' },
-                            { number: '4.9★', label: 'Google rating' }
+                            { number: `${GOOGLE_RATING}★`, label: 'Google rating' }
                         ].map((stat, i) => (
                             <FadeIn key={i} delay={i * 100}>
                                 <div className="text-center">

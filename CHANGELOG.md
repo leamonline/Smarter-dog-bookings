@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — the website hero, tidied
+
+- The homepage hero has one yellow button with "Easy peasy" handwritten beside it (the yellow tag that looked like a second button and the "quick and easy" sticker are gone), a "★ 4.9 on Google · Since 1982" line, the yellow swash under "gorgeous." only, yellow photo tape you can see on the blue, and a caption on the front photo only, so none is cut off. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
+
 ## Unreleased — flyer visual language, step 4: the website
 
 - smarterdog.co.uk takes on the flyer palette, keeping its bold full-width bands: the coral services and closing bands are now brand blue, the green Houndsly band a pale sky blue, and coral, teal-green and orange are gone from the site. Body text that was teal is the booking app's muted grey; every booking button is yellow.

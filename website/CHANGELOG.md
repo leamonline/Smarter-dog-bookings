@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Homepage hero tidy-up: one yellow control (the booking button) with "Easy peasy" as a plain Caveat line beside it; the yellow tag and the "quick and easy" sticker are removed; a "★ 4.9 on Google · Since 1982" proof line (also on phones); the swash under "gorgeous." only, drawing in once; yellow polaroid tape; a caption on the front polaroid only, the others keeping their descriptions through `PolaroidImage`'s new `alt` prop; looser headline tracking; less bottom padding. `GOOGLE_RATING` and `FOUNDED_YEAR` live in `salonFacts.js` and feed the hero, the stats strip and the reviews.
 - The flyer palette, shared with the booking app: coral (`pink`), `teal`, `green`, `orange`, `mutedGreen`, `blueSlate` and their tints are retired. Services and closing CTA bands are brand blue (`blueBand`), Houndsly is the sky tint, the Services page bands are sky blue and navy. Text teal is now `inkMuted` (`#57677C`); every booking button is yellow; WhatsApp buttons use `whatsapp` (`#25D366`). `cyanLight` is the app's sky tint (`#EAF4FF`).
 - The homepage hero is Poppins 900; `.handwriting` is Caveat 700. Google Fonts loads Poppins 900 and only Caveat 700.
 - Fixed all 15 colour-contrast failures an axe scan found across the routes (coral walk-in headings, faded review captions, yellow and coral Community links, the 404 button).

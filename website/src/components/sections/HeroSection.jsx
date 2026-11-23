@@ -8,6 +8,7 @@ import usePrefersReducedMotion from '../../hooks/usePrefersReducedMotion';
 
 import ParallaxSection from '../ParallaxSection';
 import HolidayNoticeCard from '../HolidayNoticeCard';
+import { GOOGLE_RATING, FOUNDED_YEAR } from '../../constants/salonFacts';
 
 const HeroSection = ({ isLoaded, onBookClick }) => {
     const prefersReducedMotion = usePrefersReducedMotion();
@@ -18,7 +19,7 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
 
     return (
         <>
-            <section className="pt-32 pb-24 relative overflow-hidden" style={{ backgroundColor: colors.cyan }}>
+            <section className="pt-32 pb-12 md:pb-8 relative overflow-hidden" style={{ backgroundColor: colors.cyan }}>
                 {/* Faint background paws — playful texture, kept clear of the headline/subtext */}
                 <PawPrint color="white" aria-hidden className="absolute top-24 left-6 w-16 h-auto opacity-10 -rotate-12 pointer-events-none z-0" />
                 <PawPrint color="white" aria-hidden className="absolute bottom-16 left-1/3 w-12 h-auto opacity-10 rotate-6 pointer-events-none z-0" />
@@ -33,7 +34,7 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                         />
                     </ParallaxSection>
                     <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
-                        <div className={`${headlineAnimationClass} max-w-lg`}>
+                        <div className={`${headlineAnimationClass} max-w-xl`}>
 
                             {/* Headline — styled like a logo, not a paragraph */}
                             <h1
@@ -41,18 +42,17 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                                 style={{
                                     color: colors.plum,
                                     lineHeight: '1.0',
-                                    letterSpacing: '-0.035em'
+                                    letterSpacing: '-0.025em'
                                 }}
                             >
                                 Come scruffy.<br />
-                                <span
-                                    className="relative inline-block mt-1"
-                                    style={{ color: colors.plum }}
-                                >
-                                    Leave gorgeous.
-                                    {/* Yellow underline — slightly thinner, extends beyond text */}
-                                    <svg className="absolute -bottom-2 left-[-5%] w-[110%]" viewBox="0 0 220 10" fill="none">
-                                        <path d="M2 6 Q 55 2, 110 6 T 218 6" stroke={colors.yellow} strokeWidth="3" strokeLinecap="round" fill="none" />
+                                Leave{' '}
+                                <span className="relative inline-block">
+                                    gorgeous.
+                                    {/* The flyer's yellow swash, under one word and clear of the
+                                        descenders; it draws in once (off under reduced motion). */}
+                                    <svg aria-hidden="true" className="swash-draw absolute left-0 w-full h-[0.22em]" style={{ bottom: '-0.3em' }} viewBox="0 0 200 12" preserveAspectRatio="none" fill="none">
+                                        <path d="M3 8 Q 60 3, 110 6.5 T 197 5" pathLength="1" stroke={colors.yellow} strokeWidth="5" strokeLinecap="round" fill="none" />
                                     </svg>
                                 </span>
                             </h1>
@@ -65,83 +65,41 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                                     fontWeight: '500'
                                 }}
                             >
-                                Over 40 years grooming dogs across Ashton-under-Lyne and Tameside.<br />
+                                Over 40 years grooming dogs across <span className="whitespace-nowrap">Ashton-under-Lyne</span> and Tameside.<br />
                                 No fuss. No rushing. Just experienced local care.
                             </p>
 
                             {/* Scheduled holiday notice — only when the booking diary confirms it */}
                             <HolidayNoticeCard onBookClick={onBookClick}>
 
-                                {/* CTA cluster (hidden on mobile — sticky footer covers this) */}
-                                <div className="relative mt-4 hidden md:flex flex-col items-start gap-0 pr-16 pb-8">
-                                    {/* Booking button — chunky, 3D bottom shadow */}
+                                {/* CTA (hidden on mobile — the sticky footer covers it): one yellow
+                                    button, and the hero's single handwritten line beside it. */}
+                                <div className="mt-4 hidden md:flex flex-wrap items-center gap-x-6 gap-y-3">
                                     <MagneticButton
                                         onClick={() => onBookClick('Hero Section')}
-                                        className="relative z-10 px-14 py-7 rounded-full font-bold text-2xl transition-all duration-300 hover:shadow-xl flex items-center hover-lift active-squish"
+                                        className="relative z-10 shrink-0 whitespace-nowrap px-8 py-5 lg:px-10 lg:py-6 rounded-full font-bold text-2xl transition-all duration-300 hover:shadow-xl flex items-center hover-lift active-squish"
                                         style={{
                                             backgroundColor: colors.yellow,
                                             color: colors.plum,
-                                            boxShadow: '0 9px 0 #E0A800'
+                                            boxShadow: '0 8px 0 #D4A500'
                                         }}
                                     >
                                         <span>Book your dog online</span>
                                     </MagneticButton>
-
-                                    {/* Handwritten "Easy peasy" tag — overlaps the button's lower edge */}
                                     <span
                                         aria-hidden="true"
-                                        className="handwriting relative z-20 -mt-5 ml-8 -rotate-3 px-6 py-2 rounded-xl text-4xl font-semibold flex items-center gap-2"
-                                        style={{
-                                            backgroundColor: colors.yellow,
-                                            color: colors.plum,
-                                            boxShadow: '0 4px 12px rgba(45, 0, 75, 0.20)'
-                                        }}
+                                        className="handwriting text-4xl -rotate-3 whitespace-nowrap"
+                                        style={{ color: colors.plum }}
                                     >
-                                        <span className="text-2xl">✂</span>
-                                        Easy peasy
-                                        <span className="text-2xl -scale-x-100">✂</span>
-                                    </span>
-
-                                    {/* Wavy round stamp sticker — overlaps the button's upper-right corner */}
-                                    <span
-                                        aria-hidden="true"
-                                        className="absolute z-30 -top-8 right-0 rotate-[9deg] pointer-events-none drop-shadow-lg"
-                                    >
-                                        <svg width="132" height="132" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                                            {/* Scalloped / wavy outer edge: ring of little circles */}
-                                            <g fill="white">
-                                                <circle cx="60" cy="10" r="8.5" />
-                                                <circle cx="79.13" cy="13.81" r="8.5" />
-                                                <circle cx="95.36" cy="24.64" r="8.5" />
-                                                <circle cx="106.19" cy="40.87" r="8.5" />
-                                                <circle cx="110" cy="60" r="8.5" />
-                                                <circle cx="106.19" cy="79.13" r="8.5" />
-                                                <circle cx="95.36" cy="95.36" r="8.5" />
-                                                <circle cx="79.13" cy="106.19" r="8.5" />
-                                                <circle cx="60" cy="110" r="8.5" />
-                                                <circle cx="40.87" cy="106.19" r="8.5" />
-                                                <circle cx="24.64" cy="95.36" r="8.5" />
-                                                <circle cx="13.81" cy="79.13" r="8.5" />
-                                                <circle cx="10" cy="60" r="8.5" />
-                                                <circle cx="13.81" cy="40.87" r="8.5" />
-                                                <circle cx="24.64" cy="24.64" r="8.5" />
-                                                <circle cx="40.87" cy="13.81" r="8.5" />
-                                            </g>
-                                            {/* Solid disc + dashed cyan ring */}
-                                            <circle cx="60" cy="60" r="52" fill="white" />
-                                            <circle cx="60" cy="60" r="47" fill="none" stroke={colors.cyan} strokeWidth="2.5" strokeDasharray="2 4" strokeLinecap="round" />
-                                            {/* Top flourish */}
-                                            <text x="60" y="34" textAnchor="middle" fontSize="13" fill={colors.cyan}>✦</text>
-                                            {/* Phrase — centred handwriting, three lines */}
-                                            <text className="handwriting" textAnchor="middle" fill={colors.plum} fontWeight="700" fontSize="15">
-                                                <tspan x="60" y="56">quick and easy,</tspan>
-                                                <tspan x="60" y="72">whenever it</tspan>
-                                                <tspan x="60" y="88">suits you.</tspan>
-                                            </text>
-                                        </svg>
+                                        Easy peasy {'\u2702\uFE0E'}
                                     </span>
                                 </div>
                             </HolidayNoticeCard>
+
+                            {/* Proof, in facts already on the page (the stats strip below) */}
+                            <p className="body-font text-base font-semibold -mt-4 md:mt-8" style={{ color: colors.plum }}>
+                                <span aria-hidden="true">★ </span>{GOOGLE_RATING} on Google · Since {FOUNDED_YEAR}
+                            </p>
 
                         </div>
 
@@ -150,9 +108,9 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                             <div className="absolute top-0 left-0 md:left-4 z-10 hover:z-40 transition-all duration-300 scale-[0.6] md:scale-100 origin-top-left">
                                 <PolaroidImage
                                     rotation={-5}
-                                    tapeColor={colors.cyan}
+                                    tapeColor={colors.yellow}
                                     src="/assets/client-dog-1.jpg"
-                                    caption="Happy freshly groomed pup"
+                                    alt="Happy freshly groomed pup"
                                     fetchPriority="high"
                                     loading="eager"
                                     width={320}
@@ -163,9 +121,9 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                             <div className="absolute top-12 md:top-24 right-0 z-20 hover:z-40 transition-all duration-300 scale-[0.6] md:scale-100 origin-top-right">
                                 <PolaroidImage
                                     rotation={4}
-                                    tapeColor={colors.cyan}
+                                    tapeColor={colors.yellow}
                                     src="/assets/client-dog-2.jpg"
-                                    caption="Fluffy and fabulous"
+                                    alt="Fluffy and fabulous"
                                     loading="lazy"
                                     instant={true}
                                 />
@@ -173,7 +131,7 @@ const HeroSection = ({ isLoaded, onBookClick }) => {
                             <div className="absolute bottom-0 left-1/4 z-30 hover:z-40 transition-all duration-300 scale-[0.6] md:scale-100 origin-bottom-left">
                                 <PolaroidImage
                                     rotation={-2}
-                                    tapeColor={colors.cyan}
+                                    tapeColor={colors.yellow}
                                     src="/assets/client-dog-3.jpg"
                                     caption="Feeling gorgeous"
                                     loading="lazy"
