@@ -198,9 +198,16 @@ Each is its own pull request, merged only after the full CI bar.
    read. Not yet used by any screen. The per-owner deposit flag is not in
    `current_customer_booking_rules()` (the website reads it elsewhere), so it is
    deliberately not modelled here; it belongs to the deposit decision.
-2. **Slot engine (single dog) and fixtures export.** Swift `canBookSlot` and
-   daily cap, the export script and its freshness test, the capacity docs
-   wording.
+2. **Slot engine (single dog) and fixtures export.** **Built** in
+   `ios/SmarterDog/CapacityEngine.swift`: seats, the 2-2-1 rule, early close,
+   staff-blocked seats, the customer's `canBookSlot`, and `offeredSlots` for one
+   dog (the day's cap, then every slot `canBookSlot` allows). Guarded by
+   `ios/AuthCoreTests/capacity-parity.json`, generated from the governed
+   scenario list with the real website engine's answers by
+   `src/engine/capacityParityFixtures.ios.test.ts`, which fails when the file is
+   stale. Not ported: several dogs (a later slice), staff overrides, and the
+   extra-slot grid builder (extra slots reach customers only as same-day
+   openings). `docs/capacity-engine.md` now says four copies.
 3. **Read-only wizard.** Dogs, services, date and time screens ending at a
    summary with **no confirm button**. Sample data mode for screenshots.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the

@@ -86,7 +86,10 @@ struct BrandStripe: View {
     var body: some View {
         GeometryReader { proxy in
             let gaps = CGFloat(segments.count - 1) * 4
-            let unit = (proxy.size.width - gaps) / segments.reduce(0) { $0 + $1.weight }
+            // SwiftUI's first layout pass can offer no width at all. Without the floor the
+            // widths go negative and SwiftUI logs "Invalid frame dimension".
+            let usable = max(0, proxy.size.width - gaps)
+            let unit = usable / segments.reduce(0) { $0 + $1.weight }
             HStack(spacing: 4) {
                 ForEach(segments.indices, id: \.self) { index in
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
