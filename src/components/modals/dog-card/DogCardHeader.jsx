@@ -11,9 +11,9 @@ import { StaffDogPhoto } from "../../shared/StaffDogPhoto.jsx";
 // reads from the ModalShell accent bar plus the tinted pill here.
 
 const SIZE_PILL_TEXT = {
-  small: "#5C4600",
-  medium: "var(--color-brand-teal-text)",
-  large: "var(--color-brand-coral-text)",
+  small: "var(--color-brand-ink)",
+  medium: "var(--color-brand-ink)",
+  large: "var(--color-brand-cyan-dark)",
 };
 
 export function DogCardHeader({

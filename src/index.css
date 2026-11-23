@@ -253,9 +253,12 @@
   --color-brand-dark: #2A1810;
 
   /* Size dot colours */
-  --color-size-small: #F5C518;
-  --color-size-medium: #2D8B7A;
-  --color-size-large: #E7546C;
+  /* Flyer visual language, decision 7 (22 November 2026): Small and Medium share
+     the neutral chip (charcoal outline and letter); only Large is coloured,
+     navy. Reports charts use their own ordered blue scale (ReportWidgets). */
+  --color-size-small: var(--color-brand-ink);
+  --color-size-medium: var(--color-brand-ink);
+  --color-size-large: var(--color-brand-cyan-dark);
 
   /* Semantic action tokens (Tailwind v4 utilities: bg-action, text-action, text-on-action, etc.) */
   /* Mapped to mustard CTA on deep-purple ink — matches smarterdog.co.uk */
@@ -448,13 +451,13 @@
   --color-text-muted: #57677C; /* readable on both white and cream */
   --color-text-placeholder: #90A1B9; /* placeholder/disabled only, never required copy */
 
-  --color-surface-page: theme(--color-slate-50);  /* staff canvas = slate-50 (the de-facto bg); paper stays for auth/portal */
+  --color-surface-page: var(--color-brand-paper);  /* every page sits on warm paper, the staff canvas included (flyer visual language, decision 2) */
   --color-surface-card: #FFFFFF;
   --color-surface-header: var(--color-brand-ink);
 
   --color-border-default: theme(--color-stone-200);
   --color-border-focus: var(--color-brand-ink);
-  --color-border-accent: var(--color-brand-ink); /* meaningful selected-state outline */
+  --color-border-accent: var(--color-brand-cyan); /* meaningful selected-state outline: brand blue (flyer visual language, decision 5); 6.2:1 on white */
   --color-border-accent-decorative: var(--color-brand-yellow);
 
   --color-feedback-success: var(--color-brand-green);
@@ -557,7 +560,7 @@ a:not([class]) { text-decoration: underline; text-underline-offset: 0.15em; }
 /* ── Body reset ───────────────────────────────────────────────── */
 body {
   margin: 0;
-  background-color: theme(--color-slate-50);
+  background-color: var(--color-surface-page);
 }
 
 /* ── Animations ───────────────────────────────────────────────── */
@@ -1642,3 +1645,22 @@ button.human-empty-pack:hover {
   .scribble-underline--draw path,
   .service-mascot--bounce { animation: none; }
 }
+
+/* The stripe above the staff toolbar (AppToolbar). Full bleed across the app
+   gutter, on the toolbar's white. */
+.staff-stripe {
+  margin-inline: calc(-1 * var(--app-gutter));
+  padding: 6px 8px 0;
+  background: var(--color-surface-card);
+}
+/* Phones: 4px tall, positioned inside the top bar's bottom padding (at least
+   4px, see short:pb-1), so the stripe adds no height to the phone layout. */
+.staff-stripe-phone {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 4px;
+  gap: 3px;
+}
+.staff-stripe-phone .brand-stripe__seg { border-radius: 2px; }

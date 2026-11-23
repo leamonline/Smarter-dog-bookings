@@ -134,7 +134,9 @@ export function Section({ title, accent = "var(--color-brand-teal)", children, i
 }
 
 // Display-level constants shared across report sub-components
-export const SIZE_COLORS = { small: "var(--color-size-small)", medium: "var(--color-brand-teal)", large: "var(--color-brand-coral)" };
+// A chart has to tell all three sizes apart, so it uses an ordered blue scale
+// (lighter = smaller) rather than the neutral S/M chip colour.
+export const SIZE_COLORS = { small: "var(--color-brand-cyan-light)", medium: "var(--color-brand-cyan)", large: "var(--color-brand-cyan-dark)" };
 // Arrived and Ready take the colour the day screen shows for the same status
 // (the edge rule from resolveDayStatus), so a status is one colour everywhere. Booked
 // here means "nobody closed it off", not "expected", so it stays a neutral slate.

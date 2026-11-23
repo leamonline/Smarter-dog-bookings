@@ -25,10 +25,12 @@ const BookingDetailModal = lazy(() =>
   })),
 );
 
+// Flyer visual language, decision 7: only a Large dog's card carries a coloured
+// top edge (navy). Small and Medium cards have none; their size chip says it.
 const SIZE_DOT = {
-  small:  { dot: "var(--color-size-small)", border: "var(--color-brand-yellow-dark)", gradient: "linear-gradient(90deg, var(--color-size-small), #FACC15)", glow: "rgba(245,197,24," },
-  medium: { dot: "var(--color-brand-teal)", border: "var(--color-brand-teal-dark)", gradient: "linear-gradient(90deg, var(--color-brand-teal), var(--color-brand-teal-light))", glow: "rgba(45,139,122," },
-  large:  { dot: "var(--color-brand-coral)", border: "var(--color-brand-coral-dark)", gradient: "linear-gradient(90deg, var(--color-brand-coral), #F472B6)", glow: "rgba(231,84,108," },
+  small:  { dot: "var(--color-size-small)", border: "var(--color-size-small)", gradient: "transparent", glow: "rgba(31,31,31," },
+  medium: { dot: "var(--color-size-medium)", border: "var(--color-size-medium)", gradient: "transparent", glow: "rgba(31,31,31," },
+  large:  { dot: "var(--color-size-large)", border: "var(--color-size-large)", gradient: "linear-gradient(90deg, var(--color-brand-cyan-dark), var(--color-brand-cyan))", glow: "rgba(31,78,140," },
 };
 
 const SIZE_FALLBACK_THEME = { dot: "#00B8E0", border: "#0099BD", gradient: "linear-gradient(90deg, #00B8E0, #38BDF8)", glow: "rgba(14,165,233," };

@@ -718,7 +718,7 @@ export function HumansView({
               {displayList.length === 0 && !isSearching && !loadError && (
                 <div className="col-span-full">
                   <EmptyState
-                    mark={!showArchived && !searchQuery ? "dog" : null}
+                    mark={!showArchived && !searchQuery ? "mascot" : null}
                     title={
                       showArchived
                         ? "No archived customers here"
