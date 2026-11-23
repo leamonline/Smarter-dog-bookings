@@ -508,7 +508,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                     search pattern so the user doesn't have to abandon
                     the form to add a brand-new human. */}
                 {onAddHuman && ownerQuery.trim().length >= 2 && ownerResults.length === 0 && (
-                  <div className="mt-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
+                  <div className="mt-2 p-2.5 rounded-lg border border-slate-200 bg-sd-cloud-tint">
                     <div className="text-xs text-slate-500 mb-1.5">
                       No humans found matching "{ownerQuery.trim()}".
                     </div>
@@ -529,7 +529,7 @@ export function AddDogModal({ onClose, onAdd, onAddAnother, onAddHuman, humans, 
                 )}
               </div>
             ) : (
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="p-3 bg-sd-cloud-tint rounded-lg border border-slate-200">
                 <div className="text-sm font-semibold text-ink mb-2">New owner</div>
                 <div className="flex gap-2 mb-2">
                   <Input

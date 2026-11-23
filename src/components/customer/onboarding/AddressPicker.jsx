@@ -195,7 +195,7 @@ export function AddressPicker({
   if (keepingExisting) {
     return (
       <>
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-sd-cloud-tint border border-slate-200">
           <MapPin
             size={16}
             className="text-slate-400 mt-0.5 shrink-0"

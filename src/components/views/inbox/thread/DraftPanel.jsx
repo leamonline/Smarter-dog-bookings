@@ -40,7 +40,7 @@ export function DraftPanel({ draft, conversation = null, attachedActions = [], o
 
   if (!draft) {
     return (
-      <div className="p-4 bg-slate-50 border-t border-slate-200 text-body text-slate-500 italic">
+      <div className="p-4 bg-sd-cloud-tint border-t border-slate-200 text-body text-slate-500 italic">
         No pending AI draft for this conversation.
       </div>
     );

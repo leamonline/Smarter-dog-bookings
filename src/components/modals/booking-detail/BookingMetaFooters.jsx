@@ -58,7 +58,7 @@ function CreatedByFooter({ name, role, at }) {
     role === "staff" ? " (staff)" : role === "customer" ? " (customer)" : "";
   const when = formatWhen(at);
   return (
-    <div className="px-3 py-2.5 mb-3 bg-slate-50 border border-slate-200 text-slate-600 rounded-tile text-xs font-semibold leading-snug">
+    <div className="px-3 py-2.5 mb-3 bg-sd-cloud-tint border border-slate-200 text-slate-600 rounded-tile text-xs font-semibold leading-snug">
       <span className="uppercase text-micro font-extrabold tracking-wider mr-1 text-ink-muted">Booked</span>
       Booked by {name}{roleSuffix}{when ? ` on ${when}` : ""}.
     </div>

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — flyer visual language, step 3 follow-ups
+
+- The yellow swash under the Bookings and Today date titles.
+- The mini calendar and the week strip mark the selected day in brand blue with a ring; a full day is now charcoal instead of sky blue, so blue only ever means "selected".
+- Solid cool-grey panels across the staff screens are now a warm grey wash, so they sit naturally on the cream page.
+- Design-system ratchet ceilings lowered to the new counts.
+
 ## Unreleased — flyer visual language, step 3: the staff dashboard
 
 - **Status colours are new** (staff need telling before this goes live): one hue per status in the flyer's print style. Expected is warm cream, Unconfirmed coral-orange, Confirmed and Reconfirmed periwinkle, Arrived green, Ready gold, No-show and Cancelled brick red, Collected grey. The words are unchanged and always shown.

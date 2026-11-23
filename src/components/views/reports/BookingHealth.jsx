@@ -91,7 +91,7 @@ export function BookingHealth({
             <button
               type="button"
               onClick={() => navigate("/needs-attention")}
-              className="flex items-center justify-between gap-3 w-full text-left px-3 py-2 rounded-tile bg-slate-50 border border-slate-200/80 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 transition-colors"
+              className="flex items-center justify-between gap-3 w-full text-left px-3 py-2 rounded-tile bg-sd-cloud-tint border border-slate-200/80 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 transition-colors"
             >
               <span className="text-caption text-slate-600 leading-snug">
                 Not counted above — these finished days were never closed off, so

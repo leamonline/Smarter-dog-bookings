@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { sectionTitleFor } from "./navConfig.jsx";
+import { ScribbleUnderline } from "../ui/ScribbleUnderline.jsx";
 
 // ── Simplified Date-Navigation Header ─────────────────────────────────────────────
 // Sits directly under the header and has one clear purpose: date navigation on Bookings.
@@ -30,7 +31,11 @@ export function AppContextRow({ dateLabel, onNavigateDay, onGoToday }) {
           </button>
 
           <strong className="px-2 sm:px-4 text-center font-display text-base sm:text-lg font-extrabold leading-tight text-brand-ink min-w-[200px] sm:min-w-[240px]">
-            {dateLabel}
+            {/* The yellow swash under the page title (flyer visual language, decision 8). */}
+            <span className="relative inline-block">
+              {dateLabel}
+              <ScribbleUnderline />
+            </span>
           </strong>
 
           <button

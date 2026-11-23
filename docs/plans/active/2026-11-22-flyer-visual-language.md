@@ -1,6 +1,6 @@
 # Flyer visual language for the web app
 
-Status: Active (steps 1 and 2 merged in #1259 and #1261; step 3 in review)
+Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264; step 3 follow-ups in review)
 Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
 Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
 Last verified: 2026-11-22
@@ -379,6 +379,21 @@ here rather than rewriting the outline above:
   yellow "Selected" date, and other hand-written selected states outside the
   shared controls. Some staff panels keep a cool slate-50 fill on the cream
   page.
+
+**Step 3 follow-ups (23 November 2026).**
+
+- The yellow swash now sits under the Bookings date title (`AppContextRow`) and
+  the Today date title (`TodayHeader`, on a wrapper so the truncating title does
+  not clip it).
+- The mini calendar and the week strip: the selected day is a brand-blue circle
+  with a ring; Full changes from sky blue to charcoal, so blue means only
+  "selected" (owner's choice, 23 November 2026). Today keeps its yellow ring.
+- The 49 solid `bg-slate-50` fills are now the warm grey wash
+  `bg-sd-cloud-tint` (`#F6F4F2`), so panels sit warmly on the cream page.
+  Translucent `bg-slate-50/…` variants take on the cream behind them and stay.
+- The design-system ratchets are lowered to the new counts.
+- Still outside the shared controls: individual hand-written selected states in
+  modals and pickers keep their colours until each is next touched.
 
 ### Step 4: website, iPhone app, emails
 
