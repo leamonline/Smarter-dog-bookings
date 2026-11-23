@@ -38,6 +38,7 @@
 		A10000000000000000000095 /* OFL-Caveat.txt in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000085 /* OFL-Caveat.txt */; };
 		A10000000000000000000096 /* BookingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000086 /* BookingModels.swift */; };
 		A10000000000000000000097 /* CapacityEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000087 /* CapacityEngine.swift */; };
+		A10000000000000000000098 /* BookingWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000088 /* BookingWizard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -76,6 +77,7 @@
 		A10000000000000000000085 /* OFL-Caveat.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Caveat.txt"; sourceTree = "<group>"; };
 		A10000000000000000000086 /* BookingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000087 /* CapacityEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapacityEngine.swift; sourceTree = "<group>"; };
+		A10000000000000000000088 /* BookingWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingWizard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +131,7 @@
 				A10000000000000000000080 /* HomeModels.swift */,
 				A10000000000000000000086 /* BookingModels.swift */,
 				A10000000000000000000087 /* CapacityEngine.swift */,
+				A10000000000000000000088 /* BookingWizard.swift */,
 				A10000000000000000000081 /* SupabaseHomeClient.swift */,
 				A10000000000000000000082 /* HomeView.swift */,
 				A100000000000000000000A3 /* DogsModels.swift */,
@@ -255,6 +258,7 @@
 				A10000000000000000000090 /* HomeModels.swift in Sources */,
 				A10000000000000000000096 /* BookingModels.swift in Sources */,
 				A10000000000000000000097 /* CapacityEngine.swift in Sources */,
+				A10000000000000000000098 /* BookingWizard.swift in Sources */,
 				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
 				A10000000000000000000092 /* HomeView.swift in Sources */,
 				A100000000000000000000B3 /* DogsModels.swift in Sources */,
