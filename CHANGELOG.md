@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — CI: browser tests run in the Playwright image
+
+- The two browser-test jobs (`pr-production-smoke` on pull requests, `e2e` on `main`) now run inside Microsoft's official Playwright image instead of installing Playwright's system libraries from Ubuntu's package mirror on every run. On 24 November that mirror slowed to about 65 kB/s for an hour and a half, and the install step took 33 minutes instead of under one. A small `playwright-version` job reads the locked Playwright version so the image always matches it, including after a Dependabot upgrade. The browser cache steps are gone, as the image carries the browsers. If the version job fails, the browser jobs fail too rather than being skipped (`src/security/playwrightContainerCi.test.ts`).
+
 ## Unreleased — iPhone staff Today: two review fixes
 
 - The iPhone More tab's **Calendar** now opens the calendar even in a fresh browser tab. The staff website still lands on Today once per tab, except for a link marked `?calendar` (`src/routing/todayLanding.ts`).

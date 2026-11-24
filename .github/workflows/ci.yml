@@ -197,11 +197,64 @@ jobs:
       - name: Test offline WhatsApp comparison and mocked provider boundaries
         run: node --test scripts/whatsapp-eval/compare.test.mjs
 
+  # The Playwright version both browser jobs run in. They run inside
+  # Microsoft's Playwright image rather than installing system libraries on
+  # the runner: on 24 November 2026 the Ubuntu package mirror the runners use
+  # fell to about 65 kB/s for an hour and a half, and `playwright install-deps`
+  # took 33 minutes to fetch 126 MB that normally arrive in under a minute.
+  # The image carries those libraries and the matching browsers, so the mirror
+  # is no longer on the path at all, and there is no browser cache to keep.
+  #
+  # The image tag must equal the installed @playwright/test version, or the
+  # browsers in the image will not be the ones the test runner expects. A job
+  # container's image is fixed before its steps run, so the version is read
+  # here, from the lockfile, and handed over through `needs`. A Dependabot
+  # Playwright bump therefore moves the image with it, with no tag to edit.
+  playwright-version:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.lockfile.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The same tree the browser jobs test: the PR head, or the pushed commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: package-lock.json
+          sparse-checkout-cone-mode: false
+      - name: Read the locked Playwright version
+        id: lockfile
+        run: |
+          version="$(jq -r '.packages["node_modules/@playwright/test"].version // empty' package-lock.json)"
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "::error::Could not read a locked @playwright/test version from package-lock.json (got '$version')."
+            exit 1
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Browser jobs will run in mcr.microsoft.com/playwright:v$version-noble"
+
   e2e:
     # The full browser matrix runs on main and on manual dispatch.
     # pr-production-smoke provides the required browser check on pull requests.
-    if: github.event_name != 'pull_request'
+    if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+    # !cancelled(): if `playwright-version` fails, this job must still run and
+    # fail (on an image tag that cannot be pulled), not be skipped. A skipped
+    # job can satisfy a required check and wave an untested change through.
+    needs: playwright-version
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+      # The runner's own uid, so the checkout and npm cache stay writable and
+      # git does not refuse the workspace as owned by someone else. --ipc=host
+      # is Playwright's advice for Chromium in Docker (shared-memory limits).
+      options: --user 1001 --ipc=host
+    # A job container runs `run:` steps with `sh`, not the runner's `bash`, and
+    # these steps use bash features (process substitution in the changed-spec
+    # step). Name bash so the steps behave exactly as they did on the runner.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -209,28 +262,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Resolve the pinned Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      # Playwright's browser bundles are the slowest part of these jobs and they
-      # only change when the pinned version does, so cache them on that version.
-      #
-      # The key names the BROWSER SET as well: this job and the one below share
-      # ~/.cache/ms-playwright but install different browsers, and a shared key
-      # would let the chromium-only cache satisfy a job that also needs WebKit.
-      # `install-deps` still runs on a hit — the system libraries are apt
-      # packages on the runner, not files in the cached directory.
-      - uses: actions/cache@v6
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ms-playwright-${{ runner.os }}-chromium-${{ steps.playwright.outputs.version }}
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Install Playwright system dependencies (cached browsers)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
       - run: npm run e2e
       # The boot-order guard (#998): the only check that tier-1 data queries
       # leave before the staff profile resolves. It builds its own online
@@ -263,8 +294,24 @@ jobs:
     # so it keeps the historical `pr-production-smoke` name even though the
     # suite is no longer smoke-only. Project selection lives in
     # playwright.config.ts under PLAYWRIGHT_PR_SMOKE.
-    if: github.event_name == 'pull_request'
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    # !cancelled(): if `playwright-version` fails, this job must still run and
+    # fail (on an image tag that cannot be pulled), not be skipped. A skipped
+    # job can satisfy a required check and wave an untested change through.
+    needs: playwright-version
     runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+      # The runner's own uid, so the checkout and npm cache stay writable and
+      # git does not refuse the workspace as owned by someone else. --ipc=host
+      # is Playwright's advice for Chromium in Docker (shared-memory limits).
+      options: --user 1001 --ipc=host
+    # A job container runs `run:` steps with `sh`, not the runner's `bash`, and
+    # these steps use bash features (process substitution in the changed-spec
+    # step). Name bash so the steps behave exactly as they did on the runner.
+    defaults:
+      run:
+        shell: bash
     permissions:
       contents: read
     steps:
@@ -333,30 +380,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Resolve the pinned Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      # Playwright's browser bundles are the slowest part of these jobs and they
-      # only change when the pinned version does, so cache them on that version.
-      #
-      # The key names the BROWSER SET as well: this job and the one below share
-      # ~/.cache/ms-playwright but install different browsers, and a shared key
-      # would let the chromium-only cache satisfy a job that also needs WebKit.
-      # `install-deps` still runs on a hit — the system libraries are apt
-      # packages on the runner, not files in the cached directory.
-      - uses: actions/cache@v6
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ms-playwright-${{ runner.os }}-chromium-webkit-${{ steps.playwright.outputs.version }}
-      - name: Install Playwright browsers for PR smoke gate
-        # WebKit is installed only here; the post-merge e2e job stays
-        # Chromium-only, which is why the two cache keys differ.
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium webkit
-      - name: Install Playwright system dependencies (cached browsers)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium webkit
       - name: Assert the PR suite is non-empty
         env:
           PLAYWRIGHT_PR_SMOKE: "1"
