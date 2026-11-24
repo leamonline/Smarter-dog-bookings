@@ -11,7 +11,10 @@ enum SalonClient {
         }
         return SupabaseClient(
             supabaseURL: url,
-            supabaseKey: SupabaseConfig.publishableKey
+            supabaseKey: SupabaseConfig.publishableKey,
+            options: SupabaseClientOptions(
+                auth: .init(emitLocalSessionAsInitialSession: true)
+            )
         )
     }
 }
