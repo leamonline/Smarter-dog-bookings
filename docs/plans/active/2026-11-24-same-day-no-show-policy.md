@@ -84,6 +84,12 @@ Confirmed from source at the base revision. No production reads were made.
 - Tests: new pgTAP `267`. `235` and `266` were rewritten for the new policy: their old expectations (a strike for a notice-window cancellation, a deposit at the first no-show) describe behaviour the owner retired. They were not loosened. Same-day portal and WhatsApp checks skip after 23:50 London time instead of faking the clock.
 - Stale but not run in CI: `scripts/late-cancellation/*` (isolated assertions and concurrency for the old strike trigger) and `scripts/no-show-deposit-backfill.sql` (first-no-show backfill). Retire or rewrite them before relying on them.
 
+## Release evidence
+
+- 24 November 2026, 23:11 GMT: production apply by the owner-approved workflow (run 45507776716). Receipt: applied, ledger verified, postcondition true, SHA-256 matching the committed file. See `docs/migrations.md`.
+- 23:14 GMT: #1300 merged (`2d37eff0`), so the staff panel and copy deploy with it.
+- Still to verify: the live terms page and staff card after the Vercel deploy, and the first real same-day cancellation (status, message, count).
+
 ## Rollout and rollback
 
 Migration first, applied with the approval-gated production workflow after a staging run. Then client copy and staff card changes in a follow-up PR (expand/contract per `docs/migrations.md`). To roll back, apply a forward migration that restores the previous function bodies. Data written as `No-show` under the new rule stays as written, and staff can correct individual rows.
