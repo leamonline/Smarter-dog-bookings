@@ -310,7 +310,17 @@ Each is its own pull request, merged only after the full CI bar.
      read leaves it shut); a day staff closed after it was picked shows "We're closed on ..."
      with no times (not when the open-days read failed, which proves nothing); and leaving the
      time step for the date step drops the remembered pages so the list is read again.
-   - **After the time step:** the summary screen (no confirm).
+   - **3b-5, built:** the summary screen, laid out as the website's confirm step is:
+     "When" (for example "Tuesday 1 December 2026 at 9:30am"), the dog with its service and
+     starting price ("From £46+") and breed and size, then the total ("From £46", no plus).
+     No confirm button: the screen says booking is not switched on in this version.
+     **Left out on purpose until the deposit decision and one more read:** any claim about
+     when payment is due (the website says "paid at pick-up" only when no deposit applies,
+     which the app cannot know yet), the "Need to change your appointment?" note (it needs
+     `customer_change_deadline_preview` so it is not shown for a booking made inside the
+     change window) and the essential-messages notice (it belongs beside the confirm button
+     and needs a drift guard like the prices).
+   - **Next:** the confirm step behind a flag, against the staging project.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.

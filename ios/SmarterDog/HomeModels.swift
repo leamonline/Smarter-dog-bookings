@@ -97,7 +97,7 @@ enum HomeSelector {
     }
 
     /// "2026-12-01" becomes "Tuesday 1 December". Anything unreadable is returned as given.
-    static func dateText(_ iso: String) -> String {
+    static func dateText(_ iso: String, withYear: Bool = false) -> String {
         let pieces = iso.split(separator: "-").compactMap { Int($0) }
         guard pieces.count == 3 else { return iso }
         var calendar = Calendar(identifier: .gregorian)
@@ -108,7 +108,7 @@ enum HomeSelector {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_GB")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "EEEE d MMMM"
+        formatter.dateFormat = withYear ? "EEEE d MMMM yyyy" : "EEEE d MMMM"
         return formatter.string(from: date)
     }
 
