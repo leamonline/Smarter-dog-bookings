@@ -795,7 +795,7 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertTrue(model.canConfirm)
     }
 
-    func testBookedRowsDecodeFromTheJSONTheDatabaseSends() throws {
+    func testBookedRowsDecodeFromTheJSONTheDatabaseSends() async throws {
         let json = #"[{"id":"b1","booking_date":"2026-11-25","slot":"09:30","service":"Full Groom","status":"Booked","size":"medium","deposit_required":true,"deposit_amount":10.00,"payment":"Due at Pick-up"}]"#
         let rows = try JSONDecoder().decode([BookedRow].self, from: Data(json.utf8))
         XCTAssertEqual(rows.first?.deposit_amount, 10)
