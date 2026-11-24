@@ -50,7 +50,7 @@ function balanceWords(balance) {
  *   tone: { key: string; label: string; tint: string; edge: string; ink: string; meta: string; needsAttention?: boolean };
  *   status: string;
  *   cancelReason?: string | null;
- *   confirmation?: "unconfirmed" | "confirmed" | null;
+ *   confirmation?: "unconfirmed" | "reminderFailed" | "confirmed" | null;
  *   time?: string;
  *   spokenTime?: string;
  *   dogName: string;

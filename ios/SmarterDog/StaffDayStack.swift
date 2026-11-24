@@ -31,11 +31,15 @@ struct StaffBooking: Equatable, Sendable {
     var completedAt: String?
     /// "confirmed", "sent" or "none", derived like the website's transform.
     var reminderState: String
+    /// A live failed reminder: the owner was never told (website `applyReminderFailures`).
+    var reminderFailed: Bool = false
     var confirmationChannel: String?
     var dogName: String
     var breed: String
     /// The owner's full name, or "" when it cannot be found.
     var ownerName: String
+    /// The owner's phone as stored, or "" when there is none.
+    var ownerPhone: String = ""
     /// Warnings as recorded, not yet ordered: "Pregnant" first if ticked, then the dog's alerts.
     var safetyFacts: [String]
     var notes: String
@@ -286,6 +290,10 @@ enum StaffDayStack {
         let confirmation: StaffStatusPalette.Confirmation?
         if booking.status != booked {
             confirmation = nil
+        } else if booking.reminderFailed && booking.reminderState != "confirmed" {
+            // Website: applyReminderFailures marks it unconfirmed, and stackConfirmation
+            // words it "Reminder failed". A recorded confirmation always wins.
+            confirmation = .reminderFailed
         } else if needsConfirmation(booking) {
             confirmation = .unconfirmed
         } else if booking.reminderState == "confirmed" {
@@ -348,6 +356,34 @@ enum StaffDayStack {
                 safety: orderSafetyFacts(entry.booking.safetyFacts)
             )
         }
+    }
+
+    /// Cancelled bookings on the date, faded under the stack. A no-show is not here:
+    /// it stays on the stack in time order, as on the website. These rows carry no
+    /// timing, because nothing is waiting on them.
+    static func cancelledRows(bookings: [StaffBooking], date: String) -> [StaffDayRow] {
+        bookings.enumerated()
+            .filter { $0.element.date == date && $0.element.status == cancelled && !isConfirmedNoShow($0.element) }
+            .sorted { lhs, rhs in
+                let left = slotMinutes(lhs.element.slot) ?? Int.max
+                let right = slotMinutes(rhs.element.slot) ?? Int.max
+                return left != right ? left < right : lhs.offset < rhs.offset
+            }
+            .map { _, booking in
+                StaffDayRow(
+                    id: booking.id,
+                    booking: booking,
+                    stage: .booked,
+                    time: booking.slot.isEmpty ? nil : booking.slot,
+                    subtitle: subtitle(breed: booking.breed, service: booking.service),
+                    timing: nil,
+                    urgent: false,
+                    readyOverdue: false,
+                    countdown: false,
+                    tone: tone(for: booking),
+                    safety: orderSafetyFacts(booking.safetyFacts)
+                )
+            }
     }
 
     private static func entry(for booking: StaffBooking, clock: (minutesOfDay: Int, date: String), isToday: Bool) -> Entry {

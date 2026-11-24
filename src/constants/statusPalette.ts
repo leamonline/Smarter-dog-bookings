@@ -16,6 +16,7 @@
 export type StatusToneKey =
   | "expected"
   | "unconfirmed"
+  | "reminderFailed"
   | "confirmed"
   | "reconfirmed"
   | "arrived"
@@ -75,6 +76,18 @@ export const STATUS_TONES: Record<StatusToneKey, StatusTone> = {
   // word carries the meaning.
   unconfirmed: {
     label: "Unconfirmed",
+    tint: "#FFDDC9",
+    ink: "#5C2408",
+    meta: "#7A3410",
+    edge: "#E0662B",
+    inStack: true,
+  },
+  // Reminder failed: the reminder never reached the owner, so they have not
+  // been told about the appointment. Same apricot as Unconfirmed, because the
+  // action is the same (chase them), but the word says why (owner decision,
+  // 24 November 2026).
+  reminderFailed: {
+    label: "Reminder failed",
     tint: "#FFDDC9",
     ink: "#5C2408",
     meta: "#7A3410",

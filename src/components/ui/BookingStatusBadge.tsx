@@ -21,6 +21,7 @@ import type { StatusToneKey } from "../../constants/index";
 export type DayStatusKey =
   | "expected"
   | "unconfirmed"
+  | "reminderFailed"
   | "confirmed"
   | "reconfirmed"
   | "arrived"
@@ -56,7 +57,7 @@ export interface DayStatusTone {
  * Where a Booked dog stands on confirmation (engine/dayStack.ts
  * `stackConfirmation`). Only ever changes the tone of a Booked booking.
  */
-export type DayConfirmation = "unconfirmed" | "confirmed" | null | undefined;
+export type DayConfirmation = "unconfirmed" | "reminderFailed" | "confirmed" | null | undefined;
 
 
 /**
@@ -75,7 +76,7 @@ export type DayConfirmation = "unconfirmed" | "confirmed" | null | undefined;
  * data problem worth seeing, not one worth papering over with "Expected".
  */
 function tone(key: StatusToneKey): DayStatusTone {
-  return { key, ...STATUS_TONES[key], needsAttention: key === "unconfirmed" };
+  return { key, ...STATUS_TONES[key], needsAttention: key === "unconfirmed" || key === "reminderFailed" };
 }
 
 export function resolveDayStatus(
@@ -85,6 +86,7 @@ export function resolveDayStatus(
 ): DayStatusTone {
   switch (status) {
     case BOOKING_STATUS.BOOKED:
+      if (confirmation === "reminderFailed") return tone("reminderFailed");
       if (confirmation === "unconfirmed") return tone("unconfirmed");
       if (confirmation === "confirmed") return tone("confirmed");
       return tone("expected");

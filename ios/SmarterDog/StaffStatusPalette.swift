@@ -10,7 +10,7 @@ import Foundation
 // The status word is always shown, so colour is never the only signal.
 
 struct StaffStatusTone: Equatable, Sendable {
-    /// "expected", "unconfirmed", "confirmed", "reconfirmed", "arrived", "ready",
+    /// "expected", "unconfirmed", "reminderFailed", "confirmed", "reconfirmed", "arrived", "ready",
     /// "noShow", "cancelled", "collected" or "unknown".
     let key: String
     /// The word staff read: "Expected", "Ready", "No-show".
@@ -27,12 +27,13 @@ struct StaffStatusTone: Equatable, Sendable {
 
 enum StaffStatusPalette {
     enum Confirmation: Equatable, Sendable {
-        case unconfirmed, confirmed
+        case unconfirmed, reminderFailed, confirmed
     }
 
     static let tones: [String: StaffStatusTone] = [
         "expected": StaffStatusTone(key: "expected", label: "Expected", tint: "#F1E9DC", ink: "#3B3226", meta: "#5E5242", edge: "#B8A68A"),
         "unconfirmed": StaffStatusTone(key: "unconfirmed", label: "Unconfirmed", tint: "#FFDDC9", ink: "#5C2408", meta: "#7A3410", edge: "#E0662B"),
+        "reminderFailed": StaffStatusTone(key: "reminderFailed", label: "Reminder failed", tint: "#FFDDC9", ink: "#5C2408", meta: "#7A3410", edge: "#E0662B"),
         "confirmed": StaffStatusTone(key: "confirmed", label: "Confirmed", tint: "#E4E4FB", ink: "#26266A", meta: "#3D3D8F", edge: "#7C80DC"),
         "reconfirmed": StaffStatusTone(key: "reconfirmed", label: "Reconfirmed", tint: "#E4E4FB", ink: "#26266A", meta: "#3D3D8F", edge: "#7C80DC"),
         "arrived": StaffStatusTone(key: "arrived", label: "Arrived", tint: "#D5EFE5", ink: "#0F3F2E", meta: "#1C5E46", edge: "#2E9D78"),
@@ -59,6 +60,7 @@ enum StaffStatusPalette {
         case StaffDayStack.booked:
             switch confirmation {
             case .unconfirmed: return tone("unconfirmed")
+            case .reminderFailed: return tone("reminderFailed")
             case .confirmed: return tone("confirmed")
             case nil: return tone("expected")
             }
