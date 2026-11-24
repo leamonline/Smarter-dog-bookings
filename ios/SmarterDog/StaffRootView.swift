@@ -6,10 +6,13 @@ import SwiftUI
 struct StaffRootView: View {
     let account: AccountCard
     var auth: AuthService
+    /// Builds the Today tab. The app uses the salon connection; Debug sample mode
+    /// passes made-up data instead.
+    var today: () -> StaffTodayView = { StaffTodayView() }
 
     var body: some View {
         TabView {
-            StaffTodayView()
+            today()
                 .tabItem {
                     Label("Today", systemImage: "list.bullet.rectangle.portrait")
                 }

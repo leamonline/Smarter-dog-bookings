@@ -9,8 +9,13 @@ struct StaffTodayView: View {
     @State private var selected: StaffDayRow?
     @Environment(\.scenePhase) private var scenePhase
 
-    init(client: StaffDayClient? = SupabaseStaffDayClient.make()) {
-        _model = State(initialValue: StaffTodayModel(client: client))
+    /// `clock` is the real time in the app. Debug sample mode pins it so the made-up
+    /// day reads like a working morning whenever it is opened.
+    init(
+        client: StaffDayClient? = SupabaseStaffDayClient.make(),
+        clock: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        _model = State(initialValue: StaffTodayModel(client: client, clock: clock))
     }
 
     var body: some View {
