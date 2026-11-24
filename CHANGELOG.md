@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — iPhone app: staff Today (read only)
+
+- Staff who sign in to the iPhone app now land on **Today**: the day's dogs in appointment order with their status in words and the website's colours, safety warnings, and how long each dog has been where it is, exactly as the staff website's Today. Arrows move between days. Tap a dog for its details. A **More** tab opens the staff website for everything else. Nothing is changed from the phone yet. Plan phases S0 and S1 ([plan](docs/plans/active/2026-11-23-iphone-staff.md)).
+- The Swift copy is checked against the website's own engine on a governed list of days (`staff-day-parity.json`), so a website change cannot leave the phone saying something different without a test failing.
+
 ## Unreleased — plan: the iPhone staff app
 
 - A plan for the iPhone app's staff side ([plan](docs/plans/active/2026-11-23-iphone-staff.md)), for the owner's approval before any code: native for the salon floor (Today, status moves, check-out, staff notifications), links to the website for the desk (calendar, bookings, customers, reports, settings), in phases that each reach TestFlight, with a go/no-go after the first two.

@@ -34,6 +34,20 @@ logic stays out of components and can't drift between surfaces:
 | `engine/reportsAnalytics.ts` | reports 2A–2E |
 | `engine/denials.ts` | report 2F + the gate-message → reason-code mapper |
 
+## The iPhone copy
+
+The iPhone app's staff Today (`ios/SmarterDog/StaffDayStack.swift`, read only)
+is a Swift copy of the stack's ordering, membership, timing line, status tone
+and safety order. `src/engine/staffDayParity.ios.test.ts` runs this page's
+engines on a governed list of days and writes their answers to
+`ios/AuthCoreTests/staff-day-parity.json`; it fails when the file is stale, and
+the Swift tests fail until the copy follows. A change to `dayStack.ts`,
+`today.ts`'s feed rules, `safetyOrder.ts`, `resolveDayStatus` or
+`statusPalette.ts` therefore needs the file regenerated
+(`UPDATE_IOS_STAFF_DAY_FIXTURES=1`) and the Swift copy updated in the same pull
+request. The iPhone does not yet fold in typed WhatsApp confirmations or failed
+reminder deliveries, and shows no money.
+
 ## Time is Europe/London
 
 The salon runs on Europe/London. The **database is the enforcement authority**
