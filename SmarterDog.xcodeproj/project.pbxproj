@@ -53,6 +53,7 @@
 		5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000005 /* SupabaseStaffDayClient.swift */; };
 		5DA100000000000000000016 /* StaffRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000006 /* StaffRootView.swift */; };
 		5DA100000000000000000017 /* StaffTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000007 /* StaffTodayView.swift */; };
+		A10000000000000000000101 /* LiveBookingDebug.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000100 /* LiveBookingDebug.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -106,6 +107,7 @@
 		5DA100000000000000000005 /* SupabaseStaffDayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseStaffDayClient.swift; sourceTree = "<group>"; };
 		5DA100000000000000000006 /* StaffRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffRootView.swift; sourceTree = "<group>"; };
 		5DA100000000000000000007 /* StaffTodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffTodayView.swift; sourceTree = "<group>"; };
+		A10000000000000000000100 /* LiveBookingDebug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveBookingDebug.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -167,6 +169,7 @@
 				A1000000000000000000008D /* BookingAvailability.swift */,
 				A1000000000000000000008E /* BookingTimes.swift */,
 				A1000000000000000000008F /* BookingConfirm.swift */,
+				A10000000000000000000100 /* LiveBookingDebug.swift */,
 				A10000000000000000000081 /* SupabaseHomeClient.swift */,
 				A10000000000000000000082 /* HomeView.swift */,
 				A100000000000000000000A3 /* DogsModels.swift */,
@@ -308,6 +311,7 @@
 				A1000000000000000000009D /* BookingAvailability.swift in Sources */,
 				A1000000000000000000009E /* BookingTimes.swift in Sources */,
 				A1000000000000000000009F /* BookingConfirm.swift in Sources */,
+				A10000000000000000000101 /* LiveBookingDebug.swift in Sources */,
 				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
 				A10000000000000000000092 /* HomeView.swift in Sources */,
 				A100000000000000000000B3 /* DogsModels.swift in Sources */,

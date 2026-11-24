@@ -7,8 +7,10 @@ import SwiftUI
 struct BookingFlowView: View {
     @State private var model: BookingFlowModel
 
-    init(client: SalonBookingDataClient? = SupabaseBookingClient.make()) {
-        _model = State(initialValue: BookingFlowModel(client: client))
+    /// `canBook` switches the confirm step on. It is false everywhere except the Debug-only live
+    /// booking mode, which only runs against the staging project.
+    init(client: SalonBookingDataClient? = SupabaseBookingClient.make(), canBook: Bool = false) {
+        _model = State(initialValue: BookingFlowModel(client: client, canBook: canBook))
     }
 
     var body: some View {

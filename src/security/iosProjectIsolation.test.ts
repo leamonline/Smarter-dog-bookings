@@ -168,7 +168,18 @@ describe("the Xcode project is the committed skeleton", () => {
     }
     const swift = swiftFiles.map((file) => read(file)).join("\n");
     expect(swift).toContain("SupabaseClient(");
-    expect(swift).not.toContain("URLSession");
+    // All network traffic goes through the Supabase library, with ONE reviewed exception: the
+    // booking send in SupabaseBookingClient.swift. It must read the database's own `details` code,
+    // which the pinned library's error type does not expose reliably across versions, so that one
+    // request goes through URLSession and its answer is parsed by `BookingWire`, which is tested
+    // against real recorded answers. The exception is one file and one call site; any other file,
+    // or a second use, fails here.
+    const withUrlSession = swiftFiles.filter((file) => read(file).includes("URLSession"));
+    expect(withUrlSession.map((file) => file.split("/").pop())).toEqual(["SupabaseBookingClient.swift"]);
+    const bookingClient = read(withUrlSession[0]);
+    expect(bookingClient.match(/URLSession/g)).toHaveLength(1);
+    expect(bookingClient).toContain("URLSession.shared.data(for: urlRequest)");
+    expect(bookingClient).toContain("rest/v1/rpc/create_customer_booking_group");
     expect(swift).toContain('Text("Smarter Dog")');
     expect(swift).toContain("Continue");
     expect(swift).toContain("Staff sign in");

@@ -29,6 +29,7 @@ let package = Package(
                 "SupabaseHomeClient.swift",
                 "SupabaseBookingClient.swift",
                 "BookingFlowView.swift",
+                "LiveBookingDebug.swift",
                 "HomeView.swift",
                 "SupabaseDogsClient.swift",
                 "DogsView.swift",

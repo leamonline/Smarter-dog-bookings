@@ -88,6 +88,15 @@ If a TestFlight build must point somewhere else, set `SUPABASE_URL` and `SUPABAS
 
 The same config file also holds the public security-check key the website uses (Cloudflare Turnstile). That key is not a secret. Do not add the Turnstile **secret** key anywhere in the app.
 
+### Trying live booking on staging (Debug only)
+
+The booking screens normally show made-up data (`-sampleBooking`). To run the real flow against the **staging** project, signed in as the throwaway test customer, launch a Debug build with `-liveBooking`. It creates real bookings on staging and refuses to run against any other project, so a mistake in the configuration cannot point it at production. It does not exist in Release builds.
+
+1. Point the app at staging in `Config.local.xcconfig` (section 5). The staging project is `btjnxvgkpdbfrrqxvkfj`. Use its public URL and publishable key, never a service-role key.
+2. In Xcode choose Product, Scheme, Edit Scheme, Run, Arguments. Under **Arguments Passed On Launch** add `-liveBooking`. Under **Environment Variables** add `STAGING_TEST_EMAIL` and `STAGING_TEST_PASSWORD`. Those values stay in your local scheme and are never committed.
+3. The test customer is `ios-staging-test@example.com`. Set its password yourself in the staging dashboard (Authentication, Users) so it is not shared in chat.
+4. Run. A red banner reads "LIVE BOOKING · STAGING".
+
 ## 6. First TestFlight build with Xcode Cloud
 
 TestFlight is Apple’s app for installing a build that is not on the public App Store yet. Internal testing means only people on your developer team. Keep this build on internal testing. It signs people in and shows a read-only home. It does not book appointments yet, so it is not ready for outside testers.
