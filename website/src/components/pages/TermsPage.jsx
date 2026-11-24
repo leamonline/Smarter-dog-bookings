@@ -27,11 +27,17 @@ const TermsPage = ({ onBookClick }) => {
             ]
         },
         {
+            // Owner's wording, 24 November 2026 (ADR 015). Keep it word for word.
             title: "Cancellations & No-Shows",
+            intro: "We know life doesn't always go to plan! If you need to cancel your dog's appointment, we'd really appreciate as much notice as possible.",
             items: [
-                "We require at least 24 hours' notice for cancellations.",
-                "No-shows or late cancellations may require a non-refundable deposit before future bookings.",
-                "Deposits are decided on a case-by-case basis and must be paid before the next appointment is confirmed."
+                "You can cancel here any time before the day of your appointment.",
+                "Cancellations on the day and missed appointments will be recorded.",
+                "Repeated no-shows will require a non-refundable deposit to secure future bookings. This will be taken off the cost of the groom."
+            ],
+            outro: [
+                "Giving us a little notice means we can offer your appointment to another dog who might be waiting for a pamper.",
+                "Thank you for your understanding and for supporting our little salon."
             ]
         },
         {
@@ -150,6 +156,11 @@ const TermsPage = ({ onBookClick }) => {
                                 >
                                     {section.title}
                                 </h2>
+                                {section.intro && (
+                                    <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.inkMuted }}>
+                                        {section.intro}
+                                    </p>
+                                )}
                                 <ul className="space-y-4">
                                     {section.items.map((item, j) => (
                                         <li
@@ -162,6 +173,11 @@ const TermsPage = ({ onBookClick }) => {
                                         </li>
                                     ))}
                                 </ul>
+                                {section.outro?.map((line, k) => (
+                                    <p key={k} className="body-font text-lg leading-relaxed mt-4" style={{ color: colors.inkMuted }}>
+                                        {line}
+                                    </p>
+                                ))}
                             </div>
                         ))}
                     </div>

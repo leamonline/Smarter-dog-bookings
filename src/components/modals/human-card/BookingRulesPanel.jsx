@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CancellationHistoryPanel } from "./CancellationHistoryPanel";
+import { NoShowHistoryPanel } from "./NoShowHistoryPanel";
 import { CalendarClock } from "lucide-react";
 import { PanelShell } from "../shell/PanelShell.jsx";
 import { Button } from "../../ui/Button.jsx";
@@ -107,6 +108,7 @@ export function BookingRulesPanel({ human, onUpdateHuman }) {
   return (
     <PanelShell eyebrow="Booking rules" icon={CalendarClock} accent="sky">
       <div className="flex flex-col gap-3">
+        <NoShowHistoryPanel key={`no-shows-${human?.id}`} humanId={human?.id} />
         <CancellationHistoryPanel key={human?.id} humanId={human?.id} />
         <SlotSection
           title="Preferred times"

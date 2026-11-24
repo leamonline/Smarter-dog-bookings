@@ -1,6 +1,6 @@
 # ADR 015: A customer's same-day cancellation is a no-show; two in 12 months requires a deposit
 
-Status: Proposed. The owner decided the policy on 24 November 2026. Implementation and the production migration have not been approved yet.
+Status: Accepted by the owner on 24 November 2026. Implemented on a branch (migration `20261124200000`), which has not been applied to production.
 Date: 2026-11-24
 Supersedes: the counting and classification parts of [ADR 013](013-allow-late-cancellations-with-customer-history.md). ADR 013's permission to cancel late still stands.
 Plan: [Same-day cancellation is a no-show](../../plans/active/2026-11-24-same-day-no-show-policy.md)
@@ -24,8 +24,9 @@ The owner chose to put the rule in the database rather than on screens only. Tha
 2. Classification moves into the database. When a customer-caused cancellation of a Booked or Reconfirmed appointment is committed on the appointment's own London date, the rows are saved with status `No-show`. The cancellation cause `customer` and the customer's reason are kept. A cancellation on an earlier date stays `Cancelled`. The 24-hour notice window no longer decides anything about penalties. It still governs online rescheduling.
 3. A no-show still frees its seat, exactly as now (`TERMINAL_STATUSES`). A customer who cancels on the day still gets a cancellation confirmation, and the waitlist and staff alerts still treat the freed seat as freed.
 4. One appointment counts once: a group of dogs on one date is one no-show. Retries and races do not add a second.
-5. The deposit response becomes automatic at **two** unwaived no-show appointments in the preceding 12 calendar months, counting both customer same-day cancellations and staff-recorded no-shows. It replaces the first-no-show trigger. Only staff can turn the tag off, as now. Staff waive a no-show with a reason, as they waive a strike today.
-6. The `late_cancellation_history` ledger stays as history. Whether existing records count towards the new total is an open question in the plan.
+5. The deposit response becomes automatic at **two** no-show appointments in the preceding 12 calendar months, counting both customer same-day cancellations and staff-recorded no-shows. It replaces the first-no-show trigger. Only staff can turn the tag off, as now. A mistaken no-show is corrected by putting the booking back (it then stops counting); there is no separate no-show waiver.
+6. Everyone starts from zero: only no-shows dated on or after the go-live date count (owner decision). The `late_cancellation_history` ledger stays readable, waivable and transferable as history, but writes no new rows and no longer counts towards anything.
+7. No warning step when a customer cancels on the day (owner decision). The rule is stated on the terms page in the owner's own words and in booking copy.
 
 ## Consequences
 

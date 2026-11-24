@@ -7,11 +7,11 @@ vi.mock("../../../supabase/repositories/cancellationHistoryRepo", () => ({ getCa
 const item = { id: "incident", bookingDate: "2026-10-01", requestedAt: "2026-10-01T10:00:00Z", reason: "Customer cannot attend", actorScope: "customer", waivedAt: null, waiverReason: null };
 beforeEach(() => { vi.clearAllMocks(); mocks.get.mockResolvedValue({ count: 3, reviewRequired: true, items: [item] }); mocks.waive.mockResolvedValue(undefined); });
 describe("Cancellation history", () => {
-  it("shows server threshold and keeps deposit choice with staff", async () => {
+  it("shows the old-rule history without asking for a deposit review", async () => {
     render(<CancellationHistoryPanel humanId="customer" />);
     expect(await screen.findByText("3 in the last 12 months")).toBeInTheDocument();
-    expect(screen.getByText(/Review deposits:/)).toBeInTheDocument();
-    expect(screen.getByText(/Deposits remain a staff decision/)).toBeInTheDocument();
+    expect(screen.queryByText(/Review deposits:/)).toBeNull();
+    expect(screen.getByText(/no longer count towards a deposit/)).toBeInTheDocument();
     expect(screen.getByText("Customer cannot attend")).toBeInTheDocument();
     expect(mocks.waive).not.toHaveBeenCalled();
   });

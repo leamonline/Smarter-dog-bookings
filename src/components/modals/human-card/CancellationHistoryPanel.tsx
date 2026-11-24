@@ -21,12 +21,13 @@ export function CancellationHistoryPanel({ humanId }: { humanId: string }) {
     catch { setError(true); }
     finally { setSaving(false); }
   };
-  return <section aria-label="Late cancellations" className="rounded-tile border border-slate-200 p-3">
-    <h3 className="text-sm font-bold">Late cancellations</h3>
+  return <section aria-label="Late cancellations (old rule)" className="rounded-tile border border-slate-200 p-3">
+    <h3 className="text-sm font-bold">Late cancellations (old rule)</h3>
+    <p className="text-xs text-slate-500">Recorded under the old notice-window rule until 24 November 2026. These no longer count towards a deposit.</p>
     {error ? <p role="alert">Couldn’t load or update cancellation history. <button type="button" onClick={() => setRefresh((n) => n + 1)}>Try again</button></p> : !history ? <p role="status">Loading cancellation history…</p> : <>
       <p>{history.count} in the last 12 months</p>
-      {history.reviewRequired && <p className="text-feedback-warning-ink font-semibold">Review deposits: three or more late cancellations. Use the Deposit required switch if appropriate.</p>}
-      <p className="text-xs text-slate-500">Latest 50 records shown. One record per appointment. Waived records do not count. Deposits remain a staff decision.</p>
+      
+      <p className="text-xs text-slate-500">Latest 50 records shown. One record per appointment. Waived records do not count.</p>
       {!history.items.length ? <p>No late cancellations recorded.</p> : <ul>{history.items.map((item) => <li key={item.id} className="border-t py-2 text-sm">
         <p>Appointment: {item.bookingDate} · Cancelled {new Date(item.requestedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })}</p>
         <p>{item.reason}</p>
