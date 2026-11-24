@@ -93,7 +93,8 @@ tables and RPCs the website uses, not a private shortcut.
 **Built in the app so far** ([iPhone staff plan](plans/active/2026-11-23-iphone-staff.md)):
 Today, read only (phase S1). It reads `bookings` for one London date with an
 embedded `notification_log(trigger_type,status,sent_at)`, the `dogs` and `humans`
-on them, and that date's `day_settings`. Every other row below is reached from
+on them (`humans`: `id,name,surname,phone`; the phone is only for the detail
+sheet's Call button, which opens the iPhone's dialler), and that date's `day_settings`. Every other row below is reached from
 the More tab, which opens the staff website.
 
 | Screen | Call | Notes |

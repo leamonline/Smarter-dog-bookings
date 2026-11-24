@@ -156,6 +156,7 @@ struct SampleStaffDayClient: StaffDayClient {
             booking("s7", "11:00", "bath-and-brush", "Booked", dog: "d7", reminder: "failed"),
             booking("s8", "12:00", "full-groom", "Booked", dog: "d8"),
             booking("s9", "12:30", "bath-and-brush", "Cancelled", dog: "d9", cancelReason: "Customer cancelled"),
+            booking("s10", "09:30", "bath-and-brush", "No-show", dog: "d10"),
         ]
         let dogs = [
             StaffDogRow(id: "d1", name: "Biscuit", breed: "Cockapoo", human_id: "h1", alerts: nil, is_pregnant: false),
@@ -167,16 +168,17 @@ struct SampleStaffDayClient: StaffDayClient {
             StaffDogRow(id: "d7", name: "Rolo", breed: "Dachshund", human_id: "h6", alerts: nil, is_pregnant: false),
             StaffDogRow(id: "d8", name: "Bramble", breed: "Springer Spaniel", human_id: "h7", alerts: nil, is_pregnant: false),
             StaffDogRow(id: "d9", name: "Teddy", breed: "Bichon Frise", human_id: "h8", alerts: nil, is_pregnant: false),
+            StaffDogRow(id: "d10", name: "Archie", breed: "Border Terrier", human_id: "h4", alerts: nil, is_pregnant: false),
         ]
         let humans = [
-            StaffHumanRow(id: "h1", name: "Sam", surname: "Taylor"),
-            StaffHumanRow(id: "h2", name: "Priya", surname: "Shah"),
-            StaffHumanRow(id: "h3", name: "Tom", surname: "Hughes"),
-            StaffHumanRow(id: "h4", name: "Ellie", surname: "Brooks"),
-            StaffHumanRow(id: "h5", name: "Jo", surname: "Patel"),
-            StaffHumanRow(id: "h6", name: "Mark", surname: "Evans"),
-            StaffHumanRow(id: "h7", name: "Ruth", surname: "Green"),
-            StaffHumanRow(id: "h8", name: "Dan", surname: "Morris"),
+            StaffHumanRow(id: "h1", name: "Sam", surname: "Taylor", phone: "07700 900101"),
+            StaffHumanRow(id: "h2", name: "Priya", surname: "Shah", phone: "07700 900102"),
+            StaffHumanRow(id: "h3", name: "Tom", surname: "Hughes", phone: "07700 900103"),
+            StaffHumanRow(id: "h4", name: "Ellie", surname: "Brooks", phone: "07700 900104"),
+            StaffHumanRow(id: "h5", name: "Jo", surname: "Patel", phone: "07700 900105"),
+            StaffHumanRow(id: "h6", name: "Mark", surname: "Evans", phone: "07700 900106"),
+            StaffHumanRow(id: "h7", name: "Ruth", surname: "Green", phone: "07700 900107"),
+            StaffHumanRow(id: "h8", name: "Dan", surname: "Morris", phone: "07700 900108"),
         ]
         return StaffDayRead(
             bookings: bookings, dogs: dogs, humans: humans,

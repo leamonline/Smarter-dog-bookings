@@ -50,6 +50,40 @@ final class StaffDayTests: XCTestCase {
         XCTAssertEqual(booking.safetyFacts, [])
     }
 
+    func testTheOwnersPhoneComesThroughForTheCallButton() {
+        let withPhone = StaffHumanRow(id: "h-1", name: "Sam", surname: "Taylor", phone: "07700 900123")
+        let read = StaffDayRead(bookings: [row("b1"), row("b2", dog: "gone")], dogs: [bella], humans: [withPhone], setting: nil)
+        XCTAssertEqual(StaffDaySelector.bookings(from: read).map(\.ownerPhone), ["07700 900123", ""])
+        XCTAssertTrue(StaffHumanRow.select.contains("phone"))
+    }
+
+    func testCallURLKeepsThePlusAndTheDigits() {
+        XCTAssertEqual(StaffDaySelector.callURL("07700 900123")?.absoluteString, "tel:07700900123")
+        XCTAssertEqual(StaffDaySelector.callURL(" +44 (0)7700-900123 ")?.absoluteString, "tel:+4407700900123")
+        XCTAssertNil(StaffDaySelector.callURL(""))
+        XCTAssertNil(StaffDaySelector.callURL("n/a"))
+        XCTAssertNil(StaffDaySelector.callURL("123"))
+    }
+
+    func testCancelledBookingsSitUnderTheStackInTimeOrderAndNoShowsDoNot() throws {
+        var cancelledLate = row("c-late", slot: "12:00", status: "Cancelled")
+        cancelledLate.cancel_reason = "Customer cancelled"
+        let cancelledEarly = row("c-early", slot: "08:30", status: "Cancelled")
+        var oldNoShow = row("ns-old", slot: "09:00", status: "Cancelled")
+        oldNoShow.cancel_reason = "No-show"
+        let read = StaffDayRead(
+            bookings: [cancelledLate, row("live", slot: "10:00"), cancelledEarly, oldNoShow, row("ns", slot: "09:30", status: "No-show"),
+                       row("other-day", slot: "08:30", status: "Cancelled", date: "2026-11-25")],
+            dogs: [bella], humans: [sam], setting: nil
+        )
+        let snapshot = StaffDaySelector.snapshot(read: read, date: "2026-11-24", now: try XCTUnwrap(StaffDayStack.parseTimestamp("2026-11-24T10:00:00Z")))
+        XCTAssertEqual(snapshot.cancelled.map(\.id), ["c-early", "c-late"])
+        XCTAssertEqual(snapshot.cancelled.map(\.tone.label), ["Cancelled", "Cancelled"])
+        XCTAssertEqual(snapshot.cancelled.compactMap(\.timing), [], "nothing is waiting on a cancelled dog")
+        XCTAssertEqual(snapshot.rows.map(\.id), ["ns-old", "ns", "live"], "no-shows stay on the stack, as on the website")
+        XCTAssertEqual(snapshot.dogCount, 1, "cancelled dogs are still not counted")
+    }
+
     func testAMissingStatusReadsAsBooked() {
         let read = StaffDayRead(bookings: [row("b1", status: nil), row("b2", status: "  ")], dogs: [], humans: [], setting: nil)
         XCTAssertEqual(StaffDaySelector.bookings(from: read).map(\.status), ["Booked", "Booked"])

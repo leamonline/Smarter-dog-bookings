@@ -56,8 +56,10 @@ struct StaffHumanRow: Decodable, Equatable, Sendable {
     var id: String
     var name: String?
     var surname: String?
+    /// For the detail sheet's Call button. Staff already see it on the website.
+    var phone: String? = nil
 
-    static let select = "id,name,surname"
+    static let select = "id,name,surname,phone"
 }
 
 struct StaffDaySettingRow: Decodable, Equatable, Sendable {
@@ -86,6 +88,9 @@ struct StaffDaySnapshot: Equatable, Sendable {
     let dogCount: Int
     /// Dogs collected and gone home, which leave the stack.
     let goneHome: Int
+    /// Cancelled bookings on the day (not no-shows, which sit on the stack), shown
+    /// faded under it so a gap in the day is explained. In appointment order.
+    var cancelled: [StaffDayRow] = []
 }
 
 enum StaffDaySelector {
@@ -117,6 +122,7 @@ enum StaffDaySelector {
                 dogName: nonEmpty(dog?.name) ?? nonEmpty(row.dog_name_snapshot) ?? "",
                 breed: nonEmpty(dog?.breed) ?? nonEmpty(row.breed_snapshot) ?? "",
                 ownerName: nonEmpty(ownerFullName) ?? nonEmpty(row.owner_name_snapshot) ?? "",
+                ownerPhone: nonEmpty(owner?.phone) ?? "",
                 safetyFacts: facts,
                 notes: row.notes ?? "",
                 groupId: nonEmpty(row.group_id)
@@ -158,7 +164,8 @@ enum StaffDaySelector {
             isOpen: isOpen(date: date, setting: read.setting),
             rows: StaffDayStack.build(bookings: bookings, date: date, now: now),
             dogCount: countable.count,
-            goneHome: countable.filter { $0.status == StaffDayStack.completed }.count
+            goneHome: countable.filter { $0.status == StaffDayStack.completed }.count,
+            cancelled: StaffDayStack.cancelledRows(bookings: bookings, date: date)
         )
     }
 
@@ -205,6 +212,15 @@ enum StaffDaySelector {
     /// The second line of a row: breed · service · owner surname.
     static func detailLine(_ row: StaffDayRow) -> String {
         [row.subtitle, StaffDayStack.ownerSurname(row.booking.ownerName)].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// A `tel:` link for the owner's number, or nil when there is no usable number.
+    /// Keeps a leading + and the digits; drops spaces, dashes and brackets.
+    static func callURL(_ phone: String) -> URL? {
+        let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = trimmed.filter(\.isNumber)
+        guard digits.count >= 7 else { return nil }
+        return URL(string: "tel:" + (trimmed.hasPrefix("+") ? "+" : "") + digits)
     }
 
     // MARK: - Dates

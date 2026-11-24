@@ -143,19 +143,33 @@ struct StaffTodayView: View {
                 emptyDay(snapshot)
             } else {
                 ForEach(snapshot.rows) { row in
-                    Button {
-                        selected = row
-                    } label: {
-                        StaffDayRowView(row: row)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(StaffDaySelector.accessibilityLabel(row))
-                    .accessibilityHint("Shows the details")
-                    .accessibilityAddTraits(.isButton)
+                    rowButton(row)
+                }
+            }
+            if !snapshot.cancelled.isEmpty {
+                SectionLabel(text: "Cancelled")
+                    .padding(.top, AppSpace.s1)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(snapshot.cancelled) { row in
+                    // Faded: nothing is waiting on these. The status word still says Cancelled.
+                    rowButton(row)
+                        .opacity(0.6)
                 }
             }
         }
+    }
+
+    private func rowButton(_ row: StaffDayRow) -> some View {
+        Button {
+            selected = row
+        } label: {
+            StaffDayRowView(row: row)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(StaffDaySelector.accessibilityLabel(row))
+        .accessibilityHint("Shows the details")
+        .accessibilityAddTraits(.isButton)
     }
 
     /// A confirmed empty day only. A failed read never lands here.
@@ -228,13 +242,14 @@ struct StaffDayRowView: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: AppSpace.half))
             : AnyLayout(HStackLayout(spacing: AppSpace.s1))
         layout {
-            if let safety = StaffDaySelector.safetySummary(row.safety) {
-                Label(safety, systemImage: "exclamationmark.triangle.fill")
+            if !row.safety.isEmpty {
+                // Owner's call (24 November 2026): only the triangle on the card, so breed,
+                // service and owner fit. The wording is in the detail sheet, and VoiceOver
+                // reads every warning from the row's label.
+                Image(systemName: "exclamationmark.triangle.fill")
                     .font(.footnote.weight(.bold))
                     .foregroundStyle(Color(hex: tone.ink))
-                    // Wraps at accessibility sizes: a warning is never cut off.
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
-                    // The warning keeps its room; the surname gives way first.
+                    .accessibilityHidden(true)
                     .layoutPriority(2)
             }
             Text(StaffDaySelector.detailLine(row))
@@ -315,7 +330,6 @@ struct StaffRowDetail: View {
 
                     if !row.safety.isEmpty {
                         VStack(alignment: .leading, spacing: AppSpace.s1) {
-                            SectionLabel(text: "Warnings")
                             ForEach(row.safety, id: \.self) { fact in
                                 Label(fact, systemImage: "exclamationmark.triangle.fill")
                                     .font(.body.weight(.semibold))
@@ -331,6 +345,18 @@ struct StaffRowDetail: View {
                             Text(row.booking.ownerName)
                                 .font(.body)
                                 .foregroundStyle(AppColor.textPrimary)
+                            if let call = StaffDaySelector.callURL(row.booking.ownerPhone) {
+                                Link(destination: call) {
+                                    Label("Call \(row.booking.ownerPhone)", systemImage: "phone.fill")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(AppColor.textPrimary)
+                                        .frame(maxWidth: .infinity, minHeight: 44)
+                                        .background(AppColor.actionYellow, in: Capsule())
+                                }
+                                .padding(.top, AppSpace.half)
+                                .accessibilityLabel("Call \(row.booking.ownerName)")
+                                .accessibilityHint("Opens the phone")
+                            }
                         }
                     }
 
