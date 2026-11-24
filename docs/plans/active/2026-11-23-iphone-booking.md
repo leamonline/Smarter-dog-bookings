@@ -393,11 +393,22 @@ Decided by the owner on 23 November 2026:
    cannot hide a deposit. The summary screen therefore still says nothing about payment
    before the booking is made.
 
+4. **How the confirm button is switched on (decided 24 November): Debug builds only.**
+   A launch argument (`-liveBooking`) that exists only in Debug builds and is compiled out
+   of TestFlight and the App Store. Only the owner, running from Xcode against staging, can
+   reach it. Widening it later (a build setting, or a switch in the salon's settings) is a
+   separate change.
+5. **How the Debug build signs in on staging (decided 24 November): a Debug-only test
+   login** using the throwaway email-and-password customer seeded on staging, because
+   staging cannot send text-message codes. The email and password are read from Xcode
+   scheme environment variables set locally, never written to the repository, and the code
+   is compiled out of Release builds. A phone test number on staging can replace it later.
+
 Still open:
 
-4. **Funnel telemetry.** Send the website's funnel events from the app, or only
+6. **Funnel telemetry.** Send the website's funnel events from the app, or only
    denials via `log_booking_denial`?
-5. **Waitlist.** Link to the website when a day is full, or build it later?
+7. **Waitlist.** Link to the website when a day is full, or build it later?
 
 ## Staging check, 24 November 2026
 
