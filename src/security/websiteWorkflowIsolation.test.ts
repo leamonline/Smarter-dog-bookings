@@ -333,7 +333,7 @@ describe("CI change selection preserves required checks and release isolation", 
       // No display-name override: the ruleset requires these exact contexts.
       expect(body, name).not.toMatch(/^ {4}name:/m);
       const condition = body.match(/^ {4}if:\s*(.+)$/m)?.[1];
-      expect(condition, name).toBe(name === "pr-production-smoke" ? "github.event_name == 'pull_request'" : name === "migrations-applied" ? "github.ref == 'refs/heads/main'" : undefined);
+      expect(condition, name).toBe(name === "pr-production-smoke" ? "${{ !cancelled() && github.event_name == 'pull_request' }}" : name === "migrations-applied" ? "github.ref == 'refs/heads/main'" : undefined);
     }
   });
 
@@ -345,7 +345,7 @@ describe("CI change selection preserves required checks and release isolation", 
 
   it("skips the full browser matrix at the job level on pull requests", () => {
     const e2e = executable(job(ci, "e2e"));
-    expect(e2e).toMatch(/^ {4}if: github\.event_name != 'pull_request'$/m);
+    expect(e2e).toMatch(/^ {4}if: \$\{\{ !cancelled\(\) && github\.event_name != 'pull_request' \}\}$/m);
     expect(e2e).toContain("run: npm run e2e");
   });
 
