@@ -29,6 +29,7 @@ complete.
 | [012](012-review-drafts-for-known-customers.md) | Known customers in `ai_handling` conversations get review-only drafts; unanswered requests are visible in every state | Proposed |
 | [013](013-allow-late-cancellations-with-customer-history.md) | Allow late cancellations with attributable customer history and a third-incident deposit response | Accepted and implemented; live on prod since 1 October 2026 |
 | [014](014-customer-added-trusted-humans-live-on-save.md) | Customer-added trusted humans are live on save, stored apart from customer records, never looked up | Accepted; implemented on a branch, migration not yet applied |
+| [015](015-same-day-cancellation-is-a-no-show.md) | A customer's same-day cancellation is a no-show; two in 12 months requires a deposit | Proposed; policy decided 24 November 2026, not implemented |
 
 The [architecture overview](../overview.md) explains how these decisions fit
 together. Implementation status and issue differences are recorded separately
