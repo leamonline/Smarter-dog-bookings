@@ -800,7 +800,7 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertEqual(booked.deposit, .none, "the cancelled row's deposit must not leak in")
     }
 
-    func testARowWithNoStatusCountsAsLiveAsOnTheWebsite() {
+    func testARowWithNoStatusCountsAsLiveAsOnTheWebsite() async {
         XCTAssertTrue(BookedRow(id: "x").isLive)
         XCTAssertTrue(BookedRow(id: "x", status: "Booked").isLive)
         XCTAssertTrue(BookedRow(id: "x", status: "Arrived").isLive)
