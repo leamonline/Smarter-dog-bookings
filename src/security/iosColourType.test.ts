@@ -279,6 +279,12 @@ describe("sign-in screens use the catalogue", () => {
     "ios/SmarterDog/Decorations.swift",
     "ios/SmarterDog/AppColor.swift",
     "ios/SmarterDog/AppFont.swift",
+    // The staff screens take their status colours from StaffStatusPalette.swift: the
+    // website's booking status palette held as data, checked value for value against
+    // src/constants/statusPalette.ts by StaffDayParityTests. That file is the one
+    // deliberate home of hex on the iPhone; the screens themselves carry none.
+    "ios/SmarterDog/StaffRootView.swift",
+    "ios/SmarterDog/StaffTodayView.swift",
   ];
 
   it("keeps hex and the old website colours out of the screens", () => {

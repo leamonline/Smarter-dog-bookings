@@ -90,6 +90,12 @@ Staff read and, today, write the salon tables directly under RLS (`is_staff()`).
 Wrapping those writes in RPCs is a later change. The app should call the same
 tables and RPCs the website uses, not a private shortcut.
 
+**Built in the app so far** ([iPhone staff plan](plans/active/2026-11-23-iphone-staff.md)):
+Today, read only (phase S1). It reads `bookings` for one London date with an
+embedded `notification_log(trigger_type,status,sent_at)`, the `dogs` and `humans`
+on them, and that date's `day_settings`. Every other row below is reached from
+the More tab, which opens the staff website.
+
 | Screen | Call | Notes |
 |---|---|---|
 | Sign in | Auth email + password, then `staff_profiles` | `is_staff()` on anything sensitive |
