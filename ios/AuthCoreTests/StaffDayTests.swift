@@ -185,6 +185,8 @@ final class StaffDayTests: XCTestCase {
         for item in StaffLinks.more {
             XCTAssertTrue(item.url.absoluteString.hasPrefix("https://smarterdog.co.uk/staff"), item.title)
         }
+        // Without ?calendar a fresh browser tab would land on Today (#1294 review).
+        XCTAssertEqual(StaffLinks.calendar.absoluteString, "https://smarterdog.co.uk/staff?calendar")
     }
 }
 

@@ -372,6 +372,12 @@ Changes from the sequence above, and why:
   cases differ; the details sheet tells staff to check the inbox before chasing.
   Folding them in needs the inbox and failure reads S2 or S5 bring.
 
+Review follow-up (Codex on #1294): the More tab's Calendar link adds
+`?calendar`, which the website's once-per-tab landing on Today now respects
+(`src/routing/todayLanding.ts`, used by `src/App.jsx`), so a fresh browser tab
+opens the calendar; and a row's safety warning wraps at accessibility text
+sizes instead of being cut off.
+
 Verification: `swift test --package-path ios` in the `swift:6.0.3-noble` image
 (186 tests, 0 failures, 28 of them new); the parity and iPhone project tests in
 Vitest. The SwiftUI views cannot be compiled on Linux: the Xcode Cloud build and

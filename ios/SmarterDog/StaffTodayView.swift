@@ -227,7 +227,8 @@ struct StaffDayRowView: View {
                 Label(safety, systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote.weight(.bold))
                     .foregroundStyle(Color(hex: tone.ink))
-                    .lineLimit(1)
+                    // Wraps at accessibility sizes: a warning is never cut off.
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                     // The warning keeps its room; the surname gives way first.
                     .layoutPriority(2)
             }
