@@ -45,6 +45,15 @@ struct BookedRow: Decodable, Equatable, Sendable {
         self.deposit_amount = deposit_amount
     }
 
+    /// Whether this row still holds its slot, as the website decides (`isActiveBooking`): everything
+    /// except a cancelled booking or a no-show. A row with no status counts as live. A cancelled
+    /// booking stays in the table, and the same dog may book the same slot again, so history must
+    /// never be mistaken for the booking that was just made.
+    var isLive: Bool {
+        guard let status else { return true }
+        return status != "Cancelled" && status != "No-show"
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, booking_date, slot, service, status, deposit_required, deposit_amount
     }
@@ -144,9 +153,13 @@ enum BookingConfirm {
         )
     }
 
-    /// Pick the booking this request made out of a list of rows: the one that matches the dog's
-    /// date and slot. Used when only a lookup, not a reply, tells us what happened.
+    /// Pick the booking this request made out of a list of rows: the live one that matches the dog's
+    /// date and slot. A cancelled booking or a no-show is history, never a match. Used when only a lookup, not a reply, tells us what happened.
     static func matching(_ rows: [BookedRow], date: String, slot: String) -> BookedRow? {
-        rows.first { ($0.booking_date.map { String($0.prefix(10)) } == date) && ($0.slot.map { String($0.prefix(5)) } == slot) }
+        rows.first {
+            $0.isLive
+                && ($0.booking_date.map { String($0.prefix(10)) } == date)
+                && ($0.slot.map { String($0.prefix(5)) } == slot)
+        }
     }
 }

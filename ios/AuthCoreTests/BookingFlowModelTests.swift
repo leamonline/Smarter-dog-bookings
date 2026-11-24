@@ -613,6 +613,18 @@ final class BookingFlowModelTests: XCTestCase {
         return (model, client)
     }
 
+    /// Today's last-minute opening chosen, on the summary, with booking switched on.
+    private func summaryStepForToday(slot: String) async -> (BookingFlowModel, FakeClient) {
+        let (model, client) = await timeStep(pick: "today", canBook: true) { client in
+            client.flagged = [ImmediateSlotRow(setting_date: "2026-11-23", slot: slot)]
+            client.readBack = [BookedRow(id: "b1", deposit_required: false)]
+        }
+        model.select(time: slot)
+        model.next()
+        XCTAssertEqual(model.step, .summary)
+        return (model, client)
+    }
+
     func testBookingIsOffByDefaultAndConfirmSendsNothing() async {
         let (model, client) = await summaryStep(canBook: false)
         XCTAssertFalse(model.canConfirm)
@@ -752,6 +764,48 @@ final class BookingFlowModelTests: XCTestCase {
         }
         await model.confirm()
         XCTAssertEqual(model.confirmState, .done(.unsure))
+    }
+
+    func testAnExtraSlotRequestIsBuiltOnTheGridThatIncludesIt() async {
+        let (model, client) = await summaryStepForToday(slot: "13:30")
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1, "the extra slot is on the grid the request is checked against")
+        XCTAssertEqual(client.sentRequests.first?.p_bookings.first?.slot, "13:30")
+        guard case .done(.booked) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+    }
+
+    func testACancelledOrNoShowBookingForTheSameSlotIsNeverTakenForTheNewOne() async {
+        for status in ["Cancelled", "No-show"] {
+            let (model, client) = await summaryStep { client in
+                client.sendResult = .unknown
+                client.found = [BookedRow(id: "old", booking_date: "2026-11-24", slot: "09:30", status: status)]
+            }
+            await model.confirm()
+            XCTAssertEqual(model.confirmState, .done(.unsure), "a \(status) row is history, not this booking")
+            XCTAssertEqual(client.sentRequests.count, 1)
+        }
+    }
+
+    func testWhenBothAHistoricalAndALiveRowExistTheLiveOneIsUsed() async {
+        let (model, _) = await summaryStep { client in
+            client.sendResult = .unknown
+            client.found = [
+                BookedRow(id: "old", booking_date: "2026-11-24", slot: "09:30", status: "Cancelled", deposit_required: true, deposit_amount: 10),
+                BookedRow(id: "new", booking_date: "2026-11-24", slot: "09:30", status: "Booked", deposit_required: false),
+            ]
+        }
+        await model.confirm()
+        guard case .done(.booked(let booked)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(booked.bookingIds, ["new"])
+        XCTAssertEqual(booked.deposit, .none, "the cancelled row's deposit must not leak in")
+    }
+
+    func testARowWithNoStatusCountsAsLiveAsOnTheWebsite() {
+        XCTAssertTrue(BookedRow(id: "x").isLive)
+        XCTAssertTrue(BookedRow(id: "x", status: "Booked").isLive)
+        XCTAssertTrue(BookedRow(id: "x", status: "Arrived").isLive)
+        XCTAssertFalse(BookedRow(id: "x", status: "Cancelled").isLive)
+        XCTAssertFalse(BookedRow(id: "x", status: "No-show").isLive)
     }
 
     func testASecondTapWhileTheFirstIsInFlightDoesNothing() async {

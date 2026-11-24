@@ -429,8 +429,12 @@ final class BookingFlowModel {
         }
         // If the day could not be read, go ahead: the database refuses a time that has gone.
 
+        // The request is checked against the same grid the time was offered from: the standard
+        // slots, plus any extra slot staff opened for today (a last-minute 13:30, say). Without it
+        // a time the app itself offered would be refused before it was sent.
+        let grid = lastMinute ? BookingSlots.grid(extras: lastMinuteRows.compactMap(\.slot)) : BookingSlots.canonical
         let request: BookingRequest
-        do { request = try wizard.request() } catch {
+        do { request = try wizard.request(gridSlots: grid) } catch {
             confirmState = .done(.incomplete)
             return
         }
