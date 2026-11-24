@@ -3,8 +3,8 @@
 -- The staff app (and any later writer, including the iOS app) records a
 -- no-show as bookings.status = 'No-show'. Since 20261124200000 (ADR 015) the
 -- trigger turns the owner's deposit tag on at the SECOND no-show appointment
--- in 12 months, counted from the policy start, and writes a short reason. A
--- group of dogs on one date counts once. It does not turn the tag off when a
+-- in 12 months, counted from the policy start, and writes a short reason. An
+-- owner's dogs missing the same date count once. It does not turn the tag off when a
 -- no-show is undone, and a cancellation never sets it.
 --
 -- Dates are future Mondays so the real booking gates accept the rows.
@@ -304,7 +304,7 @@ update public.bookings
 select is(
   (select deposit_required from public.humans where id = '26600000-0000-4000-8000-000000000070'),
   false,
-  'two dogs missing one appointment is one no-show, not two'
+  'two dogs missing the same day is one no-show, not two'
 );
 
 -- ── No-shows before the policy started do not count ─────────────────

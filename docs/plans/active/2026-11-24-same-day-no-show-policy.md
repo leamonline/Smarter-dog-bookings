@@ -36,7 +36,7 @@ Confirmed from source at the base revision. No production reads were made.
 - Before the day, the cancellation is saved as `Cancelled` with no strike, whatever the notice.
 - After the start, customers still cannot cancel (unchanged). Staff mark a no-show by hand (unchanged).
 - The customer still gets a cancellation confirmation when they cancel on the day. The seat is freed and the waitlist and staff alerts behave as for a cancellation.
-- One appointment (a group of dogs on one date) is one no-show. Retries do not double count.
+- One day per owner is one no-show (their dogs missing the same date count once). Retries do not double count.
 - The deposit tag turns on automatically at the second unwaived no-show appointment in the preceding 12 London months, including staff-marked no-shows. It never turns off automatically.
 - The staff customer card shows "No-shows in the last 12 months: N of 2" with dated entries and the existing waive action.
 - Customer copy explains the rule in plain British English on the terms page and in the booking confirmation. There is no extra warning step at the moment of cancelling (owner decision).
@@ -78,7 +78,7 @@ Confirmed from source at the base revision. No production reads were made.
 - Migration `20261124200000_same_day_cancellation_is_no_show.sql`. Classification is **one table-level BEFORE trigger** (`aa_classify_same_day_customer_cancellation`, named to fire before every other BEFORE UPDATE trigger on `bookings`), not a change to each cancel command. So portal, iPhone, WhatsApp and staff paths all inherit it, as the booking gates do. Reschedule releases carry cause `reschedule` and are never reclassified.
 - `emit_booking_update_event` emits `cancelled` for a customer no-show. Staff alerts, the timeline and receipt replay keep working. The cancellation notification constraint trigger also fires for a customer no-show. `cancel_booking_impl` replay accepts `No-show`.
 - `record_late_customer_cancellation` trigger dropped. The ledger and `staff_customer_cancellation_history` stay as history.
-- `smarter_dog_private.no_show_count` counts one per group and date, from `policy_milestones.same_day_no_show_v1` (the apply time) and within 12 London months. `flag_deposit_after_no_show` fires at 2. New staff read `staff_customer_no_show_history`.
+- `smarter_dog_private.no_show_count` counts one per owner and date (staff multi-dog bookings have no `group_id`), from `policy_milestones.same_day_no_show_v1` (the apply time) and within 12 London months. `flag_deposit_after_no_show` fires at 2. New staff read `staff_customer_no_show_history`.
 - No no-show waiver: staff put a mistaken no-show back, and it stops counting. The deposit tag is switched off by staff only.
 - Client: staff card `NoShowHistoryPanel` (old panel relabelled "old rule"), staff cancel dialog copy, booking confirmation copy, and the website terms in the owner's words.
 - Tests: new pgTAP `267`. `235` and `266` were rewritten for the new policy: their old expectations (a strike for a notice-window cancellation, a deposit at the first no-show) describe behaviour the owner retired. They were not loosened. Same-day portal and WhatsApp checks skip after 23:50 London time instead of faking the clock.

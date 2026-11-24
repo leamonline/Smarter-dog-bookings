@@ -15,7 +15,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 \ir fixtures/ensure_local_vault_secrets.psql
 
@@ -54,7 +54,10 @@ insert into public.bookings (id, dog_id, group_id, booking_date, slot, status, s
   ('26700000-0000-4000-8000-000000000302', '26700000-0000-4000-8000-000000000014', null,
    (now() at time zone 'Europe/London')::date, '10:00', 'Reconfirmed', 'full-groom', 'small'),
   ('26700000-0000-4000-8000-000000000303', '26700000-0000-4000-8000-000000000014', null,
-   (now() at time zone 'Europe/London')::date, '11:00', 'Booked', 'full-groom', 'small');
+   (now() at time zone 'Europe/London')::date, '11:00', 'Booked', 'full-groom', 'small'),
+  -- Staff: tomorrow, later marked as a no-show by hand.
+  ('26700000-0000-4000-8000-000000000305', '26700000-0000-4000-8000-000000000014', null,
+   (now() at time zone 'Europe/London')::date + 1, '09:00', 'Booked', 'full-groom', 'small');
 set local session_replication_role = origin;
 
 delete from public.salon_config;
@@ -185,8 +188,8 @@ select is(
 );
 select is(
   (select deposit_required from public.humans where id = '26700000-0000-4000-8000-000000000004'),
-  true,
-  'the second no-show in 12 months requires a deposit'
+  false,
+  'two dogs'' appointments missed on the same day are one no-show, so no deposit yet'
 );
 
 update public.bookings
@@ -206,6 +209,15 @@ select lives_ok(
   'a same-day no-show frees its seat, as a cancellation does'
 );
 
+-- A staff-marked no-show on another day is the second: deposit required.
+update public.bookings set status = 'No-show', cancel_reason = 'No-show'
+ where id = '26700000-0000-4000-8000-000000000305';
+select is(
+  (select deposit_required from public.humans where id = '26700000-0000-4000-8000-000000000004'),
+  true,
+  'a customer same-day no-show plus a staff-marked one on another day require a deposit'
+);
+
 -- Undoing a same-day no-show puts the booking back and clears the cause.
 update public.bookings set status = 'Booked' where id = '26700000-0000-4000-8000-000000000302';
 select is(
@@ -217,8 +229,8 @@ select is(
 -- ── The staff count ──────────────────────────────────────────────────
 select is(
   (public.staff_customer_no_show_history('26700000-0000-4000-8000-000000000004')->>'count')::integer,
-  1,
-  'after one is put back, staff see one no-show for the desk customer'
+  2,
+  'staff see two no-shows: today, counted once, and the staff-marked one'
 );
 select is(
   (public.staff_customer_no_show_history('26700000-0000-4000-8000-000000000004')->>'threshold')::integer,

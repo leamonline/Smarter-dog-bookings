@@ -604,9 +604,10 @@ revoke all on function smarter_dog_private.cancel_booking_impl(uuid,text,boolean
 drop trigger if exists record_late_customer_cancellation on public.bookings;
 
 -- ── 8. The no-show count ────────────────────────────────────────────
--- One appointment counts once: a group of dogs on one date is one no-show.
--- Counts both customer same-day cancellations and staff-marked no-shows, from
--- the policy start and within the last 12 London months.
+-- One day counts once: an owner's dogs missing the same date are one no-show.
+-- (Staff multi-dog bookings carry no group_id, so the owner and date are the
+-- appointment.) Counts both customer same-day cancellations and staff-marked
+-- no-shows, from the policy start and within the last 12 London months.
 create or replace function smarter_dog_private.no_show_count(p_human_id uuid)
 returns integer
 language sql
@@ -614,7 +615,7 @@ stable
 security definer
 set search_path = pg_catalog, public
 as $$
-  select count(distinct (coalesce(b.group_id, b.id), b.booking_date))::integer
+  select count(distinct b.booking_date)::integer
     from public.bookings b
     join public.dogs d on d.id = b.dog_id
    where d.human_id = p_human_id
@@ -733,7 +734,7 @@ begin
         join public.dogs d on d.id = b.dog_id
        where d.human_id = p_human_id
          and b.status = 'No-show'
-       group by coalesce(b.group_id, b.id), b.booking_date
+       group by b.booking_date
        order by b.booking_date desc
        limit 50
     ) items;
