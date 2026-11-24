@@ -375,21 +375,60 @@ Decided by the owner on 23 November 2026:
 
 1. **First real writes go to a staging project**, not production. The app is
    pointed at it through `Config.local.xcconfig` (public URL and publishable key
-   only, never a service-role key). Needs: the staging project's URL and
-   publishable key from the owner, and a test customer and test dog on it.
+   only, never a service-role key). Staging is `btjnxvgkpdbfrrqxvkfj`. Its URL and
+   publishable key are read from the Supabase project, not typed from memory. A test
+   customer and dogs are seeded on it (see "Staging check, 24 November" below).
 2. **One dog first.** A customer with several dogs books them on the website
    until a later slice adds grouped allocation.
-3. **Deposits: undecided.** The website reads a per-customer `depositRequired`
-   flag from `current_customer_booking_rules`, the database stamps a reference,
-   amount and due date at insert, and the website reads the rows back and shows
-   bank instructions. The app cannot take payment. Options are to send
-   deposit-required customers to the website (recommended, and to do the same
-   when the flag cannot be read), or to show the instructions in the app. Until
-   decided, **the confirm step stays switched off** and everything before it is
-   built.
+3. **Deposits (decided 24 November): hold it and say so.** The database stamps a
+   deposit on any booking for a customer staff tagged as deposit-required (flat £10 per
+   dog, a reference and a due date), whatever route made the booking, and the booking is
+   held until paid. The app books exactly as the website does and then tells the
+   customer, on the booked screen, that a £10 deposit per dog is due and that the salon
+   will be in touch about paying. The app takes no payment and shows no bank details.
+   This replaces the earlier recommendation to send tagged customers to the website.
+   Because the database stamps it, the app does not need the per-customer flag before
+   booking: **after the insert it reads the booking back and reports the deposit from the
+   row (`deposit_required`), never from a pre-check**, so a flag that could not be read
+   cannot hide a deposit. The summary screen therefore still says nothing about payment
+   before the booking is made.
 
 Still open:
 
 4. **Funnel telemetry.** Send the website's funnel events from the app, or only
    denials via `log_booking_denial`?
 5. **Waitlist.** Link to the website when a day is full, or build it later?
+
+## Staging check, 24 November 2026
+
+Run against staging only (`btjnxvgkpdbfrrqxvkfj`), with a throwaway customer, using the
+app's own request encoder and decoders. Nothing was run against production.
+
+- **Staging was empty**: no customers, dogs, bookings, calendar settings or logins, and no
+  `salon_config` row, so settings such as the daily cap run on database defaults. All the
+  booking functions and the calendar, capacity, pregnancy and deposit gates exist.
+- **Seeded**: one approved test customer with a throwaway email-and-password login (a
+  phone login cannot be set up from here), a complete profile, and four dogs: a medium
+  one, a large one, a pregnant one and one with no confirmed size.
+- **Reads, all HTTP 200 and decoded by the app's own types**: `dogs` (a customer can read
+  `is_pregnant`, which settles that open question), `current_customer_booking_rules`
+  (booking horizon is **180 days** on staging, not 28), `get_open_days`,
+  `get_occupancy_range` (rows are `booking_date`, `slot` as "09:30", `size`),
+  `get_blocked_seats` and `get_immediate_slots`.
+- **A real booking** through `create_customer_booking_group` with the JSON the app builds
+  succeeded and returned the new id. Reading it back showed status "Booked", the size
+  stamped from the dog (never sent), `deposit_required` false and payment "Due at Pick-up".
+- **Refusals, each mapped by the app to the right reason and wording**: a pregnant dog
+  (`pregnant`), an unsized dog (SQLSTATE 22023, `dog_size_unconfirmed`), a closed day
+  (`calendar_closed`), a large dog in a middle slot (`large_dog_ineligible`), and a
+  customer whose profile lacks a surname, address or policy agreement
+  (`profile_incomplete`).
+- **One refusal has no stable code**: booking the same dog and slot twice comes back as a raw
+  duplicate-key error (SQLSTATE 23505, constraint `bookings_one_active_per_dog_slot`). The
+  app maps it from the message text to `double_booked`. That works today, but it is a
+  message match, and the database could give it a stable code like the others.
+- **Not covered**: signing in to the real app on staging (needs a test phone number with a
+  fixed code in the staging project's sign-in settings), the deposit path (the test
+  customer is not tagged), several dogs, and any production behaviour.
+- **Clean-up**: the test customer, dogs, login and one booking can be deleted from staging
+  whenever wanted. The throwaway password is kept only in the session scratchpad.
