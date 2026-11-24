@@ -45,6 +45,7 @@
 		A1000000000000000000009C /* BookingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008C /* BookingServices.swift */; };
 		A1000000000000000000009D /* BookingAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008D /* BookingAvailability.swift */; };
 		A1000000000000000000009E /* BookingTimes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008E /* BookingTimes.swift */; };
+		A1000000000000000000009F /* BookingConfirm.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008F /* BookingConfirm.swift */; };
 		5DA100000000000000000011 /* StaffDayStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000001 /* StaffDayStack.swift */; };
 		5DA100000000000000000012 /* StaffStatusPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000002 /* StaffStatusPalette.swift */; };
 		5DA100000000000000000013 /* StaffDayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000003 /* StaffDayModels.swift */; };
@@ -97,6 +98,7 @@
 		A1000000000000000000008C /* BookingServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingServices.swift; sourceTree = "<group>"; };
 		A1000000000000000000008D /* BookingAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingAvailability.swift; sourceTree = "<group>"; };
 		A1000000000000000000008E /* BookingTimes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingTimes.swift; sourceTree = "<group>"; };
+		A1000000000000000000008F /* BookingConfirm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingConfirm.swift; sourceTree = "<group>"; };
 		5DA100000000000000000001 /* StaffDayStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffDayStack.swift; sourceTree = "<group>"; };
 		5DA100000000000000000002 /* StaffStatusPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffStatusPalette.swift; sourceTree = "<group>"; };
 		5DA100000000000000000003 /* StaffDayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffDayModels.swift; sourceTree = "<group>"; };
@@ -164,6 +166,7 @@
 				A1000000000000000000008C /* BookingServices.swift */,
 				A1000000000000000000008D /* BookingAvailability.swift */,
 				A1000000000000000000008E /* BookingTimes.swift */,
+				A1000000000000000000008F /* BookingConfirm.swift */,
 				A10000000000000000000081 /* SupabaseHomeClient.swift */,
 				A10000000000000000000082 /* HomeView.swift */,
 				A100000000000000000000A3 /* DogsModels.swift */,
@@ -304,6 +307,7 @@
 				A1000000000000000000009C /* BookingServices.swift in Sources */,
 				A1000000000000000000009D /* BookingAvailability.swift in Sources */,
 				A1000000000000000000009E /* BookingTimes.swift in Sources */,
+				A1000000000000000000009F /* BookingConfirm.swift in Sources */,
 				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
 				A10000000000000000000092 /* HomeView.swift in Sources */,
 				A100000000000000000000B3 /* DogsModels.swift in Sources */,

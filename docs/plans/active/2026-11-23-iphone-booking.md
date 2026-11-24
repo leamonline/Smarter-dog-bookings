@@ -320,7 +320,21 @@ Each is its own pull request, merged only after the full CI bar.
      `customer_change_deadline_preview` so it is not shown for a booking made inside the
      change window) and the essential-messages notice (it belongs beside the confirm button
      and needs a drift guard like the prices).
-   - **Next:** the confirm step behind a flag, against the staging project.
+   - **Confirm, step 1 of 3 (built): the logic, with no screen and no real send.**
+     `BookingConfirm.swift` and `BookingFlowModel.confirm()`. One tap is one request: a second
+     tap while one is out does nothing, Back does nothing while one is out or once a booking
+     exists, and with booking switched off (`canBook`, false by default) nothing can be sent. Just
+     before sending it reads the day again and stops with "that time's just been taken" if the
+     time has gone (an unreadable day does not stop it; the database decides). A refusal shows
+     the website's copy for its code, never the raw text. A reply that never arrives is an
+     **unknown outcome**: the app looks the booking up on the server and reports what is there,
+     never sends again by itself, and says "we couldn't tell, check your appointments" if it
+     finds nothing. A deposit is reported from the booking read back after it was made, never
+     from a pre-check. The three client calls have defaults that send nothing; the Supabase
+     versions, the Debug switch and test login, and the confirm and booked screens are the next
+     two steps.
+   - **Next:** the real send and read-back in `SupabaseBookingClient`, with the Debug-only
+     `-liveBooking` switch and test login, then the confirm and booked screens.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.
