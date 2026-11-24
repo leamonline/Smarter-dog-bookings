@@ -808,6 +808,18 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertFalse(BookedRow(id: "x", status: "No-show").isLive)
     }
 
+    func testARequestThatNeverLeftThePhoneIsSafeToTryAgain() async {
+        let (model, client) = await summaryStep { $0.sendResult = .notSent }
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .done(.notSent))
+        XCTAssertEqual(client.lookups, 0, "nothing was sent, so there is nothing to look up")
+        XCTAssertTrue(model.canConfirm, "unlike an unknown outcome, trying again cannot book twice")
+        client.sendResult = .created(ids: ["b1"])
+        await model.confirm()
+        guard case .done(.booked) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(client.sentRequests.count, 2)
+    }
+
     func testASecondTapWhileTheFirstIsInFlightDoesNothing() async {
         let (model, client) = await summaryStep { $0.holdCreate = true }
         let first = Task { await model.confirm() }

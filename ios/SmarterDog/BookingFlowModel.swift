@@ -399,7 +399,7 @@ final class BookingFlowModel {
             // A new attempt is fine after a refusal or a gone time. Never after a booking was made,
             // and never while we are not sure: that could book twice.
             switch outcome {
-            case .refused, .slotTaken, .incomplete: return true
+            case .refused, .slotTaken, .incomplete, .notSent: return true
             case .booked, .unsure: return false
             }
         }
@@ -448,6 +448,10 @@ final class BookingFlowModel {
         case .refused(let message, let details):
             sent = nil
             confirmState = .done(BookingConfirm.refusal(message: message, details: details))
+        case .notSent:
+            // It never left the phone, so nothing exists and trying again is safe.
+            sent = nil
+            confirmState = .done(.notSent)
         case .unknown:
             // No usable reply. Do not say it worked or failed, and never send again by ourselves.
             // Look on the server for what is there.

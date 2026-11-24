@@ -333,8 +333,19 @@ Each is its own pull request, merged only after the full CI bar.
      from a pre-check. The three client calls have defaults that send nothing; the Supabase
      versions, the Debug switch and test login, and the confirm and booked screens are the next
      two steps.
-   - **Next:** the real send and read-back in `SupabaseBookingClient`, with the Debug-only
-     `-liveBooking` switch and test login, then the confirm and booked screens.
+   - **Confirm, step 2 of 3 (built): the real send, the read-back and the Debug-only switch.**
+     `SupabaseBookingClient` sends `create_customer_booking_group` and reads the booking back.
+     The send is a plain web request, read by `BookingWire`, which is tested against the real
+     answers recorded from staging: 2xx with ids is created; a 4xx with a readable body is a
+     refusal carrying the database's own `details` code; anything else (a 5xx, an unreadable
+     body) is an unknown outcome; a connection that was never made is "not sent", safe to retry.
+     This is the one reviewed exception to the repo's "no `URLSession` in the app" guard, one
+     file and one call site, enforced by `src/security/iosProjectIsolation.test.ts`.
+     `-liveBooking` (Debug builds only) runs the real flow against staging as the throwaway test
+     customer, refuses any project but staging, and takes the email and password from local
+     scheme environment variables. See [ios/README.md](../../../ios/README.md). There is still
+     no confirm button.
+   - **Next:** the confirm and booked screens.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.

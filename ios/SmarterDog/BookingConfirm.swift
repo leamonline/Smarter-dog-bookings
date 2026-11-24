@@ -21,6 +21,9 @@ enum BookingSendResult: Equatable, Sendable {
     /// No usable answer: the network dropped, it timed out, or the reply could not be read.
     /// The booking may or may not exist.
     case unknown
+    /// It never left the phone (no connection, no signed-in session, or the request could not be built).
+    /// Nothing was sent, so it is safe to try again.
+    case notSent
 }
 
 /// One booking as read back from the server after it was made, or looked up afterwards.
@@ -127,6 +130,8 @@ enum ConfirmOutcome: Equatable, Sendable {
     case slotTaken
     /// The request could not even be built from the choices. Nothing was sent.
     case incomplete
+    /// It never left the phone, for example there was no connection. Nothing was sent.
+    case notSent
     /// No usable reply, and a look at the server found no such booking. It may still exist.
     /// The customer is told to check their appointments, and nothing is sent again by itself.
     case unsure
@@ -143,6 +148,7 @@ enum ConfirmState: Equatable, Sendable {
 enum BookingConfirm {
     static let slotTakenMessage = "That time's just been taken. Go back and pick another."
     static let incompleteMessage = "Something is missing from your choices. Go back and check each step."
+    static let notSentMessage = "We couldn't reach the salon, so nothing was booked. Check your connection and try again."
     static let unsureMessage = "We couldn't tell whether your booking went through. Please check your appointments before trying again, so you don't book twice."
 
     /// The customer copy for a refusal, by the stable code first and the message as a fallback.
@@ -161,5 +167,64 @@ enum BookingConfirm {
                 && ($0.booking_date.map { String($0.prefix(10)) } == date)
                 && ($0.slot.map { String($0.prefix(5)) } == slot)
         }
+    }
+}
+
+// MARK: - The wire
+
+/// Turns the HTTP answer to `create_customer_booking_group` into a result, in plain Swift.
+///
+/// The app sends this one request itself rather than through the Supabase library, because the
+/// refusal mapping depends on one exact field (the database's `details`, which carries the stable
+/// reason code) and the library's error type changes between versions. Here the words that matter
+/// are read straight from the body, and the rule is tested against real answers recorded from the
+/// staging project.
+///
+/// - 2xx with at least one id: created.
+/// - 4xx with a readable error body: the server said no. Nothing was created.
+/// - Anything else (a 2xx that cannot be read, a 5xx, a gateway page, an unreadable body): unknown,
+///   because the booking may exist. The app then looks the booking up.
+enum BookingWire {
+    static func sendResult(status: Int, body: Data) -> BookingSendResult {
+        switch status {
+        case 200...299:
+            if let object = try? JSONSerialization.jsonObject(with: body) as? [[String: Any]] {
+                let ids = object.compactMap { $0["id"] as? String }
+                if !ids.isEmpty, ids.count == object.count { return .created(ids: ids) }
+            }
+            return .unknown
+        case 400...499:
+            guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return .unknown }
+            let message = object["message"] as? String
+            // `details` is usually text, but PostgREST can send other shapes for some errors.
+            let details = object["details"] as? String
+            let code = object["code"] as? String
+            guard message != nil || details != nil || code != nil else { return .unknown }
+            return .refused(message: message, details: details)
+        default:
+            return .unknown
+        }
+    }
+
+    /// Whether a failed request certainly never reached the salon: the connection was never made.
+    /// A timeout or a dropped connection is not here, because the request may have arrived.
+    static func neverLeftThePhone(_ error: URLError.Code) -> Bool {
+        switch error {
+        case .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+             .internationalRoamingOff, .dataNotAllowed:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// The Debug-only live booking switch may only ever run against the staging project. A mistake in
+/// the app's configuration must not be able to point it at production.
+enum LiveBookingGuard {
+    static let stagingHost = "btjnxvgkpdbfrrqxvkfj.supabase.co"
+
+    static func isStaging(_ urlString: String) -> Bool {
+        URL(string: urlString)?.host?.lowercased() == stagingHost
     }
 }

@@ -22,6 +22,10 @@ struct SmarterDogApp: App {
             } else if CommandLine.arguments.contains("-sampleBooking") {
                 // Debug only: the booking screens with made-up dogs, no sign-in and no network.
                 NavigationStack { BookingFlowView(client: SampleBookingClient()) }
+            } else if CommandLine.arguments.contains("-liveBooking") {
+                // Debug only: the real booking flow against the STAGING project, signed in as the
+                // throwaway test customer. It refuses to run against any other project.
+                LiveBookingDebugView()
             } else {
                 RootView(auth: auth)
             }
