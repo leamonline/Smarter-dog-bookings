@@ -485,4 +485,52 @@ final class BookingFlowModel {
             bookingIds: ids
         )
     }
+
+    // MARK: what the confirm screens read
+
+    /// A request is out, or about to be: the day is being re-read, or the booking is being sent.
+    var isConfirming: Bool {
+        switch confirmState {
+        case .checking, .sending: return true
+        default: return false
+        }
+    }
+
+    /// The label on the confirm button. The website's wording.
+    var confirmButtonTitle: String { isConfirming ? "Booking…" : "Confirm booking" }
+
+    /// Back is not offered while a request is out, or once a booking exists or might exist.
+    var canGoBack: Bool {
+        switch confirmState {
+        case .checking, .sending, .done(.booked), .done(.unsure): return false
+        default: return step != .dog
+        }
+    }
+
+    /// Set when the booking was made. The booked screen shows it.
+    var bookedSummary: BookedSummary? {
+        if case .done(.booked(let booked)) = confirmState { return booked }
+        return nil
+    }
+
+    /// After a booking: begin a fresh one. The only way out of a finished booking, so the choices behind
+    /// a booking that exists can never be changed under it. The customer's dogs stay loaded.
+    func startAnother() {
+        guard bookedSummary != nil else { return }
+        wizard = BookingWizardState()
+        confirmState = .idle
+        sent = nil
+        lastMinuteDate = nil
+        lastMinuteRows = []
+        calendar = .empty
+        calendarCache = [:]
+        calendarState = .idle
+        datePage = 0
+        calendarRequest += 1
+        timesState = .idle
+        timesRequest += 1
+        offeredTimes = []
+        timesAreLastMinute = false
+    }
 }
+

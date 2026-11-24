@@ -22,6 +22,16 @@ struct SmarterDogApp: App {
             } else if CommandLine.arguments.contains("-sampleBooking") {
                 // Debug only: the booking screens with made-up dogs, no sign-in and no network.
                 NavigationStack { BookingFlowView(client: SampleBookingClient()) }
+            } else if CommandLine.arguments.contains("-sampleBooked") {
+                // Debug only: the booked screen with made-up data, to see the hero moment. No network.
+                BookedView(
+                    booked: BookedSummary(
+                        dogName: "Biscuit", service: "Full Groom",
+                        whenText: "Tuesday 1 December 2026 at 9:30am",
+                        deposit: .due(amountPence: 1000), bookingIds: ["sample"]
+                    ),
+                    onDone: {}
+                )
             } else if CommandLine.arguments.contains("-liveBooking") {
                 // Debug only: the real booking flow against the STAGING project, signed in as the
                 // throwaway test customer. It refuses to run against any other project.
