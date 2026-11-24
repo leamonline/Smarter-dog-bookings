@@ -25,6 +25,26 @@ final class BookingFlowModelTests: XCTestCase {
             return calendarFor(from, to)
         }
         func loadLastMinuteSlots() async -> [ImmediateSlotRow] { flagged }
+
+        // The confirm step.
+        var sendResult: BookingSendResult = .created(ids: ["b1"])
+        var readBack: [BookedRow]? = [BookedRow(id: "b1", booking_date: "2026-11-24", slot: "09:30", service: "Full Groom", status: "Booked", deposit_required: false)]
+        var found: [BookedRow]? = []
+        var sentRequests: [BookingRequest] = []
+        var lookups = 0
+        /// When set, `createBooking` waits here until the test releases it, to model a request in flight.
+        var holdCreate = false
+        var waiting: CheckedContinuation<Void, Never>?
+        func createBooking(_ request: BookingRequest) async -> BookingSendResult {
+            sentRequests.append(request)
+            if holdCreate { await withCheckedContinuation { waiting = $0 } }
+            return sendResult
+        }
+        func loadBookings(ids: [String]) async -> [BookedRow]? { readBack }
+        func findBookings(dogId: String, date: String) async -> [BookedRow]? {
+            lookups += 1
+            return found
+        }
     }
 
     private func row(_ id: String, _ name: String, size: String? = "medium", pregnant: Bool = false) -> BookingDogRow {
@@ -209,12 +229,13 @@ final class BookingFlowModelTests: XCTestCase {
 
     private func dateStep(
         rows: [BookingDogRow]? = nil,
+        canBook: Bool = false,
         configure: (FakeClient) -> Void = { _ in }
     ) async -> (BookingFlowModel, FakeClient) {
         let client = FakeClient()
         client.rows = rows ?? [row("1", "Biscuit"), row("2", "Moose", size: "large")]
         configure(client)
-        let model = BookingFlowModel(client: client, now: now)
+        let model = BookingFlowModel(client: client, now: now, canBook: canBook)
         await model.loadDogs()
         model.select(dog: model.dogs[0])
         model.next()
@@ -392,9 +413,10 @@ final class BookingFlowModelTests: XCTestCase {
     private func timeStep(
         rows: [BookingDogRow]? = nil,
         pick: String = "2026-11-24",
+        canBook: Bool = false,
         configure: (FakeClient) -> Void = { _ in }
     ) async -> (BookingFlowModel, FakeClient) {
-        let (model, client) = await dateStep(rows: rows, configure: configure)
+        let (model, client) = await dateStep(rows: rows, canBook: canBook, configure: configure)
         if pick == "today" { model.selectLastMinute() } else { model.select(date: pick) }
         model.next()
         XCTAssertEqual(model.step, .time)
@@ -575,6 +597,217 @@ final class BookingFlowModelTests: XCTestCase {
         model.back()
         await model.showDatePage(0)
         XCTAssertEqual(client.calendarCalls.count, before + 1, "the remembered page is dropped, so a closure staff made since shows up")
+    }
+
+    // MARK: the confirm step
+
+    /// Everything chosen and on the summary, booking switched on unless said otherwise.
+    private func summaryStep(
+        canBook: Bool = true,
+        configure: (FakeClient) -> Void = { _ in }
+    ) async -> (BookingFlowModel, FakeClient) {
+        let (model, client) = await timeStep(canBook: canBook, configure: configure)
+        model.select(time: "09:30")
+        model.next()
+        XCTAssertEqual(model.step, .summary)
+        return (model, client)
+    }
+
+    func testBookingIsOffByDefaultAndConfirmSendsNothing() async {
+        let (model, client) = await summaryStep(canBook: false)
+        XCTAssertFalse(model.canConfirm)
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .idle)
+        XCTAssertTrue(client.sentRequests.isEmpty, "with booking off, nothing can be sent")
+    }
+
+    func testAConfirmedBookingIsSentOnceAndReportedFromWhatTheServerReadsBack() async throws {
+        let (model, client) = await summaryStep()
+        XCTAssertTrue(model.canConfirm)
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1)
+        XCTAssertEqual(client.sentRequests.first?.p_booking_date, "2026-11-24")
+        XCTAssertEqual(client.sentRequests.first?.p_bookings.first?.slot, "09:30")
+        guard case .done(.booked(let booked)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(booked.dogName, "Biscuit")
+        XCTAssertEqual(booked.service, "Full Groom")
+        XCTAssertEqual(booked.whenText, "Tuesday 24 November 2026 at 9:30am")
+        XCTAssertEqual(booked.deposit, .none)
+        XCTAssertEqual(booked.bookingIds, ["b1"])
+        XCTAssertFalse(model.canConfirm, "a booking that exists is never sent again")
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1)
+    }
+
+    func testADepositIsReportedFromTheRowReadBackNeverFromAPreCheck() async {
+        let (model, _) = await summaryStep { client in
+            client.readBack = [BookedRow(id: "b1", deposit_required: true, deposit_amount: 10)]
+        }
+        await model.confirm()
+        guard case .done(.booked(let booked)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(booked.deposit, .due(amountPence: 1000))
+        XCTAssertEqual(booked.deposit.text, "A £10 deposit is due to hold this booking. The salon will be in touch about paying.")
+    }
+
+    func testABookingWhoseRowCannotBeReadBackIsStillBookedWithNoClaimAboutADeposit() async {
+        let (model, _) = await summaryStep { $0.readBack = nil }
+        await model.confirm()
+        guard case .done(.booked(let booked)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(booked.deposit, .unknown)
+        XCTAssertEqual(booked.deposit.text, "We couldn't check whether a deposit is due. The salon will tell you if one is.")
+    }
+
+    func testARefusalShowsTheCustomerCopyAndNothingWasCreated() async {
+        let (model, client) = await summaryStep { client in
+            client.sendResult = .refused(message: "We can't book a pregnant dog online — please call the salon.", details: "pregnant")
+        }
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1)
+        guard case .done(.refused(let reason, let message)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(reason, "pregnant")
+        XCTAssertTrue(message.hasPrefix("Pregnant dogs need a quick chat"), message)
+        XCTAssertFalse(message.contains("online —"), "never the raw message")
+        XCTAssertTrue(model.canConfirm, "after a refusal the customer may try again, or go back")
+    }
+
+    func testAnUnknownRefusalShowsTheGenericLineNeverTheRawText() async {
+        let (model, _) = await summaryStep { $0.sendResult = .refused(message: "boom: relation \"x\" does not exist", details: "weird_code") }
+        await model.confirm()
+        guard case .done(.refused(_, let message)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertFalse(message.contains("relation"))
+        XCTAssertEqual(message, BookingDenial.genericCopy)
+    }
+
+    func testATimeTakenSinceItWasShownIsCaughtBeforeAnythingIsSent() async {
+        let (model, client) = await summaryStep()
+        client.calendarFor = { from, to in
+            from == to
+                ? SalonCalendar(openRows: [], occupancyRows: [
+                    OccupancyRow(booking_date: "2026-11-24", slot: "09:30", size: "small"),
+                    OccupancyRow(booking_date: "2026-11-24", slot: "09:30", size: "small"),
+                ], blockedRows: [])
+                : .empty
+        }
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .done(.slotTaken))
+        XCTAssertTrue(client.sentRequests.isEmpty, "nothing was sent")
+        XCTAssertFalse(model.offeredTimes.contains("09:30"))
+    }
+
+    func testIfTheDayCannotBeReadJustBeforeSendingTheDatabaseDecides() async {
+        let (model, client) = await summaryStep()
+        client.calendarFor = { from, to in
+            from == to ? SalonCalendar(openRows: [], occupancyRows: nil, blockedRows: []) : .empty
+        }
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1, "an unreadable day does not stop a booking the database would accept")
+    }
+
+    func testAReplyThatNeverArrivesIsLookedUpAndNeverSentAgain() async {
+        let (model, client) = await summaryStep { client in
+            client.sendResult = .unknown
+            client.found = [BookedRow(id: "b9", booking_date: "2026-11-24", slot: "09:30:00", deposit_required: false)]
+        }
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1, "one request, not a retry")
+        XCTAssertEqual(client.lookups, 1)
+        guard case .done(.booked(let booked)) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(booked.bookingIds, ["b9"])
+    }
+
+    func testIfTheLookupFindsNothingTheAppIsUnsureAndDoesNotSendAgainEvenWhenAskedTo() async {
+        let (model, client) = await summaryStep { client in
+            client.sendResult = .unknown
+            client.found = []
+        }
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .done(.unsure))
+        XCTAssertFalse(model.canConfirm, "not while we are not sure: that could book twice")
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1)
+
+        // Checking again sends nothing, and reports what is now there.
+        await model.checkOutcome()
+        XCTAssertEqual(client.sentRequests.count, 1)
+        XCTAssertEqual(model.confirmState, .done(.unsure))
+        client.found = [BookedRow(id: "b9", booking_date: "2026-11-24", slot: "09:30")]
+        await model.checkOutcome()
+        guard case .done(.booked) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(client.sentRequests.count, 1)
+    }
+
+    func testALookupThatItselfFailsIsUnsureToo() async {
+        let (model, _) = await summaryStep { client in
+            client.sendResult = .unknown
+            client.found = nil
+        }
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .done(.unsure))
+    }
+
+    func testALookupFindingADifferentSlotDoesNotCountAsThisBooking() async {
+        let (model, _) = await summaryStep { client in
+            client.sendResult = .unknown
+            client.found = [BookedRow(id: "other", booking_date: "2026-11-24", slot: "10:00")]
+        }
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .done(.unsure))
+    }
+
+    func testASecondTapWhileTheFirstIsInFlightDoesNothing() async {
+        let (model, client) = await summaryStep { $0.holdCreate = true }
+        let first = Task { await model.confirm() }
+        // Let the first tap reach the point where the request is out.
+        for _ in 0..<200 where client.waiting == nil { await Task.yield() }
+        XCTAssertNotNil(client.waiting, "the request is in flight")
+        XCTAssertEqual(model.confirmState, .sending)
+        XCTAssertFalse(model.canConfirm)
+        await model.confirm()
+        XCTAssertEqual(client.sentRequests.count, 1, "a double tap sends once")
+        model.back()
+        XCTAssertEqual(model.step, .summary, "Back does nothing while a request is out")
+
+        client.holdCreate = false
+        client.waiting?.resume()
+        await first.value
+        guard case .done(.booked) = model.confirmState else { return XCTFail("\(model.confirmState)") }
+        XCTAssertEqual(client.sentRequests.count, 1)
+    }
+
+    func testOnceBookedTheChoicesCannotBeChangedUnderIt() async {
+        let (model, _) = await summaryStep()
+        await model.confirm()
+        model.back()
+        XCTAssertEqual(model.step, .summary)
+    }
+
+    func testAfterARefusalGoingBackAndForwardGivesAFreshSummary() async {
+        let (model, _) = await summaryStep { $0.sendResult = .refused(message: nil, details: "daily_cap") }
+        await model.confirm()
+        XCTAssertEqual(model.step, .summary)
+        model.back()
+        XCTAssertEqual(model.step, .time)
+        XCTAssertEqual(model.confirmState, .done(.refused(reason: "daily_cap", message: BookingDenial.customerMessage(message: nil, details: "daily_cap"))), "kept until the summary is reached again")
+        await model.loadTimes()
+        model.select(time: "10:00")
+        model.next()
+        XCTAssertEqual(model.confirmState, .idle)
+        XCTAssertTrue(model.canConfirm)
+    }
+
+    func testBookedRowsDecodeFromTheJSONTheDatabaseSends() throws {
+        let json = #"[{"id":"b1","booking_date":"2026-11-25","slot":"09:30","service":"Full Groom","status":"Booked","size":"medium","deposit_required":true,"deposit_amount":10.00,"payment":"Due at Pick-up"}]"#
+        let rows = try JSONDecoder().decode([BookedRow].self, from: Data(json.utf8))
+        XCTAssertEqual(rows.first?.deposit_amount, 10)
+        XCTAssertEqual(DepositNote.from(rows.first), .due(amountPence: 1000))
+        let text = #"[{"id":"b2","deposit_required":true,"deposit_amount":"7.50"}]"#
+        XCTAssertEqual(DepositNote.from(try JSONDecoder().decode([BookedRow].self, from: Data(text.utf8)).first), .due(amountPence: 750))
+        let bare = #"[{"id":"b3"}]"#
+        XCTAssertEqual(DepositNote.from(try JSONDecoder().decode([BookedRow].self, from: Data(bare.utf8)).first), .unknown, "no flag means no claim either way")
+        XCTAssertEqual(DepositNote.from(BookedRow(id: "x", deposit_required: false)), .none)
+        XCTAssertEqual(DepositNote.from(BookedRow(id: "x", deposit_required: true)), .due(amountPence: nil))
+        XCTAssertEqual(DepositNote.due(amountPence: nil).text, "A deposit is due to hold this booking. The salon will be in touch about paying.")
+        XCTAssertNil(DepositNote.none.text)
     }
 
     func testNoClientMeansTheDateStepDoesNothingRatherThanCrash() async {

@@ -23,6 +23,25 @@ protocol SalonBookingDataClient: Sendable {
 
     /// Today's staff-flagged last-minute slots. A failed read is no slots, as on the website.
     func loadLastMinuteSlots() async -> [ImmediateSlotRow]
+
+    /// Sends the booking. The only call that writes. Never throws: every outcome is a `BookingSendResult`.
+    func createBooking(_ request: BookingRequest) async -> BookingSendResult
+
+    /// Reads back bookings the server just created, for the deposit and the confirmation. Nil if it failed.
+    func loadBookings(ids: [String]) async -> [BookedRow]?
+
+    /// Looks for a booking this dog already has at that date and slot, to learn what happened when the
+    /// reply never arrived. Nil if the lookup itself failed.
+    func findBookings(dogId: String, date: String) async -> [BookedRow]?
+}
+
+extension SalonBookingDataClient {
+    // Defaults so a client that cannot book (the previews) still compiles. They never create a
+    // booking: sending says "no usable answer" and reading says "could not read". The Supabase
+    // client overrides all three.
+    func createBooking(_ request: BookingRequest) async -> BookingSendResult { .unknown }
+    func loadBookings(ids: [String]) async -> [BookedRow]? { nil }
+    func findBookings(dogId: String, date: String) async -> [BookedRow]? { nil }
 }
 
 @MainActor
@@ -39,6 +58,13 @@ final class BookingFlowModel {
     private(set) var wizard = BookingWizardState()
     private let client: SalonBookingDataClient?
     private let now: @Sendable () -> Date
+    /// Whether the confirm button may send. Off unless the app turns it on (Debug builds only, for now).
+    let canBook: Bool
+
+    /// The confirm step.
+    private(set) var confirmState: ConfirmState = .idle
+    /// What was sent, kept so a lookup can find it if the reply never arrived.
+    private var sent: BookingRequest?
 
     /// The date step.
     private(set) var rules: BookingRules = .unknown
@@ -73,9 +99,10 @@ final class BookingFlowModel {
         case loaded
     }
 
-    init(client: SalonBookingDataClient?, now: @escaping @Sendable () -> Date = { Date() }) {
+    init(client: SalonBookingDataClient?, now: @escaping @Sendable () -> Date = { Date() }, canBook: Bool = false) {
         self.client = client
         self.now = now
+        self.canBook = canBook
     }
 
     // MARK: reading
@@ -168,6 +195,12 @@ final class BookingFlowModel {
     }
 
     func back() {
+        // Not while a request is in flight, and not once a booking exists or might exist: the
+        // choices behind it must not change under a booking that was made from them.
+        switch confirmState {
+        case .checking, .sending, .done(.booked), .done(.unsure): return
+        default: break
+        }
         let from = wizard.step
         wizard.back()
         // Leaving the time step for the date step: drop the remembered pages, so a day staff have
@@ -180,6 +213,10 @@ final class BookingFlowModel {
     /// stale list is never on screen or pickable, and the remembered time is not trusted until the
     /// day has been read again.
     private func arrived() {
+        if wizard.step == .summary {
+            // A fresh look at the summary: forget a refusal or a gone time from an earlier try.
+            if case .done = confirmState { confirmState = .idle }
+        }
         guard wizard.step == .time else { return }
         timesRequest += 1
         timesState = .idle
@@ -347,5 +384,97 @@ final class BookingFlowModel {
     /// A time that is not on the list is ignored.
     func select(time: String) {
         try? wizard.choose(time: time, offered: offeredTimes)
+    }
+
+    // MARK: the confirm step
+
+    /// Whether the confirm button may be pressed right now: booking is switched on, we are on the
+    /// last step with everything chosen, and nothing is in flight or already settled.
+    var canConfirm: Bool {
+        guard canBook, step == .summary, summary != nil else { return false }
+        switch confirmState {
+        case .idle: return true
+        case .checking, .sending: return false
+        case .done(let outcome):
+            // A new attempt is fine after a refusal or a gone time. Never after a booking was made,
+            // and never while we are not sure: that could book twice.
+            switch outcome {
+            case .refused, .slotTaken, .incomplete: return true
+            case .booked, .unsure: return false
+            }
+        }
+    }
+
+    /// Send the booking. One tap is one request: while one is in flight a second tap does nothing.
+    func confirm() async {
+        guard canConfirm, let client, let summary = wizard.summary,
+              let dog = wizard.dog, let date = wizard.date, let time = wizard.time,
+              let size = chosenSize else { return }
+
+        // Just before sending, read the day again: someone may have taken the time since it was shown.
+        confirmState = .checking
+        let lastMinute = isLastMinuteSelected
+        if lastMinute { lastMinuteRows = await client.loadLastMinuteSlots() }
+        let day = await client.loadCalendar(from: date, to: date)
+        if day.bookings(on: date) != nil {
+            let stillOffered = TimePlanner.offered(
+                date: date, size: size, calendar: day, lastMinuteRows: lastMinuteRows, isLastMinute: lastMinute
+            )
+            if !stillOffered.contains(time) {
+                offeredTimes = stillOffered
+                timesState = .loaded
+                confirmState = .done(.slotTaken)
+                return
+            }
+        }
+        // If the day could not be read, go ahead: the database refuses a time that has gone.
+
+        let request: BookingRequest
+        do { request = try wizard.request() } catch {
+            confirmState = .done(.incomplete)
+            return
+        }
+        confirmState = .sending
+        sent = request
+
+        switch await client.createBooking(request) {
+        case .created(let ids):
+            let rows = await client.loadBookings(ids: ids)
+            confirmState = .done(.booked(bookedSummary(summary, ids: ids, row: rows?.first { ids.contains($0.id) })))
+        case .refused(let message, let details):
+            sent = nil
+            confirmState = .done(BookingConfirm.refusal(message: message, details: details))
+        case .unknown:
+            // No usable reply. Do not say it worked or failed, and never send again by ourselves.
+            // Look on the server for what is there.
+            await lookUpOutcome(summary: summary, dogId: dog.id, date: date, time: time)
+        }
+    }
+
+    /// After an unknown outcome: ask the server again whether the booking is there. Sends nothing.
+    func checkOutcome() async {
+        guard case .done(.unsure) = confirmState, let request = sent, let summary = wizard.summary,
+              let row = request.p_bookings.first else { return }
+        await lookUpOutcome(summary: summary, dogId: row.dog_id, date: request.p_booking_date, time: row.slot)
+    }
+
+    private func lookUpOutcome(summary: BookingSummary, dogId: String, date: String, time: String) async {
+        guard let client else { confirmState = .done(.unsure); return }
+        if let rows = await client.findBookings(dogId: dogId, date: date),
+           let found = BookingConfirm.matching(rows, date: date, slot: time) {
+            confirmState = .done(.booked(bookedSummary(summary, ids: [found.id], row: found)))
+        } else {
+            confirmState = .done(.unsure)
+        }
+    }
+
+    private func bookedSummary(_ summary: BookingSummary, ids: [String], row: BookedRow?) -> BookedSummary {
+        BookedSummary(
+            dogName: summary.dogName,
+            service: summary.service,
+            whenText: summary.whenText,
+            deposit: DepositNote.from(row),
+            bookingIds: ids
+        )
     }
 }
