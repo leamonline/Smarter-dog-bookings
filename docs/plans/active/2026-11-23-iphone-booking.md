@@ -240,8 +240,77 @@ Each is its own pull request, merged only after the full CI bar.
      "From £46+", exactly as the website renders it, under the website's sentence
      about starting prices. `service-prices.json` is generated from the website's
      own functions; refresh it with `UPDATE_IOS_SERVICE_PRICES=1`.
-   - **3b-3 onwards, next:** the date, time and summary screens, and the
-     availability read the date and time steps need.
+   - **3b-3, planned (decisions made with the owner):** the date step and the
+     app's first availability read. Time and summary screens follow.
+     - **Layout:** a week-by-week list, not the website's grid. Each day is one large
+       row ("Tuesday 1 December"). A closed or fully booked day stays in the list,
+       greyed, with the word "Closed" or "Fully booked", so the customer can see why
+       a day is missing. The salon is open Mon-Wed, so a seven-column grid would be
+       mostly closed cells with small targets.
+     - **Last minute is included.** A "Today — last minute" row sits above the list
+       only when staff have flagged a slot today, the server still offers it, and the
+       chosen dog can be placed in a flagged slot. The server's date is the date of
+       truth (`get_immediate_slots` returns it), never the phone's clock.
+     - **Reads, all existing customer-safe RPCs, no PII:** `get_open_days` (only dates
+       with a row come back, so a date with no row falls back to the weekday default,
+       Mon-Wed open), `get_occupancy_range` (date, slot, size), `get_blocked_seats` (in
+       14-day chunks, as the website does), `get_immediate_slots`. Pages of 28 days
+       with a "Show more weeks" row up to the customer's `bookingHorizonDays`; the
+       range RPCs refuse anything outside the booking window.
+     - **A day is "Fully booked" only if the engine says so.** It uses
+       `CapacityEngine.offeredSlots` for this dog's size, so no new rule is written.
+       If any read failed the page is marked incomplete and no day is called full: the
+       app shows it as open and the database stays the authority, the same as the
+       website. A failed read is shown as "couldn't load, try again", never as "no
+       dates".
+     - **Out of scope here:** the holiday-notice banner (`get_public_holiday_notices`;
+       a holiday closure already shows as Closed through `get_open_days`), several
+       dogs, and the time step.
+     - **Split into three small PRs:** (a) pure `BookingAvailability.swift`: row types,
+       lenient decoding, day states, the page and the last-minute row, with Linux
+       tests; (b) the Supabase reads behind `SalonBookingDataClient`, plus the
+       `-sampleBooking` stand-in; (c) the SwiftUI week list and its wiring.
+     - **3b-3a, built:** `BookingAvailability.swift` (pure, no network). It parses the
+       four RPC rows leniently, decides open, full or closed for a dog's size with
+       `CapacityEngine.offeredSlots`, groups days by week, pages the window 28 days at
+       a time and builds the "Today — last minute" offer. A read that failed is `nil`:
+       the page is incomplete, no day is called full, and the last-minute row still
+       shows for the database to judge. The wizard does not yet accept today's date
+       for a last-minute choice; that comes with the wiring in (c).
+     - **What cannot be proved from Linux:** the screens (Xcode) and the real RPC
+       row shapes and refusals. The shapes are read from the migrations and decoded
+       leniently, but a real call needs the staging project (question 1).
+   - **3b-3b, built:** the booking model reads the date step: rules and today's
+     flagged slots once, then one 28-day page at a time (page 0 reads from today for
+     the last-minute row; a complete page is remembered, one with a failed read is
+     read again; a slow answer for a page the customer has left is dropped). The four
+     reads are in `SupabaseBookingClient` (two-week pieces for blocked seats; a failed
+     read is `nil`, never empty). Changing dog drops a chosen date the new dog cannot
+     have. `-sampleBooking` carries a calendar with a full day, a closed day and two
+     last-minute slots. Still no screen.
+   - **3b-3c, built:** the date screen. A week-by-week list under the website's
+     sentence, with "Closed" and "Fully booked" days greyed and labelled, "Show earlier
+     dates" and "Show later dates" for the 28-day pages, a "Check again" note when a read
+     failed, and the "Today — last minute" row above the list. Choosing today lets the
+     customer continue and limits the time step to the flagged times
+     (`lastMinuteSlots`); choosing another day replaces it; a dog that no longer fits it
+     drops it. The time screen is next. Needs a Mac to see.
+   - **3b-4, built:** the time screen. On every visit it reads the chosen day alone
+     and offers the times the capacity engine allows for this dog, as "Morning drop-offs"
+     and "Afternoon drop-offs" in the website's "9:30am" style. A chosen time that has
+     gone is dropped; a failed read is "We couldn't check availability just now", never
+     "Fully booked"; for today it asks the server again which flagged times are still
+     open (the 30-minute cut-off moves on) and shows the website's "Today's last-minute
+     times have gone". Not ported: the owner's preferred and blocked times ("Your usual
+     time") and the waitlist link; the database still refuses a blocked time. Needs a
+     Mac to see.
+     Review fixes (Codex, on #1289): today stays the customer's last-minute choice even after
+     every flagged time has gone, so going back and forward never offers the ordinary grid;
+     Continue is shut until the chosen time has been checked again on this visit (a failed
+     read leaves it shut); a day staff closed after it was picked shows "We're closed on ..."
+     with no times (not when the open-days read failed, which proves nothing); and leaving the
+     time step for the date step drops the remembered pages so the list is read again.
+   - **After the time step:** the summary screen (no confirm).
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.

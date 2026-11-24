@@ -44,6 +44,8 @@ let package = Package(
                 "BookingWizard.swift",
                 "BookingFlowModel.swift",
                 "BookingServices.swift",
+                "BookingAvailability.swift",
+                "BookingTimes.swift",
                 "DogsModels.swift",
             ]
         ),
