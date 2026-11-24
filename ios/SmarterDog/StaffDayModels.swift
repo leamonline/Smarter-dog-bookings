@@ -257,7 +257,9 @@ struct StaffLink: Identifiable, Equatable, Sendable {
 enum StaffLinks {
     static let base = "https://smarterdog.co.uk/staff"
 
-    static let calendar = URL(string: base)!
+    /// `?calendar` keeps a fresh browser tab on the calendar instead of the
+    /// website's once-per-tab landing on Today (`src/routing/todayLanding.ts`).
+    static let calendar = URL(string: "\(base)?calendar")!
     static let today = URL(string: "\(base)/today")!
     static let inbox = URL(string: "\(base)/inbox")!
     static let customers = URL(string: "\(base)/humans")!

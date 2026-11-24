@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — iPhone staff Today: two review fixes
+
+- The iPhone More tab's **Calendar** now opens the calendar even in a fresh browser tab. The staff website still lands on Today once per tab, except for a link marked `?calendar` (`src/routing/todayLanding.ts`).
+- At the largest text sizes a safety warning on a Today row wraps instead of being cut off.
+
 ## Unreleased — iPhone app: staff Today (read only)
 
 - Staff who sign in to the iPhone app now land on **Today**: the day's dogs in appointment order with their status in words and the website's colours, safety warnings, and how long each dog has been where it is, exactly as the staff website's Today. Arrows move between days. Tap a dog for its details. A **More** tab opens the staff website for everything else. Nothing is changed from the phone yet. Plan phases S0 and S1 ([plan](docs/plans/active/2026-11-23-iphone-staff.md)).

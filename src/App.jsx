@@ -4,6 +4,7 @@ import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { supabase } from "./supabase/client";
 import { getStaffAuthRouteState } from "./components/auth/routeGuards.js";
 import { safeGet, safeSet } from "./lib/storage";
+import { landsOnToday } from "./routing/todayLanding";
 import { useAuth } from "./supabase/hooks/useAuth";
 import { useWeekNav } from "./hooks/useWeekNav";
 import { useDirectoryWarmup } from "./hooks/useDirectoryWarmup";
@@ -322,7 +323,7 @@ function AuthedApp({
   useEffect(() => {
     if (safeGet("session", "sd-today-landed") === "1") return;
     safeSet("session", "sd-today-landed", "1");
-    if (location.pathname === "/") navigate("/today", { replace: true });
+    if (landsOnToday(location.pathname, location.search)) navigate("/today", { replace: true });
     // Runs once on mount by design (the post-auth entry point).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
