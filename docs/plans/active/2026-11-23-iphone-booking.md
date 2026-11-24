@@ -345,7 +345,22 @@ Each is its own pull request, merged only after the full CI bar.
      customer, refuses any project but staging, and takes the email and password from local
      scheme environment variables. See [ios/README.md](../../../ios/README.md). There is still
      no confirm button.
-   - **Next:** the confirm and booked screens.
+   - **Confirm, step 3 of 3 (built): the confirm button and the booked screen.** On the summary,
+     only when booking is switched on, a **Confirm booking** button (it reads "Booking…" while a
+     request is out and the model ignores a second tap). Every way it can end is shown: a refusal in
+     the website's wording, "that time's just been taken", "we couldn't reach the salon, so nothing
+     was booked" (safe to try again), and the unknown outcome ("we couldn't tell whether your booking
+     went through", with Check again and WhatsApp, and no way to send again). Back is shut while a
+     request is out and once a booking exists or might. A made booking shows `BookedView`: "You're
+     booked." with the yellow swash drawn in under "booked." (0.42s), a taped polaroid settling
+     (0.52s), "See you soon!" in Caveat and the mascot bouncing once (0.6s, from 0.26s), all off
+     under Reduce Motion; the details and any deposit line are plain text. The polaroid shows a paw
+     until dogs' photos are brought into the flow. **Done** starts a fresh booking (`startAnother`,
+     the only way out of a finished booking). `-sampleBooked` (Debug only) shows the booked screen
+     with made-up data. Still switched on nowhere except `-liveBooking` on staging.
+   - **Next:** try it end to end on staging in Xcode, then decide how and when to widen it
+     (a TestFlight build behind a flag, then the salon's own settings switch). Several dogs,
+     cancel and reschedule, the waitlist and the change-your-appointment note come after.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.

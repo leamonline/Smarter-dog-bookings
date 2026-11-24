@@ -820,6 +820,68 @@ final class BookingFlowModelTests: XCTestCase {
         XCTAssertEqual(client.sentRequests.count, 2)
     }
 
+    func testTheConfirmButtonSaysBookingWhileARequestIsOutAndBackIsShut() async {
+        let (model, client) = await summaryStep { $0.holdCreate = true }
+        XCTAssertEqual(model.confirmButtonTitle, "Confirm booking")
+        XCTAssertTrue(model.canGoBack)
+        XCTAssertFalse(model.isConfirming)
+        let first = Task { await model.confirm() }
+        for _ in 0..<200 where client.waiting == nil { await Task.yield() }
+        XCTAssertTrue(model.isConfirming)
+        XCTAssertEqual(model.confirmButtonTitle, "Booking…")
+        XCTAssertFalse(model.canGoBack)
+        client.holdCreate = false
+        client.waiting?.resume()
+        await first.value
+        XCTAssertFalse(model.isConfirming)
+        XCTAssertNotNil(model.bookedSummary)
+        XCTAssertFalse(model.canGoBack, "once booked, the choices stay as they were")
+    }
+
+    func testBackStaysAvailableAfterARefusalButNotWhenUnsure() async {
+        let (refused, _) = await summaryStep { $0.sendResult = .refused(message: nil, details: "daily_cap") }
+        await refused.confirm()
+        XCTAssertTrue(refused.canGoBack, "a refusal means nothing exists: the customer may change their choices")
+        let (unsure, _) = await summaryStep { client in
+            client.sendResult = .unknown
+            client.found = []
+        }
+        await unsure.confirm()
+        XCTAssertFalse(unsure.canGoBack, "it might exist, so the choices must not change under it")
+    }
+
+    func testStartingAnotherBookingAfterOneWasMadeResetsEverythingButTheDogs() async {
+        let (model, _) = await summaryStep()
+        await model.confirm()
+        XCTAssertNotNil(model.bookedSummary)
+        model.startAnother()
+        XCTAssertEqual(model.step, .dog)
+        XCTAssertNil(model.selectedDogId)
+        XCTAssertNil(model.selectedDate)
+        XCTAssertNil(model.selectedTime)
+        XCTAssertNil(model.selectedService)
+        XCTAssertEqual(model.confirmState, .idle)
+        XCTAssertNil(model.bookedSummary)
+        XCTAssertEqual(model.datePage, 0)
+        XCTAssertEqual(model.calendarState, .idle)
+        XCTAssertEqual(model.timesState, .idle)
+        XCTAssertFalse(model.isLastMinuteSelected)
+        XCTAssertEqual(model.dogs.map(\.name), ["Biscuit", "Moose"], "the dogs stay loaded")
+        XCTAssertFalse(model.canConfirm)
+        // And a new booking can be made from the start.
+        model.select(dog: model.dogs[0])
+        XCTAssertTrue(model.canContinue)
+    }
+
+    func testStartingAnotherDoesNothingUnlessABookingWasMade() async {
+        let (model, _) = await summaryStep { $0.sendResult = .unknown; $0.found = [] }
+        await model.confirm()
+        XCTAssertEqual(model.confirmState, .done(.unsure))
+        model.startAnother()
+        XCTAssertEqual(model.step, .summary, "an unsure outcome is not a way to start again and book twice")
+        XCTAssertEqual(model.confirmState, .done(.unsure))
+    }
+
     func testASecondTapWhileTheFirstIsInFlightDoesNothing() async {
         let (model, client) = await summaryStep { $0.holdCreate = true }
         let first = Task { await model.confirm() }

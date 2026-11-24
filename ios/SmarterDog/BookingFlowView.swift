@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. This slice has
-/// the five steps (pick a dog, choose a service, pick a date, choose a time, check the summary); the others arrive in the next ones, and
-/// nothing here can send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
-/// so no customer sees a half-built flow.
+/// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. Five steps (pick a dog,
+/// choose a service, pick a date, choose a time, check the summary), then, only when booking is switched
+/// on, a confirm button and the booked screen. Booking is off everywhere except the Debug-only live mode,
+/// which only runs against the staging project, so no customer can reach it yet.
 struct BookingFlowView: View {
     @State private var model: BookingFlowModel
 
@@ -14,22 +14,12 @@ struct BookingFlowView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            BrandStripe()
-                .padding(.horizontal, AppSpace.s2)
-                .padding(.top, AppSpace.s1)
-            ScrollView {
-                VStack(alignment: .leading, spacing: AppSpace.s3) {
-                    header
-                    stepContent
-                }
-                .padding(.horizontal, AppSpace.s2)
-                .padding(.vertical, AppSpace.s3)
-                .frame(maxWidth: 480)
-                .frame(maxWidth: .infinity)
+        Group {
+            if let booked = model.bookedSummary {
+                BookedView(booked: booked) { model.startAnother() }
+            } else {
+                flow
             }
-            .scrollBounceBehavior(.basedOnSize)
-            footer
         }
         .background(AppColor.surface.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
@@ -47,6 +37,26 @@ struct BookingFlowView: View {
             }
             // The time step reads the chosen day afresh every time it appears: a slot may have gone.
             if model.step == .time { await model.loadTimes() }
+        }
+    }
+
+    private var flow: some View {
+        VStack(spacing: 0) {
+            BrandStripe()
+                .padding(.horizontal, AppSpace.s2)
+                .padding(.top, AppSpace.s1)
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppSpace.s3) {
+                    header
+                    stepContent
+                }
+                .padding(.horizontal, AppSpace.s2)
+                .padding(.vertical, AppSpace.s3)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            footer
         }
     }
 
@@ -279,13 +289,43 @@ struct BookingFlowView: View {
                     }
                 }
                 .cardSurface()
-                Text("Booking isn't switched on in this version of the app yet, so there is nothing to confirm.")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppColor.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if model.canBook {
+                    confirmOutcome
+                } else {
+                    Text("Booking isn't switched on in this version of the app yet, so there is nothing to confirm.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         } else {
             ErrorNote(message: "Something is missing from your choices. Go back and check each step.")
+        }
+    }
+
+    /// What came of the last tap on confirm, when it did not end in a booking. A refusal shows the
+    /// website's wording for its code, never the raw message.
+    @ViewBuilder
+    private var confirmOutcome: some View {
+        switch model.confirmState {
+        case .done(.refused(_, let message)):
+            ErrorNote(message: message)
+        case .done(.slotTaken):
+            ErrorNote(message: BookingConfirm.slotTakenMessage)
+        case .done(.incomplete):
+            ErrorNote(message: BookingConfirm.incompleteMessage)
+        case .done(.notSent):
+            ErrorNote(message: BookingConfirm.notSentMessage)
+        case .done(.unsure):
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                ErrorNote(message: BookingConfirm.unsureMessage)
+                Button("Check again") { Task { await model.checkOutcome() } }
+                    .buttonStyle(BackButtonStyle())
+                TextLink(title: "Message us on WhatsApp 🐾", destination: SalonLinks.whatsApp)
+                    .font(.footnote.weight(.semibold))
+            }
+        default:
+            EmptyView()
         }
     }
 
@@ -309,16 +349,31 @@ struct BookingFlowView: View {
 
     // MARK: footer
 
+    /// The confirm button exists only when booking is switched on, and not while we are unsure whether
+    /// a booking was made: then the way forward is to check, never to send again.
+    private var showsConfirm: Bool {
+        guard model.canBook else { return false }
+        if case .done(.unsure) = model.confirmState { return false }
+        return true
+    }
+
     private var footer: some View {
         HStack(spacing: AppSpace.s1_5) {
             if model.step != .dog {
                 Button("Back") { model.back() }
                     .buttonStyle(BackButtonStyle())
+                    .disabled(!model.canGoBack)
+                    .opacity(model.canGoBack ? 1 : 0.5)
             }
             if model.step != .summary {
                 PrimaryButton(title: "Continue") { model.next() }
                     .disabled(!model.canContinue)
                     .opacity(model.canContinue ? 1 : 0.5)
+            } else if showsConfirm {
+                // One tap is one request: the model ignores a second tap while one is out.
+                PrimaryButton(title: model.confirmButtonTitle) { Task { await model.confirm() } }
+                    .disabled(!model.canConfirm)
+                    .opacity(model.canConfirm ? 1 : 0.5)
             }
         }
         .padding(.horizontal, AppSpace.s2)
@@ -460,7 +515,7 @@ private struct DateChoiceRow: View {
 }
 
 /// One line of the summary: a small label, the value, and optionally a quieter line under it.
-private struct SummaryRow: View {
+struct SummaryRow: View {
     let label: String
     let value: String
     var detail: String = ""
