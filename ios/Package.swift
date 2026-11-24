@@ -32,6 +32,9 @@ let package = Package(
                 "HomeView.swift",
                 "SupabaseDogsClient.swift",
                 "DogsView.swift",
+                "SupabaseStaffDayClient.swift",
+                "StaffRootView.swift",
+                "StaffTodayView.swift",
             ],
             sources: [
                 "PhoneNumber.swift",
@@ -47,13 +50,17 @@ let package = Package(
                 "BookingAvailability.swift",
                 "BookingTimes.swift",
                 "DogsModels.swift",
+                "StaffDayStack.swift",
+                "StaffStatusPalette.swift",
+                "StaffDayModels.swift",
+                "StaffTodayModel.swift",
             ]
         ),
         .testTarget(
             name: "AuthCoreTests",
             dependencies: ["AuthCore"],
             path: "AuthCoreTests",
-            exclude: ["denial-cases.json", "capacity-parity.json", "service-prices.json"]
+            exclude: ["denial-cases.json", "capacity-parity.json", "service-prices.json", "staff-day-parity.json"]
         ),
     ]
 )

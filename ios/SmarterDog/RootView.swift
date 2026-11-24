@@ -19,7 +19,7 @@ struct RootView: View {
                     CustomerHomeView(account: account, auth: auth)
                 }
             case .staff(let account):
-                HomeRoot(account: account, auth: auth)
+                StaffRootView(account: account, auth: auth)
             case .pending(let account):
                 PendingApprovalView(account: account, auth: auth)
             case .staffDenied(let email):
@@ -41,45 +41,6 @@ struct RootView: View {
             }
         }
         .tint(AppColor.accentBlueDeep)
-    }
-}
-
-private struct HomeRoot: View {
-    let account: AccountCard
-    var auth: AuthService
-
-    var body: some View {
-        TabView {
-            PaperScreen {
-                Text("Home")
-                    .appHeading(.largeTitle)
-                    .foregroundStyle(AppColor.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-
-                Text(account.name)
-                    .appHeading(.title2)
-                    .foregroundStyle(AppColor.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(account.roleLabel)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppColor.textSecondary)
-                    .accessibilityLabel("Role, \(account.roleLabel)")
-
-                Text("You're signed in. Booking from the phone comes later.")
-                    .font(.body)
-                    .foregroundStyle(AppColor.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Button("Sign out") {
-                    Task { await auth.signOut() }
-                }
-                .buttonStyle(TextLinkButtonStyle())
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-        }
     }
 }
 

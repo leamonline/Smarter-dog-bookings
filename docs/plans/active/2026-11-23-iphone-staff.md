@@ -1,9 +1,9 @@
 # iPhone staff app
 
-Status: Draft (plan only, no code; awaiting the owner's approval)
+Status: Active (approved by the owner and merged in #1287; S0 and S1 in review)
 Issue: Not yet assigned; raise a dedicated issue when the owner approves this plan
 Base: `main` at `526e83e` (after #1277)
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 Owners: `ios/**` staff files (new `Staff*.swift` and their tests), the staff placeholder in `ios/SmarterDog/RootView.swift`; later phases also `supabase/functions/notify-staff/**`
 Dependencies: A staging project with a test staff account (open question 2). Phase S4 depends on the APNs work in [the API contract](../../ios-api-contract.md#push). Coordination with the [iPhone booking flow](2026-11-23-iphone-booking.md) (shared files, see Architecture)
 Related requirements: REQ-A11Y-001, REQ-UX-001, REQ-CAP-001, REQ-AUTH-001 (no new write path), REQ-NOT-001, REQ-SEC-001
@@ -336,6 +336,46 @@ touches server code and one Swift file). S5 waits for the owner.
 - ST-1 to ST-13 each shown by its scenario, on staging for writes.
 - No new write path, RPC or status; the database refuses what it refused before.
 - Docs above updated; the plan moved to `completed/` with the PRs linked.
+
+## As built
+
+**S0 and S1 (24 November 2026).** The staff placeholder is replaced by
+`StaffRootView` (Today, More). Today reads one London date
+(`SupabaseStaffDayClient`), turns the rows into bookings the way the website's
+row transform does (`StaffDaySelector`), and draws the stack
+(`StaffDayStack`, `StaffTodayView`): order, status word and colour, safety
+order, the timing line, day totals, previous/next day, pull to refresh,
+refresh on return to the app, timings that move on each 30 seconds, a details
+sheet, and truthful loading, failed, closed and empty states. More opens the
+staff website pages and has Sign out. Delivers ST-1 to ST-5, ST-12 and ST-13.
+
+Changes from the sequence above, and why:
+
+- **Parity guard:** a Vitest test (`src/engine/staffDayParity.ios.test.ts`)
+  instead of a separate script, following the capacity engine's existing
+  pattern. It writes `ios/AuthCoreTests/staff-day-parity.json` from the real
+  website engines (nine governed days, safety order, durations, surnames, the
+  status palette) and fails when stale. Two deliberate breaks of the Swift copy
+  (the late grace, the Pregnant rank) were each caught by `StaffDayParityTests`.
+- **Status colours as data**, in `StaffStatusPalette.swift`, not 36 asset
+  colour sets: they mirror the website's palette and the parity test checks
+  every value. `iosColourType.test.ts` now covers the two staff screens, which
+  carry no hex themselves.
+- **No money in S1.** The strip's balance and the day's takings fall back to the
+  full pricing engine when no amount is recorded. That port belongs with
+  check-out, so it moves to S3; the row's VoiceOver label omits the balance
+  until then.
+- **Two confirmation differences, documented, not mirrored yet:** the website
+  turns a failed reminder delivery into Unconfirmed (`applyReminderFailures`,
+  fed by the delivery-failure store) and a typed WhatsApp "yes" into Confirmed
+  (`applyChatConfirmations`, fed by the inbox). S1 reads neither, so those two
+  cases differ; the details sheet tells staff to check the inbox before chasing.
+  Folding them in needs the inbox and failure reads S2 or S5 bring.
+
+Verification: `swift test --package-path ios` in the `swift:6.0.3-noble` image
+(186 tests, 0 failures, 28 of them new); the parity and iPhone project tests in
+Vitest. The SwiftUI views cannot be compiled on Linux: the Xcode Cloud build and
+the TestFlight checklist in `ios/README.md` are the evidence still to come.
 
 ## Open questions
 
