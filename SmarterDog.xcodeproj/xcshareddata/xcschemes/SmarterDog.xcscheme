@@ -51,11 +51,11 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-samplehome"
+            argument = "-sampleHome"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-samplebooking"
+            argument = "-sampleBooking"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
