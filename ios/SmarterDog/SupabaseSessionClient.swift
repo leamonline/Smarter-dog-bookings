@@ -28,7 +28,10 @@ final class SupabaseSessionClient: SalonSessionClient, Sendable {
             let task = Task {
                 for await (event, session) in supabase.auth.authStateChanges {
                     switch event {
-                    case .initialSession, .signedIn:
+                    case .initialSession, .signedIn, .tokenRefreshed:
+                        // Initial sessions now come straight from storage. Wait for
+                        // tokenRefreshed before resolving an expired account.
+                        if let session, session.isExpired { continue }
                         if let session {
                             continuation.yield(.session(SalonAccount(
                                 id: session.user.id.uuidString,
@@ -40,7 +43,7 @@ final class SupabaseSessionClient: SalonSessionClient, Sendable {
                         }
                     case .signedOut, .userDeleted:
                         continuation.yield(.signedOut)
-                    case .tokenRefreshed, .userUpdated, .passwordRecovery, .mfaChallengeVerified:
+                    case .userUpdated, .passwordRecovery, .mfaChallengeVerified:
                         break
                     }
                 }
