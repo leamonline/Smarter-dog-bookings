@@ -60,6 +60,8 @@ describe("CI browser jobs run in the Playwright image", () => {
         "image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble",
       );
       expect(body).toMatch(/^ {6}options: --user 1001 --ipc=host$/m);
+      // Containers default `run:` to sh; the steps rely on bash.
+      expect(body).toMatch(/^ {4}defaults:\n {6}run:\n {8}shell: bash$/m);
     });
 
     it(`${name} still runs, and so fails, when the version job fails`, () => {

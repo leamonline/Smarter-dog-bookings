@@ -249,6 +249,12 @@ jobs:
       # git does not refuse the workspace as owned by someone else. --ipc=host
       # is Playwright's advice for Chromium in Docker (shared-memory limits).
       options: --user 1001 --ipc=host
+    # A job container runs `run:` steps with `sh`, not the runner's `bash`, and
+    # these steps use bash features (process substitution in the changed-spec
+    # step). Name bash so the steps behave exactly as they did on the runner.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -300,6 +306,12 @@ jobs:
       # git does not refuse the workspace as owned by someone else. --ipc=host
       # is Playwright's advice for Chromium in Docker (shared-memory limits).
       options: --user 1001 --ipc=host
+    # A job container runs `run:` steps with `sh`, not the runner's `bash`, and
+    # these steps use bash features (process substitution in the changed-spec
+    # step). Name bash so the steps behave exactly as they did on the runner.
+    defaults:
+      run:
+        shell: bash
     permissions:
       contents: read
     steps:
