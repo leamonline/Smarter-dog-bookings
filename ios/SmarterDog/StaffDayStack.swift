@@ -31,6 +31,8 @@ struct StaffBooking: Equatable, Sendable {
     var completedAt: String?
     /// "confirmed", "sent" or "none", derived like the website's transform.
     var reminderState: String
+    /// A live failed reminder: the owner was never told (website `applyReminderFailures`).
+    var reminderFailed: Bool = false
     var confirmationChannel: String?
     var dogName: String
     var breed: String
@@ -288,6 +290,10 @@ enum StaffDayStack {
         let confirmation: StaffStatusPalette.Confirmation?
         if booking.status != booked {
             confirmation = nil
+        } else if booking.reminderFailed && booking.reminderState != "confirmed" {
+            // Website: applyReminderFailures marks it unconfirmed, and stackConfirmation
+            // words it "Reminder failed". A recorded confirmation always wins.
+            confirmation = .reminderFailed
         } else if needsConfirmation(booking) {
             confirmation = .unconfirmed
         } else if booking.reminderState == "confirmed" {

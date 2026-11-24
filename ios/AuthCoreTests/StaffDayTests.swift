@@ -99,8 +99,38 @@ final class StaffDayTests: XCTestCase {
         XCTAssertEqual(StaffDaySelector.reminderState(row("d", reminderConfirmedAt: "2026-11-23T11:00:00Z", log: [sent])), "confirmed")
     }
 
+    func testALiveFailedReminderIsTheNewestRowForItsTriggerAndRecipient() {
+        func log(_ trigger: String, _ status: String, _ at: String, to human: String = "h-1") -> StaffNotificationRow {
+            StaffNotificationRow(trigger_type: trigger, status: status, sent_at: nil, created_at: at, human_id: human)
+        }
+        let failed = log("reminder", "failed", "2026-11-23T10:00:00Z")
+        let resent = log("reminder", "sent", "2026-11-23T10:05:00Z")
+        let smsSent = log("reminder_sms_fallback", "sent", "2026-11-23T10:01:00Z")
+        let smsFailed = log("reminder_sms_fallback", "failed", "2026-11-23T10:01:00Z")
+        let otherOwnerSent = log("reminder", "sent", "2026-11-23T10:05:00Z", to: "h-2")
+        let readyFailed = log("ready", "failed", "2026-11-23T10:00:00Z")
+        XCTAssertTrue(StaffDaySelector.hasLiveFailedReminder(row("a", log: [failed])))
+        XCTAssertFalse(StaffDaySelector.hasLiveFailedReminder(row("b", log: [resent, failed])), "a later resend clears it, in any order")
+        XCTAssertTrue(StaffDaySelector.hasLiveFailedReminder(row("c", log: [failed, smsSent])), "an SMS fallback never clears the WhatsApp failure")
+        XCTAssertTrue(StaffDaySelector.hasLiveFailedReminder(row("d", log: [smsFailed])), "a failed SMS fallback counts")
+        XCTAssertTrue(StaffDaySelector.hasLiveFailedReminder(row("e", log: [failed, otherOwnerSent])), "a send to someone else does not clear it")
+        XCTAssertFalse(StaffDaySelector.hasLiveFailedReminder(row("f", log: [readyFailed])), "only reminders count")
+        XCTAssertFalse(StaffDaySelector.hasLiveFailedReminder(row("g")))
+    }
+
+    func testAFailedReminderReadsAsReminderFailedUntilConfirmed() throws {
+        let failedLog = [StaffNotificationRow(trigger_type: "reminder", status: "failed", sent_at: nil, created_at: "2026-11-23T10:00:00Z", human_id: "h-1")]
+        let read = StaffDayRead(
+            bookings: [row("failed", slot: "11:00", log: failedLog),
+                       row("confirmed", slot: "11:30", reminderConfirmedAt: "2026-11-23T11:00:00Z", log: failedLog)],
+            dogs: [bella], humans: [sam], setting: nil
+        )
+        let snapshot = StaffDaySelector.snapshot(read: read, date: "2026-11-24", now: try XCTUnwrap(StaffDayStack.parseTimestamp("2026-11-24T10:00:00Z")))
+        XCTAssertEqual(snapshot.rows.map(\.tone.label), ["Reminder failed", "Confirmed"])
+    }
+
     func testTheSelectStringsAskForEveryColumnTheRowsDecode() {
-        for column in ["checked_in_at", "ready_at", "reminder_confirmed_at", "notification_log(trigger_type,status,sent_at)", "owner_name_snapshot"] {
+        for column in ["checked_in_at", "ready_at", "reminder_confirmed_at", "notification_log(trigger_type,status,sent_at,created_at,human_id)", "owner_name_snapshot"] {
             XCTAssertTrue(StaffBookingRow.select.contains(column), column)
         }
         XCTAssertTrue(StaffDogRow.select.contains("is_pregnant"))

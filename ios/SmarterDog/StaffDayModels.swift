@@ -12,6 +12,10 @@ struct StaffNotificationRow: Decodable, Equatable, Sendable {
     var trigger_type: String?
     var status: String?
     var sent_at: String?
+    /// When the row was written: the order a resend supersedes a failure in.
+    var created_at: String? = nil
+    /// The recipient. A failure is live per trigger and recipient, as on the website.
+    var human_id: String? = nil
 }
 
 /// One row of `bookings` with its embedded `notification_log`.
@@ -38,7 +42,7 @@ struct StaffBookingRow: Decodable, Equatable, Sendable {
     /// The columns to select, so the client and the tests agree.
     static let select = "id,booking_date,slot,service,status,cancel_reason,dog_id,checked_in_at,ready_at,completed_at,"
         + "reminder_confirmed_at,confirmation_channel,notes,dog_name_snapshot,breed_snapshot,owner_name_snapshot,group_id,"
-        + "notification_log(trigger_type,status,sent_at)"
+        + "notification_log(trigger_type,status,sent_at,created_at,human_id)"
 }
 
 struct StaffDogRow: Decodable, Equatable, Sendable {
@@ -118,6 +122,7 @@ enum StaffDaySelector {
                 readyAt: row.ready_at,
                 completedAt: row.completed_at,
                 reminderState: reminderState(row),
+                reminderFailed: hasLiveFailedReminder(row),
                 confirmationChannel: row.confirmation_channel,
                 dogName: nonEmpty(dog?.name) ?? nonEmpty(row.dog_name_snapshot) ?? "",
                 breed: nonEmpty(dog?.breed) ?? nonEmpty(row.breed_snapshot) ?? "",
@@ -136,6 +141,29 @@ enum StaffDaySelector {
         if nonEmpty(row.reminder_confirmed_at) != nil { return "confirmed" }
         let sent = (row.notification_log ?? []).contains { $0.trigger_type == "reminder" && $0.status == "sent" }
         return sent ? "sent" : "none"
+    }
+
+    /// The website's `liveFailuresByBooking` + `failedReminderBookingIds`, for one booking:
+    /// keep the newest row for each exact (trigger, recipient); the booking has a live
+    /// failed reminder when one of those newest rows is a failed `reminder` or
+    /// `reminder_sms_fallback`. A later sent or pending row for the same trigger and
+    /// recipient means a resend, and clears it. An SMS fallback is a different trigger,
+    /// so it never clears the WhatsApp failure. Meta's later verdict is already copied
+    /// onto the log by the database (migration 20261012120000).
+    static func hasLiveFailedReminder(_ row: StaffBookingRow) -> Bool {
+        var newest: [String: (at: Date, status: String?)] = [:]
+        for log in row.notification_log ?? [] {
+            let trigger = log.trigger_type ?? ""
+            let key = "\(trigger)|\(log.human_id ?? "")"
+            let at = (log.created_at ?? log.sent_at).flatMap(StaffDayStack.parseTimestamp) ?? .distantPast
+            if let seen = newest[key], seen.at >= at { continue }
+            newest[key] = (at, log.status)
+        }
+        return newest.contains { key, value in
+            let trigger = String(key.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
+            let base = trigger.hasSuffix("_sms_fallback") ? String(trigger.dropLast("_sms_fallback".count)) : trigger
+            return base == "reminder" && value.status == "failed"
+        }
     }
 
     /// Open as staff set it for the date; with no setting, the salon's normal days

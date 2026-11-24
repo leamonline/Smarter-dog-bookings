@@ -19,6 +19,7 @@ import { BOOKING_STATUS } from "../constants/salon";
 import { STATUS_TONES, UNKNOWN_STATUS_TONE } from "../constants/statusPalette";
 import type { Booking } from "../types/index";
 import { buildDayStack, ownerSurname, READY_OVERDUE_MINUTES, stackConfirmation } from "./dayStack";
+import { applyReminderFailures } from "./reminderFailure";
 import { orderSafetyFacts } from "./safetyOrder";
 import { formatDuration } from "./today";
 
@@ -38,6 +39,8 @@ interface FixtureBooking {
   reminderState?: "confirmed" | "sent" | "none";
   confirmationChannel?: string | null;
   breed?: string;
+  /** A live failed reminder, as useLiveFailuresByBooking reports it (folded by applyReminderFailures). */
+  reminderFailed?: boolean;
 }
 
 interface Scenario {
@@ -72,6 +75,9 @@ const SCENARIOS: Scenario[] = [
       { id: "next", slot: "10:30", status: B.RECONFIRMED, service: "full-groom", breed: "Poodle" },
       { id: "confirmed", slot: "11:00", status: B.BOOKED, service: "full-groom", reminderState: "confirmed" },
       { id: "asked-not-to-confirm", slot: "11:00", status: B.BOOKED, service: "full-groom", reminderState: "sent", confirmationChannel: "none" },
+      { id: "reminder-failed", slot: "11:00", status: B.BOOKED, service: "bath-and-brush", reminderFailed: true },
+      { id: "reminder-failed-but-confirmed", slot: "11:30", status: B.BOOKED, service: "bath-and-brush", reminderState: "confirmed", reminderFailed: true },
+      { id: "reminder-failed-already-in", slot: "08:30", status: B.ARRIVED, service: "bath-and-brush", checkedInAt: at("08:35"), reminderFailed: true },
       { id: "cancelled", slot: "11:30", status: B.CANCELLED, service: "full-groom", cancelReason: "Owner unwell" },
       { id: "no-show", slot: "12:00", status: B.NO_SHOW, service: "full-groom" },
       { id: "legacy-no-show", slot: "12:30", status: B.CANCELLED, service: "full-groom", cancelReason: " No-Show " },
@@ -200,8 +206,11 @@ function rowsFor(scenario: Scenario) {
   const now = new Date(scenario.now);
   const bookings = scenario.bookings.map((b) => toBooking(b, scenario.date));
   const breedById = Object.fromEntries(scenario.bookings.filter((b) => b.breed).map((b) => [b.id, b.breed as string]));
+  const failedIds = new Set(scenario.bookings.filter((b) => b.reminderFailed).map((b) => b.id));
   return buildDayStack({ bookings, dateStr: scenario.date, now, breedById }).map((row) => {
-    const tone = resolveDayStatus(row.booking.status, row.booking.cancelReason, stackConfirmation(row.entry));
+    // The same fold TodayView applies: a live failed reminder makes a Booked dog unconfirmed.
+    const [entry] = applyReminderFailures([row.entry], failedIds);
+    const tone = resolveDayStatus(row.booking.status, row.booking.cancelReason, stackConfirmation(entry));
     return {
       id: row.id,
       time: row.time,
@@ -252,7 +261,7 @@ describe("iPhone staff day parity file", () => {
     expect(timings).toContain(null);
     expect(rows.some((r) => r.countdown)).toBe(true);
     expect(rows.some((r) => r.readyOverdue)).toBe(true);
-    for (const tone of ["expected", "unconfirmed", "confirmed", "reconfirmed", "arrived", "ready", "noShow"]) {
+    for (const tone of ["expected", "unconfirmed", "reminderFailed", "confirmed", "reconfirmed", "arrived", "ready", "noShow"]) {
       expect(rows.map((r) => r.tone), tone).toContain(tone);
     }
     // Dogs that leave the stack really are absent.

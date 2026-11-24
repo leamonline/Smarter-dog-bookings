@@ -77,6 +77,29 @@
      "confirmationChannel": "none"
     },
     {
+     "id": "reminder-failed",
+     "slot": "11:00",
+     "status": "Booked",
+     "service": "bath-and-brush",
+     "reminderFailed": true
+    },
+    {
+     "id": "reminder-failed-but-confirmed",
+     "slot": "11:30",
+     "status": "Booked",
+     "service": "bath-and-brush",
+     "reminderState": "confirmed",
+     "reminderFailed": true
+    },
+    {
+     "id": "reminder-failed-already-in",
+     "slot": "08:30",
+     "status": "Arrived",
+     "service": "bath-and-brush",
+     "checkedInAt": "2026-11-24T08:35:00.000Z",
+     "reminderFailed": true
+    },
+    {
      "id": "cancelled",
      "slot": "11:30",
      "status": "Cancelled",
@@ -133,6 +156,17 @@
      "time": "08:30",
      "subtitle": "Bath & Brush",
      "timing": "1 hr 20 min",
+     "urgent": false,
+     "readyOverdue": false,
+     "countdown": false,
+     "tone": "arrived",
+     "label": "Arrived"
+    },
+    {
+     "id": "reminder-failed-already-in",
+     "time": "08:30",
+     "subtitle": "Bath & Brush",
+     "timing": "1 hr 25 min",
      "urgent": false,
      "readyOverdue": false,
      "countdown": false,
@@ -204,6 +238,28 @@
      "countdown": false,
      "tone": "expected",
      "label": "Expected"
+    },
+    {
+     "id": "reminder-failed",
+     "time": "11:00",
+     "subtitle": "Bath & Brush",
+     "timing": null,
+     "urgent": false,
+     "readyOverdue": false,
+     "countdown": false,
+     "tone": "reminderFailed",
+     "label": "Reminder failed"
+    },
+    {
+     "id": "reminder-failed-but-confirmed",
+     "time": "11:30",
+     "subtitle": "Bath & Brush",
+     "timing": null,
+     "urgent": false,
+     "readyOverdue": false,
+     "countdown": false,
+     "tone": "confirmed",
+     "label": "Confirmed"
     },
     {
      "id": "no-show",
@@ -902,6 +958,13 @@
   },
   "unconfirmed": {
    "label": "Unconfirmed",
+   "tint": "#FFDDC9",
+   "ink": "#5C2408",
+   "meta": "#7A3410",
+   "edge": "#E0662B"
+  },
+  "reminderFailed": {
+   "label": "Reminder failed",
    "tint": "#FFDDC9",
    "ink": "#5C2408",
    "meta": "#7A3410",

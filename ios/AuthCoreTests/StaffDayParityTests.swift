@@ -17,6 +17,7 @@ final class StaffDayParityTests: XCTestCase {
         var reminderState: String?
         var confirmationChannel: String?
         var breed: String?
+        var reminderFailed: Bool?
     }
 
     private struct ExpectedRow: Decodable, Equatable {
@@ -91,6 +92,7 @@ final class StaffDayParityTests: XCTestCase {
             readyAt: fixture.readyAt,
             completedAt: fixture.completedAt,
             reminderState: fixture.reminderState ?? "none",
+            reminderFailed: fixture.reminderFailed ?? false,
             confirmationChannel: fixture.confirmationChannel,
             dogName: "",
             breed: fixture.breed ?? "",
