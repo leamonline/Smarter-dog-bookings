@@ -21,6 +21,8 @@ struct BookingRow: Decodable, Equatable, Sendable {
     var service: String?
     var status: String?
     var dog_id: String?
+    /// Shared by the dogs booked together for one visit. Cancelling one cancels them all.
+    var group_id: String? = nil
 }
 
 struct DogSummary: Identifiable, Equatable, Sendable {
@@ -44,6 +46,9 @@ struct UpcomingGroom: Identifiable, Equatable, Sendable {
     /// Plain words for the customer. The same words the dashboard uses.
     let statusText: String
     let isToday: Bool
+    /// Set when this visit can be cancelled online. The Cancel button is shown only where the app
+    /// is allowed to send (`CustomerHomeView`'s cancel client), never from this alone.
+    var cancelTarget: CancelTarget? = nil
 }
 
 struct HomeSnapshot: Equatable, Sendable {
@@ -90,8 +95,14 @@ enum HomeSelector {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
+    /// A date as `yyyy-MM-dd` in the given calendar.
+    static func isoDate(_ date: Date, in calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
     /// "2026-12-01" becomes "Tuesday 1 December". Anything unreadable is returned as given.
-    static func dateText(_ iso: String) -> String {
+    static func dateText(_ iso: String, withYear: Bool = false) -> String {
         let pieces = iso.split(separator: "-").compactMap { Int($0) }
         guard pieces.count == 3 else { return iso }
         var calendar = Calendar(identifier: .gregorian)
@@ -102,7 +113,7 @@ enum HomeSelector {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_GB")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "EEEE d MMMM"
+        formatter.dateFormat = withYear ? "EEEE d MMMM yyyy" : "EEEE d MMMM"
         return formatter.string(from: date)
     }
 
@@ -150,9 +161,24 @@ enum HomeSelector {
                     dateText: dateText(row.booking_date),
                     timeText: "Drop off \(timeText(row.slot))",
                     statusText: effectiveStatus(row.status),
-                    isToday: row.booking_date == today
+                    isToday: row.booking_date == today,
+                    cancelTarget: cancelTarget(for: row, in: bookings, names: names, now: now)
                 )
             }
+    }
+
+    /// The visit this row belongs to, when it can be cancelled online. Whether the salon allows
+    /// online cancellation is not read here: the server refuses with `SDC01` if it does not, and
+    /// the sheet then shows the website's words for that.
+    static func cancelTarget(for row: BookingRow, in bookings: [BookingRow], names: [String: String], now: Date) -> CancelTarget? {
+        let visit = BookingCancel.visit(of: row, in: bookings)
+        guard BookingCancel.canCancel(visit: visit, allowCancellations: nil, now: now) else { return nil }
+        let earliest = visit.map { timeText($0.slot) }.min() ?? timeText(row.slot)
+        return CancelTarget(
+            id: row.id,
+            dogNames: visit.map { $0.dog_id.flatMap { names[$0] } ?? "Your dog" },
+            whenText: "\(dateText(row.booking_date)) at \(earliest)"
+        )
     }
 
     /// The database treats a missing status as Booked (`booking_occupies_seat` does

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased — CI: browser tests run in the Playwright image
+
+- The two browser-test jobs (`pr-production-smoke` on pull requests, `e2e` on `main`) now run inside Microsoft's official Playwright image instead of installing Playwright's system libraries from Ubuntu's package mirror on every run. On 24 November that mirror slowed to about 65 kB/s for an hour and a half, and the install step took 33 minutes instead of under one. A small `playwright-version` job reads the locked Playwright version so the image always matches it, including after a Dependabot upgrade. The browser cache steps are gone, as the image carries the browsers. If the version job fails, the browser jobs fail too rather than being skipped (`src/security/playwrightContainerCi.test.ts`).
+
+## Unreleased — iPhone staff Today: two review fixes
+
+- The iPhone More tab's **Calendar** now opens the calendar even in a fresh browser tab. The staff website still lands on Today once per tab, except for a link marked `?calendar` (`src/routing/todayLanding.ts`).
+- At the largest text sizes a safety warning on a Today row wraps instead of being cut off.
+
+## Unreleased — iPhone app: staff Today (read only)
+
+- Staff who sign in to the iPhone app now land on **Today**: the day's dogs in appointment order with their status in words and the website's colours, safety warnings, and how long each dog has been where it is, exactly as the staff website's Today. Arrows move between days. Tap a dog for its details. A **More** tab opens the staff website for everything else. Nothing is changed from the phone yet. Plan phases S0 and S1 ([plan](docs/plans/active/2026-11-23-iphone-staff.md)).
+- The Swift copy is checked against the website's own engine on a governed list of days (`staff-day-parity.json`), so a website change cannot leave the phone saying something different without a test failing.
+
+## Unreleased — plan: the iPhone staff app
+
+- A plan for the iPhone app's staff side ([plan](docs/plans/active/2026-11-23-iphone-staff.md)), for the owner's approval before any code: native for the salon floor (Today, status moves, check-out, staff notifications), links to the website for the desk (calendar, bookings, customers, reports, settings), in phases that each reach TestFlight, with a go/no-go after the first two.
+
 ## Unreleased — flyer visual language, step 4: emails
 
 - The salon's emails (booking confirmed, cancelled, reminders, welcome) now arrive in the flyer's look: the blue and yellow stripe, the message on a white card on cream, a yellow "Book or manage online" button and the salon's address. The words are exactly as before, and a plain-text copy travels with every email for apps that prefer it. The staff waitlist alert gets the same look without the customer button. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).

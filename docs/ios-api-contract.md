@@ -90,6 +90,13 @@ Staff read and, today, write the salon tables directly under RLS (`is_staff()`).
 Wrapping those writes in RPCs is a later change. The app should call the same
 tables and RPCs the website uses, not a private shortcut.
 
+**Built in the app so far** ([iPhone staff plan](plans/active/2026-11-23-iphone-staff.md)):
+Today, read only (phase S1). It reads `bookings` for one London date with an
+embedded `notification_log(trigger_type,status,sent_at,created_at,human_id)` (the last two decide a live failed reminder, as on the website), the `dogs` and `humans`
+on them (`humans`: `id,name,surname,phone`; the phone is only for the detail
+sheet's Call button, which opens the iPhone's dialler), and that date's `day_settings`. Every other row below is reached from
+the More tab, which opens the staff website.
+
 | Screen | Call | Notes |
 |---|---|---|
 | Sign in | Auth email + password, then `staff_profiles` | `is_staff()` on anything sensitive |
@@ -206,11 +213,11 @@ to `api.sandbox.push.apple.com`. TestFlight and App Store builds talk to
 
 ## Gaps (not this change)
 
-- Sign-in is in the app: `customer-phone-on-file`, password and SMS code, `link_customer_to_human`, and `staff_profiles`. Customer Home reads the customer's own `dogs` and `bookings` (today onwards) under RLS. Booking, dog and contact edits, and `register-device-token` are not called yet.
+- Sign-in is in the app: `customer-phone-on-file`, password and SMS code, `link_customer_to_human`, and `staff_profiles`. Customer Home reads the customer's own `dogs` and `bookings` (today onwards) under RLS. The booking flow reads the availability calls and the customer's own `dogs`; its booking write, `create_customer_booking_group`, is sent only from the Debug-only live mode (`-liveBooking`), which refuses to run against anything but the staging project. That call is sent as a plain web request, not through the Supabase library, so its answer can be read by `BookingWire` against recorded real answers (a single reviewed exception, enforced by `src/security/iosProjectIsolation.test.ts`). Cancelling, `cancel_customer_booking`, is sent only from the same Debug-only live mode ("My bookings"), through the same single plain web request; its answer is read by `CancelWire`. Dog and contact edits and `register-device-token` are not called yet.
 - No messenger tables and no unified inbox beyond the website's WhatsApp / SMS / email thread.
 - No Square deposit charging.
 - Staff booking edits are still direct table writes under RLS.
-- A no-show does not automatically set `deposit_required`.
+- Since ADR 015, a customer's cancel on the appointment's own day is saved as a No-show, and two no-shows in 12 months set `deposit_required`. The app adds no rule for this.
 - Confirmations, cancellations and collection notices are not APNs.
 - Staff operational alerts stay on Web Push (`notify-staff`), not APNs.
 - The visit-policy commands stay off.

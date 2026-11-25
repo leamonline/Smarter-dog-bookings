@@ -187,7 +187,7 @@ export function BookingConfirmation({
         >
           <PawPrint size={13} aria-hidden="true" className="inline-block mr-1.5 align-[-2px]" />
           Heads up — this one&rsquo;s too close to the day to reschedule online.
-          You can still cancel from your dashboard before the appointment starts; late cancellations are recorded. For a different time, message us if anything changes.
+          You can still cancel from your dashboard before the appointment starts. Cancellations on the day are recorded as a no-show. For a different time, message us if anything changes.
         </p>
       ) : (
         (changeAppointmentText || changeDeadlineNote) && (

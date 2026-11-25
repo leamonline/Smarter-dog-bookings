@@ -41,6 +41,9 @@ struct WordmarkAccent: View {
 /// The hand-painted underline from the poster, under one word of a Poppins title.
 struct HighlightedWord: View {
     let text: String
+    /// How much of the underline is drawn, from 0 to 1, left to right. 1 everywhere except the booked
+    /// moment, which draws it in. The word itself is always fully there.
+    var drawn: CGFloat = 1
     @ScaledMetric(relativeTo: .largeTitle) private var stroke: CGFloat = 8
 
     var body: some View {
@@ -49,6 +52,9 @@ struct HighlightedWord: View {
                 Image("HighlightUnderline")
                     .resizable()
                     .frame(height: stroke)
+                    .mask(alignment: .leading) {
+                        Rectangle().scaleEffect(x: max(drawn, 0.001), y: 1, anchor: .leading)
+                    }
                     .offset(y: stroke * 0.35)
                     .accessibilityHidden(true)
             }

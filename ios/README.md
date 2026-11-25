@@ -88,6 +88,18 @@ If a TestFlight build must point somewhere else, set `SUPABASE_URL` and `SUPABAS
 
 The same config file also holds the public security-check key the website uses (Cloudflare Turnstile). That key is not a secret. Do not add the Turnstile **secret** key anywhere in the app.
 
+### Trying live booking on staging (Debug only)
+
+The booking screens normally show made-up data (`-sampleBooking`). To run the real flow against the **staging** project, signed in as the throwaway test customer, launch a Debug build with `-liveBooking`. It creates real bookings on staging and refuses to run against any other project, so a mistake in the configuration cannot point it at production. It does not exist in Release builds.
+
+1. Point the app at staging in `Config.local.xcconfig` (section 5). The staging project is `btjnxvgkpdbfrrqxvkfj`. Use its public URL and publishable key, never a service-role key.
+2. In Xcode choose Product, Scheme, Edit Scheme, Run, Arguments. Under **Arguments Passed On Launch** add `-liveBooking`. Under **Environment Variables** add `STAGING_TEST_EMAIL` and `STAGING_TEST_PASSWORD`. Those values stay in your local scheme and are never committed.
+3. The test customer is `ios-staging-test@example.com`. Set its password yourself in the staging dashboard (Authentication, Users) so it is not shared in chat.
+4. Run. A red banner reads "LIVE BOOKING · STAGING". Work through the flow to the summary and tap **Confirm booking**. A real booking is made on staging and the booked screen appears. If the customer is tagged as deposit-required, the booked screen says a deposit is due; the app takes no payment.
+5. To cancel, tap **My bookings** at the top right. Each upcoming visit that can be cancelled online (every dog in it still "Booked", and before drop-off) has a **Cancel** button. Pick a reason and tap **Confirm cancellation**. A cancel made on the appointment's own day is saved as a No-show for staff (ADR 015); the app shows no warning about that, by the owner's decision. Cancel is not shown anywhere outside this mode.
+
+To look at the booked screen without any network or sign-in, launch a Debug build with `-sampleBooked`. It shows the "You're booked." moment with made-up details, including a deposit line. Turn on Reduce Motion in Settings, Accessibility to check it appears without movement.
+
 ## 6. First TestFlight build with Xcode Cloud
 
 TestFlight is Apple’s app for installing a build that is not on the public App Store yet. Internal testing means only people on your developer team. Keep this build on internal testing. It signs people in and shows a read-only home. It does not book appointments yet, so it is not ready for outside testers.
@@ -151,8 +163,31 @@ One archive is enough to prove the pipeline. Apple includes a number of Xcode Cl
 - Before a password or a text, the same security check as the website has to finish. Sometimes it completes on its own. Sometimes it asks you to tick a box.
 - The salon team uses Staff sign in, with the email and password they already use on the dashboard.
 - Closing the app does not sign you out. Sign out does.
-- An approved customer sees a Home screen: a greeting, their coming-up grooms (today and later, soonest first) and their dogs. It only reads. If the lookup fails it says so and offers Try again, rather than saying nothing is booked. Staff still see their name and Owner or Staff.
+- An approved customer sees a Home screen: a greeting, their coming-up grooms (today and later, soonest first) and their dogs. It only reads. If the lookup fails it says so and offers Try again, rather than saying nothing is booked.
+- Staff see two tabs, **Today** and **More** (below).
 - A new customer who has finished Join the Pack but is not approved yet sees a waiting screen, with Check again and Sign out. They do not see the customer home.
+
+## Staff: Today and More
+
+Staff sign in as before and land on **Today**: the day's dogs in appointment order, the same list as Today on the staff website. It only reads. To check a dog in, mark it ready or take payment, use the website for now. **More** opens the staff website's calendar, messages, customers, dogs, reports and settings in the browser, and has Sign out.
+
+Each row shows the time, the dog, its status in words (Expected, Unconfirmed, Confirmed, Reconfirmed, Arrived, Ready, No-show) in the website's status colours, the most important safety warning with "+N" for the rest, breed · service · owner's surname, and how long the dog has been where it is ("in 30 min", "1 hr late", "No arrival", "waiting 50 min"). Collected dogs and cancellations leave the list; the header counts them.
+
+Two known differences from the website, both for a dog still at Booked: a reminder that failed to reach the owner shows **Expected** here and **Unconfirmed** on the website; an owner who confirmed by typing "yes" in WhatsApp shows **Unconfirmed** here and **Confirmed** on the website. The dog's details say to check the inbox before chasing. Money (the balance due and the day's takings) is not shown yet; it comes with check-out.
+
+### TestFlight checklist for staff Today
+
+Sign in as staff on a day with bookings, with the website's Today open beside it.
+
+1. The dogs are in the same order as the website, two dogs at one time in the same order too.
+2. Each dog's status word and colour match the website, apart from the two differences above.
+3. A dog with warnings shows the same first warning as the website, and the details list every warning.
+4. The timing line matches the website within a minute, and moves on by itself while the screen is open.
+5. Check a dog in on the website; pull down on Today. It moves to Arrived.
+6. Previous and next day arrows work; Back to today appears away from today. A closed day says Salon closed.
+7. Turn on Airplane Mode and pull down: the screen says it could not load the day, never that nothing is booked.
+8. With the largest text size (Settings → Accessibility → Display & Text Size → Larger Text), rows grow rather than cut off the warning, and VoiceOver reads time, dog, status, every warning, breed and service, owner and timing.
+9. Each More link opens the right staff page in the browser.
 
 ## What merging does not do
 
@@ -184,6 +219,7 @@ Merging does **not** put the iPhone app on the App Store. A TestFlight build is 
 - `SmarterDog.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` (repository root, not inside `ios/`) is the lockfile Xcode Cloud reads when it opens that project. It pins 2.55.7 and the packages that product links (resolved with Swift 6.4.3). Do not gitignore it. After adding a package, resolve again and commit the updated file.
 - `Config.xcconfig` holds the public Supabase URL and publishable key, the public Turnstile site key, and optionally includes the gitignored local file (`#include?`). The `INFOPLIST_KEY_` lines come after that include, so a local or Xcode Cloud override wins. Xcode still generates the rest of Info.plist. `ios/SmarterDog/Info.plist` is merged in and holds `UIAppFonts` plus three connection keys, `SupabaseURL`, `SupabasePublishableKey` and `TurnstileSiteKey`, written as `$(SUPABASE_URL)`-style references to `Config.xcconfig` (Xcode ignores custom `INFOPLIST_KEY_` entries, so they cannot live only in the project). The fonts are: `Poppins-Bold.ttf`, `Poppins-SemiBold.ttf`, `Poppins-Black.ttf` (hero titles) and `Caveat-Bold.ttf` (one handwritten line per hero screen), each as its own entry. The app also registers those files at launch. The SIL Open Font Licences are `ios/SmarterDog/Fonts/OFL.txt` (Poppins) and `OFL-Caveat.txt`, and both are copied into the app.
 - Flyer look (style board of 22 November 2026): every `PaperScreen` has the segmented stripe across the top (12pt on the sign-in hero, 7pt elsewhere). The checkerboard edge and dash ribbon are gone. Hero titles use `appHero()` (Poppins Black); one `HandwrittenLine` per hero screen (Caveat Bold). The four service mascots are the `Mascot*` image sets (the website's 250px artwork as PNG, sharp up to about 80pt), shown with `MascotCircle` on sign-in and on a coming-up groom card. Walk-in services have no mascot. `AccentDashStrip` is kept in the asset catalogue but unused.
+- Staff Today mirrors the website's day stack in `StaffDayStack.swift`, with its status colours in `StaffStatusPalette.swift` (the website's palette as data: the one deliberate home of hex in the app). `src/engine/staffDayParity.ios.test.ts` writes the website's own answers to `ios/AuthCoreTests/staff-day-parity.json` and fails when that file is stale; `StaffDayParityTests` checks the Swift copy against it. After a deliberate website change, run `UPDATE_IOS_STAFF_DAY_FIXTURES=1 npx vitest run src/engine/staffDayParity.ios.test.ts` and then `swift test --package-path ios`.
 - Colours are named sets in `ios/SmarterDog/Assets.xcassets/Colors`, each with a light and a dark appearance. Screens use those names (`Surface`, `TextPrimary`, `ActionYellow`, and the rest). Headings are Poppins Bold or SemiBold and scale with Dynamic Type. Button labels, body and captions stay on the system font. The yellow button is a capsule with ink text. The app is light only: `UIUserInterfaceStyle` is `Light` in `Info.plist`, so a phone in Dark Mode still shows the cream paper. The dark values in the colour sets are unused and kept for now. The home-screen icon has its own dark version, which is separate. Do not add Inter, and do not copy website teal, coral or neon green into this app.
 - Home-screen icon is `ios/SmarterDog/Assets.xcassets/AppIcon.appiconset`, a single 1024×1024 iOS set. `SmarterDog-iOS-Default-1024@1x.png` is opaque RGB (no alpha). `SmarterDog-iOS-Dark-1024@1x.png` may have a clear background. `AppIcon-Tinted.png` is the greyscale icon used when the home screen is tinted. Both the Debug and Release configurations set `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`, which is the name Xcode’s App Icon field reads. Do not copy `public/app/icons/icon-1024.png` over it.
 - `ios/SmarterDog/SmarterDog.icon` is the Icon Composer package (hand-written `icon.json`, plus `Assets/dog.svg`). `icon.json` names `dog.svg`. It is not a member of the Xcode target, so the Internal TestFlight Build does not compile it. The inspectors to check are in `ios/SmarterDog/ICON-COMPOSER-SETTINGS.md`. Apple’s documentation says adding a `.icon` replaces the asset-catalog icon and Xcode generates the older-OS fallbacks itself. Leave this file out of the target until Icon Composer has re-saved it.

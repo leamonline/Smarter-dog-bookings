@@ -208,8 +208,43 @@ final class BookingWizardTests: XCTestCase {
         try state.setAddOn("Flea Bath", on: true)
         XCTAssertEqual(state.summary, BookingSummary(
             dogName: "Luna", service: "Full Groom", addOns: ["Flea Bath"],
-            dateText: "Tuesday 1 December", timeText: "09:30"
+            dateText: "Tuesday 1 December", timeText: "09:30",
+            longDateText: "Tuesday 1 December 2026", timeLabel: "9:30am",
+            breed: "Cockapoo", sizeLabel: "Medium",
+            priceLine: "From £46+", totalText: "From £46"
         ))
+    }
+
+    func testTheSummaryReadsLikeTheWebsitesConfirmStep() throws {
+        let summary = try XCTUnwrap(finished().summary)
+        XCTAssertEqual(summary.whenText, "Tuesday 1 December 2026 at 9:30am")
+        XCTAssertEqual(summary.priceLine, "From £46+", "a from-priced service keeps its plus")
+        XCTAssertEqual(summary.totalText, "From £46", "the total has no plus, as on the website")
+    }
+
+    func testTheSummaryPriceFollowsTheDogsSizeAndAFixedPriceServiceHasNoPlus() throws {
+        let large = try XCTUnwrap(finished(dog("d9", "Moose", size: .large)).summary)
+        XCTAssertEqual(large.priceLine, "From £60+")
+        XCTAssertEqual(large.totalText, "From £60")
+        XCTAssertEqual(large.sizeLabel, "Large")
+
+        var state = BookingWizardState()
+        try state.choose(dog: dog("d2", "Pip", size: .small))
+        try state.choose(service: .puppyGroom)
+        try state.choose(date: "2026-12-01", window: window)
+        try state.choose(time: "09:30", offered: offered)
+        let puppy = try XCTUnwrap(state.summary)
+        XCTAssertEqual(puppy.priceLine, "From £38", "Puppy Groom is a fixed price")
+        XCTAssertEqual(puppy.totalText, "From £38")
+    }
+
+    func testTheSummaryCarriesNoClaimAboutWhenPaymentIsDue() throws {
+        // Whether a deposit is due is not known to the app yet, so the summary must not say
+        // "paid at pick-up" or anything like it.
+        let summary = try XCTUnwrap(finished().summary)
+        let everything = [summary.whenText, summary.priceLine ?? "", summary.totalText ?? "", summary.breed, summary.sizeLabel]
+        XCTAssertFalse(everything.joined(separator: " ").lowercased().contains("pick-up"))
+        XCTAssertFalse(everything.joined(separator: " ").lowercased().contains("deposit"))
     }
 
     func testTheRequestIsWhatWasChosenAndSendsNothing() throws {

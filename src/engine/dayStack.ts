@@ -165,9 +165,12 @@ function timingFor(entry: TodayFeedEntry, now: Date, isNextArrival: boolean): Ti
 /**
  * Where a Booked dog stands on confirmation, for the card's colour and word.
  *
+ *   reminderFailed  the reminder never reached the owner
+ *                (`applyReminderFailures`): they have not been told. Shown as
+ *                "Reminder failed" so staff know why it needs chasing (owner
+ *                decision, 24 November 2026).
  *   unconfirmed  we asked and have no answer: the reminder went out with no
- *                reply, or it never reached the owner (`applyReminderFailures`).
- *                Needs chasing, so it must not read as calm.
+ *                reply. Needs chasing, so it must not read as calm.
  *   confirmed    the owner answered: a recorded confirmation, or a typed reply
  *                found in the inbox (`applyChatConfirmations`).
  *   null         nothing to wait for yet (no reminder due, or staff booked it
@@ -177,14 +180,21 @@ function timingFor(entry: TodayFeedEntry, now: Date, isNextArrival: boolean): Ti
  * Read from the board token's entry, which has both folds applied, so the
  * card and the attention strip's "to confirm" count are one answer.
  */
-export type StackConfirmation = "unconfirmed" | "confirmed" | null;
+export type StackConfirmation = "unconfirmed" | "reminderFailed" | "confirmed" | null;
 
 export function stackConfirmation(entry: {
-  booking: { status?: string | null; reminderState?: string | null };
+  booking: { status?: string | null; reminderState?: string | null; reminderConfirmedAt?: string | null };
   isUnconfirmed?: boolean;
+  reminderFailed?: boolean;
   chatConfirmation?: unknown;
 } | null | undefined): StackConfirmation {
   if (!entry || entry.booking?.status !== BOOKING_STATUS.BOOKED) return null;
+  // A recorded confirmation always wins, exactly as applyReminderFailures
+  // refuses to mark a confirmed booking.
+  if (entry.reminderFailed && entry.isUnconfirmed
+      && entry.booking.reminderState !== "confirmed" && !entry.booking.reminderConfirmedAt) {
+    return "reminderFailed";
+  }
   if (entry.isUnconfirmed) return "unconfirmed";
   if (entry.booking.reminderState === "confirmed" || entry.chatConfirmation) return "confirmed";
   return null;

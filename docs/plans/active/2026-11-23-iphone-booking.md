@@ -240,14 +240,166 @@ Each is its own pull request, merged only after the full CI bar.
      "From £46+", exactly as the website renders it, under the website's sentence
      about starting prices. `service-prices.json` is generated from the website's
      own functions; refresh it with `UPDATE_IOS_SERVICE_PRICES=1`.
-   - **3b-3 onwards, next:** the date, time and summary screens, and the
-     availability read the date and time steps need.
+   - **3b-3, planned (decisions made with the owner):** the date step and the
+     app's first availability read. Time and summary screens follow.
+     - **Layout:** a week-by-week list, not the website's grid. Each day is one large
+       row ("Tuesday 1 December"). A closed or fully booked day stays in the list,
+       greyed, with the word "Closed" or "Fully booked", so the customer can see why
+       a day is missing. The salon is open Mon-Wed, so a seven-column grid would be
+       mostly closed cells with small targets.
+     - **Last minute is included.** A "Today — last minute" row sits above the list
+       only when staff have flagged a slot today, the server still offers it, and the
+       chosen dog can be placed in a flagged slot. The server's date is the date of
+       truth (`get_immediate_slots` returns it), never the phone's clock.
+     - **Reads, all existing customer-safe RPCs, no PII:** `get_open_days` (only dates
+       with a row come back, so a date with no row falls back to the weekday default,
+       Mon-Wed open), `get_occupancy_range` (date, slot, size), `get_blocked_seats` (in
+       14-day chunks, as the website does), `get_immediate_slots`. Pages of 28 days
+       with a "Show more weeks" row up to the customer's `bookingHorizonDays`; the
+       range RPCs refuse anything outside the booking window.
+     - **A day is "Fully booked" only if the engine says so.** It uses
+       `CapacityEngine.offeredSlots` for this dog's size, so no new rule is written.
+       If any read failed the page is marked incomplete and no day is called full: the
+       app shows it as open and the database stays the authority, the same as the
+       website. A failed read is shown as "couldn't load, try again", never as "no
+       dates".
+     - **Out of scope here:** the holiday-notice banner (`get_public_holiday_notices`;
+       a holiday closure already shows as Closed through `get_open_days`), several
+       dogs, and the time step.
+     - **Split into three small PRs:** (a) pure `BookingAvailability.swift`: row types,
+       lenient decoding, day states, the page and the last-minute row, with Linux
+       tests; (b) the Supabase reads behind `SalonBookingDataClient`, plus the
+       `-sampleBooking` stand-in; (c) the SwiftUI week list and its wiring.
+     - **3b-3a, built:** `BookingAvailability.swift` (pure, no network). It parses the
+       four RPC rows leniently, decides open, full or closed for a dog's size with
+       `CapacityEngine.offeredSlots`, groups days by week, pages the window 28 days at
+       a time and builds the "Today — last minute" offer. A read that failed is `nil`:
+       the page is incomplete, no day is called full, and the last-minute row still
+       shows for the database to judge. The wizard does not yet accept today's date
+       for a last-minute choice; that comes with the wiring in (c).
+     - **What cannot be proved from Linux:** the screens (Xcode) and the real RPC
+       row shapes and refusals. The shapes are read from the migrations and decoded
+       leniently, but a real call needs the staging project (question 1).
+   - **3b-3b, built:** the booking model reads the date step: rules and today's
+     flagged slots once, then one 28-day page at a time (page 0 reads from today for
+     the last-minute row; a complete page is remembered, one with a failed read is
+     read again; a slow answer for a page the customer has left is dropped). The four
+     reads are in `SupabaseBookingClient` (two-week pieces for blocked seats; a failed
+     read is `nil`, never empty). Changing dog drops a chosen date the new dog cannot
+     have. `-sampleBooking` carries a calendar with a full day, a closed day and two
+     last-minute slots. Still no screen.
+   - **3b-3c, built:** the date screen. A week-by-week list under the website's
+     sentence, with "Closed" and "Fully booked" days greyed and labelled, "Show earlier
+     dates" and "Show later dates" for the 28-day pages, a "Check again" note when a read
+     failed, and the "Today — last minute" row above the list. Choosing today lets the
+     customer continue and limits the time step to the flagged times
+     (`lastMinuteSlots`); choosing another day replaces it; a dog that no longer fits it
+     drops it. The time screen is next. Needs a Mac to see.
+   - **3b-4, built:** the time screen. On every visit it reads the chosen day alone
+     and offers the times the capacity engine allows for this dog, as "Morning drop-offs"
+     and "Afternoon drop-offs" in the website's "9:30am" style. A chosen time that has
+     gone is dropped; a failed read is "We couldn't check availability just now", never
+     "Fully booked"; for today it asks the server again which flagged times are still
+     open (the 30-minute cut-off moves on) and shows the website's "Today's last-minute
+     times have gone". Not ported: the owner's preferred and blocked times ("Your usual
+     time") and the waitlist link; the database still refuses a blocked time. Needs a
+     Mac to see.
+     Review fixes (Codex, on #1289): today stays the customer's last-minute choice even after
+     every flagged time has gone, so going back and forward never offers the ordinary grid;
+     Continue is shut until the chosen time has been checked again on this visit (a failed
+     read leaves it shut); a day staff closed after it was picked shows "We're closed on ..."
+     with no times (not when the open-days read failed, which proves nothing); and leaving the
+     time step for the date step drops the remembered pages so the list is read again.
+   - **3b-5, built:** the summary screen, laid out as the website's confirm step is:
+     "When" (for example "Tuesday 1 December 2026 at 9:30am"), the dog with its service and
+     starting price ("From £46+") and breed and size, then the total ("From £46", no plus).
+     No confirm button: the screen says booking is not switched on in this version.
+     **Left out on purpose until the deposit decision and one more read:** any claim about
+     when payment is due (the website says "paid at pick-up" only when no deposit applies,
+     which the app cannot know yet), the "Need to change your appointment?" note (it needs
+     `customer_change_deadline_preview` so it is not shown for a booking made inside the
+     change window) and the essential-messages notice (it belongs beside the confirm button
+     and needs a drift guard like the prices).
+   - **Confirm, step 1 of 3 (built): the logic, with no screen and no real send.**
+     `BookingConfirm.swift` and `BookingFlowModel.confirm()`. One tap is one request: a second
+     tap while one is out does nothing, Back does nothing while one is out or once a booking
+     exists, and with booking switched off (`canBook`, false by default) nothing can be sent. Just
+     before sending it reads the day again and stops with "that time's just been taken" if the
+     time has gone (an unreadable day does not stop it; the database decides). A refusal shows
+     the website's copy for its code, never the raw text. A reply that never arrives is an
+     **unknown outcome**: the app looks the booking up on the server and reports what is there,
+     never sends again by itself, and says "we couldn't tell, check your appointments" if it
+     finds nothing. A deposit is reported from the booking read back after it was made, never
+     from a pre-check. The three client calls have defaults that send nothing; the Supabase
+     versions, the Debug switch and test login, and the confirm and booked screens are the next
+     two steps.
+   - **Confirm, step 2 of 3 (built): the real send, the read-back and the Debug-only switch.**
+     `SupabaseBookingClient` sends `create_customer_booking_group` and reads the booking back.
+     The send is a plain web request, read by `BookingWire`, which is tested against the real
+     answers recorded from staging: 2xx with ids is created; a 4xx with a readable body is a
+     refusal carrying the database's own `details` code; anything else (a 5xx, an unreadable
+     body) is an unknown outcome; a connection that was never made is "not sent", safe to retry.
+     This is the one reviewed exception to the repo's "no `URLSession` in the app" guard, one
+     file and one call site, enforced by `src/security/iosProjectIsolation.test.ts`.
+     `-liveBooking` (Debug builds only) runs the real flow against staging as the throwaway test
+     customer, refuses any project but staging, and takes the email and password from local
+     scheme environment variables. See [ios/README.md](../../../ios/README.md). There is still
+     no confirm button.
+   - **Confirm, step 3 of 3 (built): the confirm button and the booked screen.** On the summary,
+     only when booking is switched on, a **Confirm booking** button (it reads "Booking…" while a
+     request is out and the model ignores a second tap). Every way it can end is shown: a refusal in
+     the website's wording, "that time's just been taken", "we couldn't reach the salon, so nothing
+     was booked" (safe to try again), and the unknown outcome ("we couldn't tell whether your booking
+     went through", with Check again and WhatsApp, and no way to send again). Back is shut while a
+     request is out and once a booking exists or might. A made booking shows `BookedView`: "You're
+     booked." with the yellow swash drawn in under "booked." (0.42s), a taped polaroid settling
+     (0.52s), "See you soon!" in Caveat and the mascot bouncing once (0.6s, from 0.26s), all off
+     under Reduce Motion; the details and any deposit line are plain text. The polaroid shows a paw
+     until dogs' photos are brought into the flow. **Done** starts a fresh booking (`startAnother`,
+     the only way out of a finished booking). `-sampleBooked` (Debug only) shows the booked screen
+     with made-up data. Still switched on nowhere except `-liveBooking` on staging.
+   - **Next:** try it end to end on staging in Xcode, then decide how and when to widen it
+     (a TestFlight build behind a flag, then the salon's own settings switch). Several dogs,
+     cancel and reschedule, the waitlist and the change-your-appointment note come after.
 4. **Confirm.** The one write, behind a debug flag, tried by the owner on the
    staging project (question 1).
 5. **Booked screen** and its motion.
 6. **Release.** Turn the confirm on for the internal TestFlight build, then
    widen.
-7. **Later slices.** Several dogs, cancel and reschedule, waitlist.
+7. **Later slices.** Several dogs, cancel and reschedule, waitlist. Order decided by the owner on
+   25 November 2026: **cancel first**, then several dogs, then reschedule (a reschedule of a
+   two-dog visit needs the grouped allocation, so it waits for several dogs).
+   - **Cancel, step 1 of 2 (models): built.** `ios/SmarterDog/BookingCancel.swift`, pure Swift,
+     tested on Linux. The reasons are the website's four (`BookingCard.jsx`), cleaned the same way
+     (markup removed, at most 500 characters). The receipt from `cancel_customer_booking` is checked
+     as the website checks it (`isValidCancellationRow`): it must name the booking asked about, and
+     its ids and count must agree; anything else is an unknown outcome, never "cancelled". Refusals
+     use the website's words by code (`SDC01`, `SDC02`, otherwise the general line). An unknown reply
+     is settled only by a fresh read: a row now reading Cancelled or No-show went through. Retrying
+     is safe because the server replays the original receipt, but only for the same reason, so a
+     retry must reuse it. Cancel is offered only when the server would accept it: online
+     cancellation not switched off, every booking in the visit exactly "Booked" (the server refuses
+     Reconfirmed and a row with no status, though the website still shows the button for them), and
+     before the earliest drop-off in London time. A visit is every booking sharing the target's
+     group on the same date, because the server cancels them together. The guard is
+     `src/security/iosBookingCancel.test.ts` (reasons, words, the 500 limit, the "Booked" rule and
+     the parameters, read from the website and the newest migration).
+   - **No-shows (ADR 015):** a cancel on the appointment's own London date is saved as a No-show by a
+     database trigger. The app adds no rule and shows no warning step (owner decision, 24 November).
+   - **Cancel, step 2 of 2 (screen and send): built, not yet seen on a screen.** `CancelFlowModel`
+     (Linux-tested: no send without a reason, one request per tap, a reason fixed after an unknown
+     outcome so a retry matches the server's replay, "Check again" reads and never sends) and
+     `CancelSheet` (the website's question and reasons, the visit's time, a note when several dogs
+     go together, the outcome in the website's words, "Keep my booking"). Home works out each
+     visit's `CancelTarget` from `group_id` and status. The Cancel button appears only where a cancel
+     client is given, which today is only "My bookings" inside the Debug-only `-liveBooking` mode, so
+     customer Home is unchanged. The send shares the booking send's one plain web request in
+     `SupabaseBookingClient`; `iosProjectIsolation.test.ts` now allows exactly these two RPC paths.
+     Whether the salon has switched online cancellation off is not read in the app: the server
+     refuses with `SDC01` and the sheet shows the website's words for it.
+   - **Next:** the owner books and cancels Test Pup on staging, once for a later day and once on the
+     day itself (which should show as No-show for staff), and checks the sheet in Xcode with large
+     text and VoiceOver.
 
 ## Testing
 
@@ -296,21 +448,71 @@ Decided by the owner on 23 November 2026:
 
 1. **First real writes go to a staging project**, not production. The app is
    pointed at it through `Config.local.xcconfig` (public URL and publishable key
-   only, never a service-role key). Needs: the staging project's URL and
-   publishable key from the owner, and a test customer and test dog on it.
+   only, never a service-role key). Staging is `btjnxvgkpdbfrrqxvkfj`. Its URL and
+   publishable key are read from the Supabase project, not typed from memory. A test
+   customer and dogs are seeded on it (see "Staging check, 24 November" below).
 2. **One dog first.** A customer with several dogs books them on the website
    until a later slice adds grouped allocation.
-3. **Deposits: undecided.** The website reads a per-customer `depositRequired`
-   flag from `current_customer_booking_rules`, the database stamps a reference,
-   amount and due date at insert, and the website reads the rows back and shows
-   bank instructions. The app cannot take payment. Options are to send
-   deposit-required customers to the website (recommended, and to do the same
-   when the flag cannot be read), or to show the instructions in the app. Until
-   decided, **the confirm step stays switched off** and everything before it is
-   built.
+3. **Deposits (decided 24 November): hold it and say so.** The database stamps a
+   deposit on any booking for a customer staff tagged as deposit-required (flat £10 per
+   dog, a reference and a due date), whatever route made the booking, and the booking is
+   held until paid. The app books exactly as the website does and then tells the
+   customer, on the booked screen, that a £10 deposit per dog is due and that the salon
+   will be in touch about paying. The app takes no payment and shows no bank details.
+   This replaces the earlier recommendation to send tagged customers to the website.
+   Because the database stamps it, the app does not need the per-customer flag before
+   booking: **after the insert it reads the booking back and reports the deposit from the
+   row (`deposit_required`), never from a pre-check**, so a flag that could not be read
+   cannot hide a deposit. The summary screen therefore still says nothing about payment
+   before the booking is made.
+
+4. **How the confirm button is switched on (decided 24 November): Debug builds only.**
+   A launch argument (`-liveBooking`) that exists only in Debug builds and is compiled out
+   of TestFlight and the App Store. Only the owner, running from Xcode against staging, can
+   reach it. Widening it later (a build setting, or a switch in the salon's settings) is a
+   separate change.
+5. **How the Debug build signs in on staging (decided 24 November): a Debug-only test
+   login** using the throwaway email-and-password customer seeded on staging, because
+   staging cannot send text-message codes. The email and password are read from Xcode
+   scheme environment variables set locally, never written to the repository, and the code
+   is compiled out of Release builds. A phone test number on staging can replace it later.
 
 Still open:
 
-4. **Funnel telemetry.** Send the website's funnel events from the app, or only
+6. **Funnel telemetry.** Send the website's funnel events from the app, or only
    denials via `log_booking_denial`?
-5. **Waitlist.** Link to the website when a day is full, or build it later?
+7. **Waitlist.** Link to the website when a day is full, or build it later?
+
+## Staging check, 24 November 2026
+
+Run against staging only (`btjnxvgkpdbfrrqxvkfj`), with a throwaway customer, using the
+app's own request encoder and decoders. Nothing was run against production.
+
+- **Staging was empty**: no customers, dogs, bookings, calendar settings or logins, and no
+  `salon_config` row, so settings such as the daily cap run on database defaults. All the
+  booking functions and the calendar, capacity, pregnancy and deposit gates exist.
+- **Seeded**: one approved test customer with a throwaway email-and-password login (a
+  phone login cannot be set up from here), a complete profile, and four dogs: a medium
+  one, a large one, a pregnant one and one with no confirmed size.
+- **Reads, all HTTP 200 and decoded by the app's own types**: `dogs` (a customer can read
+  `is_pregnant`, which settles that open question), `current_customer_booking_rules`
+  (booking horizon is **180 days** on staging, not 28), `get_open_days`,
+  `get_occupancy_range` (rows are `booking_date`, `slot` as "09:30", `size`),
+  `get_blocked_seats` and `get_immediate_slots`.
+- **A real booking** through `create_customer_booking_group` with the JSON the app builds
+  succeeded and returned the new id. Reading it back showed status "Booked", the size
+  stamped from the dog (never sent), `deposit_required` false and payment "Due at Pick-up".
+- **Refusals, each mapped by the app to the right reason and wording**: a pregnant dog
+  (`pregnant`), an unsized dog (SQLSTATE 22023, `dog_size_unconfirmed`), a closed day
+  (`calendar_closed`), a large dog in a middle slot (`large_dog_ineligible`), and a
+  customer whose profile lacks a surname, address or policy agreement
+  (`profile_incomplete`).
+- **One refusal has no stable code**: booking the same dog and slot twice comes back as a raw
+  duplicate-key error (SQLSTATE 23505, constraint `bookings_one_active_per_dog_slot`). The
+  app maps it from the message text to `double_booked`. That works today, but it is a
+  message match, and the database could give it a stable code like the others.
+- **Not covered**: signing in to the real app on staging (needs a test phone number with a
+  fixed code in the staging project's sign-in settings), the deposit path (the test
+  customer is not tagged), several dogs, and any production behaviour.
+- **Clean-up**: the test customer, dogs, login and one booking can be deleted from staging
+  whenever wanted. The throwaway password is kept only in the session scratchpad.

@@ -1,17 +1,46 @@
 import SwiftUI
 
-/// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. This slice has
-/// the first two steps (pick a dog, choose a service); the others arrive in the next ones, and
-/// nothing here can send a booking. It is reachable only from the Debug sample mode (`-sampleBooking`) for now,
-/// so no customer sees a half-built flow.
+/// The booking wizard's screens. Thin: they show `BookingFlowModel` and call it. Five steps (pick a dog,
+/// choose a service, pick a date, choose a time, check the summary), then, only when booking is switched
+/// on, a confirm button and the booked screen. Booking is off everywhere except the Debug-only live mode,
+/// which only runs against the staging project, so no customer can reach it yet.
 struct BookingFlowView: View {
     @State private var model: BookingFlowModel
 
-    init(client: SalonBookingDataClient? = SupabaseBookingClient.make()) {
-        _model = State(initialValue: BookingFlowModel(client: client))
+    /// `canBook` switches the confirm step on. It is false everywhere except the Debug-only live
+    /// booking mode, which only runs against the staging project.
+    init(client: SalonBookingDataClient? = SupabaseBookingClient.make(), canBook: Bool = false) {
+        _model = State(initialValue: BookingFlowModel(client: client, canBook: canBook))
     }
 
     var body: some View {
+        Group {
+            if let booked = model.bookedSummary {
+                BookedView(booked: booked) { model.startAnother() }
+            } else {
+                flow
+            }
+        }
+        .background(AppColor.surface.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await model.loadDogs() }
+        // The date step reads the calendar the first time it appears, not before.
+        .task(id: model.step) {
+            if model.step == .date {
+                if model.calendarState == .idle {
+                    await model.loadDateStep()
+                } else {
+                    // Coming back from the time step: the remembered pages were dropped, so this reads
+                    // the page again and shows any change staff have made since.
+                    await model.showDatePage(model.datePage)
+                }
+            }
+            // The time step reads the chosen day afresh every time it appears: a slot may have gone.
+            if model.step == .time { await model.loadTimes() }
+        }
+    }
+
+    private var flow: some View {
         VStack(spacing: 0) {
             BrandStripe()
                 .padding(.horizontal, AppSpace.s2)
@@ -29,9 +58,6 @@ struct BookingFlowView: View {
             .scrollBounceBehavior(.basedOnSize)
             footer
         }
-        .background(AppColor.surface.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .task { await model.loadDogs() }
     }
 
     // MARK: header
@@ -60,11 +86,12 @@ struct BookingFlowView: View {
             dogStep
         case .service:
             serviceStep
-        default:
-            Text("This step is coming next.")
-                .font(.body)
-                .foregroundStyle(AppColor.textSecondary)
-                .cardSurface()
+        case .date:
+            dateStep
+        case .time:
+            timeStep
+        case .summary:
+            summaryStep
         }
     }
 
@@ -129,6 +156,179 @@ struct BookingFlowView: View {
         }
     }
 
+    /// The date step: a list by week, not the website's grid. The salon is open Monday to Wednesday,
+    /// so a grid would be mostly closed cells with small targets. Closed and fully booked days stay
+    /// in the list, greyed and labelled, so the customer can see why a day is missing.
+    @ViewBuilder
+    private var dateStep: some View {
+        if model.calendarState != .loaded {
+            ProgressView()
+                .tint(AppColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Loading available days")
+        } else {
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                if let name = model.selectedDogName {
+                    Text("Pick a day for \(name). Days we can't take \(name) on are greyed out.")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if model.calendarIsIncomplete {
+                    ErrorNote(message: "We couldn't check every day, so one may turn out to be full when you pick a time.")
+                    Button("Check again") { Task { await model.showDatePage(model.datePage) } }
+                        .buttonStyle(BackButtonStyle())
+                }
+                if let offer = model.lastMinuteOffer {
+                    LastMinuteRow(offer: offer, selected: model.isLastMinuteSelected) {
+                        model.selectLastMinute()
+                    }
+                }
+                if model.canShowEarlierDates {
+                    Button("Show earlier dates") { Task { await model.showDatePage(model.datePage - 1) } }
+                        .buttonStyle(BackButtonStyle())
+                }
+                ForEach(model.dateWeeks) { week in
+                    SectionLabel(text: week.heading)
+                    ForEach(week.days) { day in
+                        DateChoiceRow(option: day, selected: model.selectedDate == day.date) {
+                            model.select(date: day.date)
+                        }
+                    }
+                }
+                if model.canShowLaterDates {
+                    Button("Show later dates") { Task { await model.showDatePage(model.datePage + 1) } }
+                        .buttonStyle(BackButtonStyle())
+                }
+            }
+        }
+    }
+
+    /// The time step: only the times this dog can be booked at, as morning and afternoon drop-offs.
+    @ViewBuilder
+    private var timeStep: some View {
+        switch model.timesState {
+        case .idle, .loading:
+            ProgressView()
+                .tint(AppColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Checking availability")
+        case .failed:
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                ErrorNote(message: "We couldn't check availability just now. Please try again.")
+                PrimaryButton(title: "Try again") { Task { await model.loadTimes() } }
+            }
+        case .closed:
+            VStack(alignment: .leading, spacing: AppSpace.s1) {
+                Text("We're closed on \(model.selectedDateText ?? "this day")")
+                    .appHeading(.title3)
+                    .foregroundStyle(AppColor.textPrimary)
+                Text("Go back and pick a different day.")
+                    .font(.body)
+                    .foregroundStyle(AppColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .cardSurface()
+        case .loaded:
+            if model.timeGroups.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpace.s1) {
+                    Text(model.timesAreLastMinute
+                         ? "Today's last-minute times have gone"
+                         : "Fully booked on \(model.selectedDateText ?? "this day")")
+                        .appHeading(.title3)
+                        .foregroundStyle(AppColor.textPrimary)
+                    Text(model.timesAreLastMinute
+                         ? "They do get snapped up fast — pick another day and we'll see you then."
+                         : "Try a different day.")
+                        .font(.body)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .cardSurface()
+            } else {
+                VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                    if let name = model.selectedDogName, let day = model.selectedDateText {
+                        Text("\(name) on \(day)")
+                            .font(.subheadline)
+                            .foregroundStyle(AppColor.textSecondary)
+                    }
+                    ForEach(model.timeGroups) { group in
+                        SectionLabel(text: group.title)
+                        ForEach(group.slots, id: \.self) { slot in
+                            TimeChoiceRow(slot: slot, selected: model.selectedTime == slot) {
+                                model.select(time: slot)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The last step, laid out as the website's confirm step is: when, the dog with its service and
+    /// starting price, then the total. There is no confirm button yet: booking is switched off in
+    /// the app until deposits are decided, and the screen says so rather than hide it. Left out on
+    /// purpose, for now: any claim about when payment is due, the change-your-appointment note
+    /// and the essential-messages notice. They need the deposit decision and one more server read.
+    @ViewBuilder
+    private var summaryStep: some View {
+        if let summary = model.summary {
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                Text("Here's what you've chosen.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppColor.textSecondary)
+                VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                    SummaryRow(label: "When", value: summary.whenText)
+                    SummaryRow(
+                        label: summary.dogName,
+                        value: [summary.service, summary.priceLine].compactMap { $0 }.joined(separator: " · "),
+                        detail: [summary.breed, summary.sizeLabel].filter { !$0.isEmpty }.joined(separator: " · ")
+                    )
+                    if let total = summary.totalText {
+                        SummaryRow(label: "Total", value: total)
+                    }
+                }
+                .cardSurface()
+                if model.canBook {
+                    confirmOutcome
+                } else {
+                    Text("Booking isn't switched on in this version of the app yet, so there is nothing to confirm.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        } else {
+            ErrorNote(message: "Something is missing from your choices. Go back and check each step.")
+        }
+    }
+
+    /// What came of the last tap on confirm, when it did not end in a booking. A refusal shows the
+    /// website's wording for its code, never the raw message.
+    @ViewBuilder
+    private var confirmOutcome: some View {
+        switch model.confirmState {
+        case .done(.refused(_, let message)):
+            ErrorNote(message: message)
+        case .done(.slotTaken):
+            ErrorNote(message: BookingConfirm.slotTakenMessage)
+        case .done(.incomplete):
+            ErrorNote(message: BookingConfirm.incompleteMessage)
+        case .done(.notSent):
+            ErrorNote(message: BookingConfirm.notSentMessage)
+        case .done(.unsure):
+            VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+                ErrorNote(message: BookingConfirm.unsureMessage)
+                Button("Check again") { Task { await model.checkOutcome() } }
+                    .buttonStyle(BackButtonStyle())
+                TextLink(title: "Message us on WhatsApp 🐾", destination: SalonLinks.whatsApp)
+                    .font(.footnote.weight(.semibold))
+            }
+        default:
+            EmptyView()
+        }
+    }
+
     /// The website's explanations, with a way to unblock: message the salon.
     @ViewBuilder
     private var blockedDogNotes: some View {
@@ -149,16 +349,31 @@ struct BookingFlowView: View {
 
     // MARK: footer
 
+    /// The confirm button exists only when booking is switched on, and not while we are unsure whether
+    /// a booking was made: then the way forward is to check, never to send again.
+    private var showsConfirm: Bool {
+        guard model.canBook else { return false }
+        if case .done(.unsure) = model.confirmState { return false }
+        return true
+    }
+
     private var footer: some View {
         HStack(spacing: AppSpace.s1_5) {
             if model.step != .dog {
                 Button("Back") { model.back() }
                     .buttonStyle(BackButtonStyle())
+                    .disabled(!model.canGoBack)
+                    .opacity(model.canGoBack ? 1 : 0.5)
             }
             if model.step != .summary {
                 PrimaryButton(title: "Continue") { model.next() }
                     .disabled(!model.canContinue)
                     .opacity(model.canContinue ? 1 : 0.5)
+            } else if showsConfirm {
+                // One tap is one request: the model ignores a second tap while one is out.
+                PrimaryButton(title: model.confirmButtonTitle) { Task { await model.confirm() } }
+                    .disabled(!model.canConfirm)
+                    .opacity(model.canConfirm ? 1 : 0.5)
             }
         }
         .padding(.horizontal, AppSpace.s2)
@@ -261,6 +476,145 @@ private struct ServiceChoiceRow: View {
     }
 }
 
+/// One day. A day that cannot be picked shows why ("Closed", "Fully booked") and cannot be tapped.
+private struct DateChoiceRow: View {
+    let option: DateOption
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                Text(option.title)
+                    .font(.headline)
+                    .foregroundStyle(option.isSelectable ? AppColor.textPrimary : AppColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                if let label = option.state.label {
+                    Text(label)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppColor.textSecondary)
+                } else if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+            .opacity(option.isSelectable ? 1 : 0.6)
+        }
+        .buttonStyle(.plain)
+        .disabled(!option.isSelectable)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(option.state.label ?? "")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// One line of the summary: a small label, the value, and optionally a quieter line under it.
+struct SummaryRow: View {
+    let label: String
+    let value: String
+    var detail: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpace.half) {
+            Text(label.uppercased())
+                .font(.caption.weight(.bold))
+                .tracking(1.2)
+                .foregroundStyle(AppColor.textSecondary)
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(AppColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(AppColor.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// One drop-off time, written as the website writes it ("9:30am").
+private struct TimeChoiceRow: View {
+    let slot: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                Image(systemName: "clock")
+                    .font(.title3)
+                    .foregroundStyle(AppColor.textSecondary)
+                    .accessibilityHidden(true)
+                Text(TimePlanner.label(slot))
+                    .font(.headline)
+                    .foregroundStyle(AppColor.textPrimary)
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// Today's staff-opened slots. Shown only when there is something to book, above the list.
+private struct LastMinuteRow: View {
+    let offer: LastMinuteOffer
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpace.s1_5) {
+                Image(systemName: "bolt.fill")
+                    .font(.title3)
+                    .foregroundStyle(AppColor.textPrimary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: AppSpace.half) {
+                    Text(offer.title)
+                        .font(.headline)
+                        .foregroundStyle(AppColor.textPrimary)
+                    Text("Times: " + offer.slots.map(HomeSelector.timeText).joined(separator: ", "))
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accentBlueDeep)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(minHeight: 44)
+            .cardSurface()
+            .choiceHighlight(selected: selected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
 private extension View {
     /// Style board decision 5: brand blue marks "selected". A ring, a tint (and the tick the
     /// row draws), never colour alone.
@@ -339,4 +693,8 @@ private struct PreviewBookingClient: SalonBookingDataClient {
             BookingDogRow(id: "4", name: "Bella", breed: "Poodle", size: "small", is_pregnant: true),
         ]
     }
+
+    func loadRules() async -> Data? { nil }
+    func loadCalendar(from: String, to: String) async -> SalonCalendar { .empty }
+    func loadLastMinuteSlots() async -> [ImmediateSlotRow] { [] }
 }

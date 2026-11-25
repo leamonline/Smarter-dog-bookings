@@ -7,19 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A100000000000000000000B3 /* DogsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A3 /* DogsModels.swift */; };
-		A100000000000000000000B2 /* DogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* DogsView.swift */; };
-		A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A1 /* SupabaseDogsClient.swift */; };
 		A10000000000000000000001 /* SmarterDogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* SmarterDogApp.swift */; };
 		A10000000000000000000002 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* SignInView.swift */; };
 		A10000000000000000000004 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* SupabaseConfig.swift */; };
-		A10000000000000000000050 /* AppColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* AppColor.swift */; };
-		A10000000000000000000051 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000061 /* AppFont.swift */; };
-		A10000000000000000000052 /* AppMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* AppMetrics.swift */; };
-		A10000000000000000000053 /* Decorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000063 /* Decorations.swift */; };
-		A10000000000000000000054 /* Poppins-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* Poppins-Bold.ttf */; };
-		A10000000000000000000055 /* Poppins-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000065 /* Poppins-SemiBold.ttf */; };
-		A10000000000000000000056 /* OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* OFL.txt */; };
 		A10000000000000000000006 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* Assets.xcassets */; };
 		A10000000000000000000007 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000042 /* Supabase */; };
 		A10000000000000000000008 /* PhoneNumber.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001C /* PhoneNumber.swift */; };
@@ -30,12 +20,22 @@
 		A1000000000000000000000D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* RootView.swift */; };
 		A1000000000000000000000E /* SessionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* SessionClient.swift */; };
 		A1000000000000000000000F /* SupabaseSessionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002D /* SupabaseSessionClient.swift */; };
+		A10000000000000000000050 /* AppColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* AppColor.swift */; };
+		A10000000000000000000051 /* AppFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000061 /* AppFont.swift */; };
+		A10000000000000000000052 /* AppMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* AppMetrics.swift */; };
+		A10000000000000000000053 /* Decorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000063 /* Decorations.swift */; };
+		A10000000000000000000054 /* Poppins-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* Poppins-Bold.ttf */; };
+		A10000000000000000000055 /* Poppins-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000065 /* Poppins-SemiBold.ttf */; };
+		A10000000000000000000056 /* OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* OFL.txt */; };
 		A10000000000000000000090 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000080 /* HomeModels.swift */; };
 		A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000081 /* SupabaseHomeClient.swift */; };
 		A10000000000000000000092 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* HomeView.swift */; };
 		A10000000000000000000093 /* Poppins-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000083 /* Poppins-Black.ttf */; };
 		A10000000000000000000094 /* Caveat-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000084 /* Caveat-Bold.ttf */; };
 		A10000000000000000000095 /* OFL-Caveat.txt in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000085 /* OFL-Caveat.txt */; };
+		A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A1 /* SupabaseDogsClient.swift */; };
+		A100000000000000000000B2 /* DogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A2 /* DogsView.swift */; };
+		A100000000000000000000B3 /* DogsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000A3 /* DogsModels.swift */; };
 		A10000000000000000000096 /* BookingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000086 /* BookingModels.swift */; };
 		A10000000000000000000097 /* CapacityEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000087 /* CapacityEngine.swift */; };
 		A10000000000000000000098 /* BookingWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000088 /* BookingWizard.swift */; };
@@ -43,23 +43,27 @@
 		A1000000000000000000009A /* SupabaseBookingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008A /* SupabaseBookingClient.swift */; };
 		A1000000000000000000009B /* BookingFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008B /* BookingFlowView.swift */; };
 		A1000000000000000000009C /* BookingServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008C /* BookingServices.swift */; };
+		A1000000000000000000009D /* BookingAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008D /* BookingAvailability.swift */; };
+		A1000000000000000000009E /* BookingTimes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008E /* BookingTimes.swift */; };
+		A1000000000000000000009F /* BookingConfirm.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008F /* BookingConfirm.swift */; };
+		C1A000000000000000000011 /* BookingCancel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000001 /* BookingCancel.swift */; };
+		C1A000000000000000000013 /* CancelSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000003 /* CancelSheet.swift */; };
+		C1A000000000000000000012 /* CancelFlowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000002 /* CancelFlowModel.swift */; };
+		5DA100000000000000000011 /* StaffDayStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000001 /* StaffDayStack.swift */; };
+		5DA100000000000000000012 /* StaffStatusPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000002 /* StaffStatusPalette.swift */; };
+		5DA100000000000000000013 /* StaffDayModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000003 /* StaffDayModels.swift */; };
+		5DA100000000000000000014 /* StaffTodayModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000004 /* StaffTodayModel.swift */; };
+		5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000005 /* SupabaseStaffDayClient.swift */; };
+		5DA100000000000000000016 /* StaffRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000006 /* StaffRootView.swift */; };
+		5DA100000000000000000017 /* StaffTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000007 /* StaffTodayView.swift */; };
+		A10000000000000000000101 /* LiveBookingDebug.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000100 /* LiveBookingDebug.swift */; };
+		A10000000000000000000103 /* BookedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000102 /* BookedView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A100000000000000000000A3 /* DogsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsModels.swift; sourceTree = "<group>"; };
-		A100000000000000000000A2 /* DogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsView.swift; sourceTree = "<group>"; };
-		A100000000000000000000A1 /* SupabaseDogsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseDogsClient.swift; sourceTree = "<group>"; };
 		A10000000000000000000011 /* SmarterDogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmarterDogApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
-		A10000000000000000000060 /* AppColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColor.swift; sourceTree = "<group>"; };
-		A10000000000000000000061 /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
-		A10000000000000000000062 /* AppMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetrics.swift; sourceTree = "<group>"; };
-		A10000000000000000000063 /* Decorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Decorations.swift; sourceTree = "<group>"; };
-		A10000000000000000000064 /* Poppins-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-Bold.ttf"; sourceTree = "<group>"; };
-		A10000000000000000000065 /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-SemiBold.ttf"; sourceTree = "<group>"; };
-		A10000000000000000000066 /* OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL.txt; sourceTree = "<group>"; };
-		A10000000000000000000067 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000016 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A10000000000000000000018 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000019 /* Config.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.local.xcconfig.example; sourceTree = "<group>"; };
@@ -73,12 +77,23 @@
 		A1000000000000000000002B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		A1000000000000000000002C /* SessionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionClient.swift; sourceTree = "<group>"; };
 		A1000000000000000000002D /* SupabaseSessionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseSessionClient.swift; sourceTree = "<group>"; };
+		A10000000000000000000060 /* AppColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColor.swift; sourceTree = "<group>"; };
+		A10000000000000000000061 /* AppFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFont.swift; sourceTree = "<group>"; };
+		A10000000000000000000062 /* AppMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppMetrics.swift; sourceTree = "<group>"; };
+		A10000000000000000000063 /* Decorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Decorations.swift; sourceTree = "<group>"; };
+		A10000000000000000000064 /* Poppins-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-Bold.ttf"; sourceTree = "<group>"; };
+		A10000000000000000000065 /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-SemiBold.ttf"; sourceTree = "<group>"; };
+		A10000000000000000000066 /* OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL.txt; sourceTree = "<group>"; };
+		A10000000000000000000067 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000080 /* HomeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000081 /* SupabaseHomeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseHomeClient.swift; sourceTree = "<group>"; };
 		A10000000000000000000082 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		A10000000000000000000083 /* Poppins-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Poppins-Black.ttf"; sourceTree = "<group>"; };
 		A10000000000000000000084 /* Caveat-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Caveat-Bold.ttf"; sourceTree = "<group>"; };
 		A10000000000000000000085 /* OFL-Caveat.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Caveat.txt"; sourceTree = "<group>"; };
+		A100000000000000000000A1 /* SupabaseDogsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseDogsClient.swift; sourceTree = "<group>"; };
+		A100000000000000000000A2 /* DogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsView.swift; sourceTree = "<group>"; };
+		A100000000000000000000A3 /* DogsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DogsModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000086 /* BookingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingModels.swift; sourceTree = "<group>"; };
 		A10000000000000000000087 /* CapacityEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapacityEngine.swift; sourceTree = "<group>"; };
 		A10000000000000000000088 /* BookingWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingWizard.swift; sourceTree = "<group>"; };
@@ -86,6 +101,21 @@
 		A1000000000000000000008A /* SupabaseBookingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseBookingClient.swift; sourceTree = "<group>"; };
 		A1000000000000000000008B /* BookingFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingFlowView.swift; sourceTree = "<group>"; };
 		A1000000000000000000008C /* BookingServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingServices.swift; sourceTree = "<group>"; };
+		A1000000000000000000008D /* BookingAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingAvailability.swift; sourceTree = "<group>"; };
+		A1000000000000000000008E /* BookingTimes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingTimes.swift; sourceTree = "<group>"; };
+		A1000000000000000000008F /* BookingConfirm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingConfirm.swift; sourceTree = "<group>"; };
+		C1A000000000000000000001 /* BookingCancel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCancel.swift; sourceTree = "<group>"; };
+		C1A000000000000000000003 /* CancelSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelSheet.swift; sourceTree = "<group>"; };
+		C1A000000000000000000002 /* CancelFlowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelFlowModel.swift; sourceTree = "<group>"; };
+		5DA100000000000000000001 /* StaffDayStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffDayStack.swift; sourceTree = "<group>"; };
+		5DA100000000000000000002 /* StaffStatusPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffStatusPalette.swift; sourceTree = "<group>"; };
+		5DA100000000000000000003 /* StaffDayModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffDayModels.swift; sourceTree = "<group>"; };
+		5DA100000000000000000004 /* StaffTodayModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffTodayModel.swift; sourceTree = "<group>"; };
+		5DA100000000000000000005 /* SupabaseStaffDayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseStaffDayClient.swift; sourceTree = "<group>"; };
+		5DA100000000000000000006 /* StaffRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffRootView.swift; sourceTree = "<group>"; };
+		5DA100000000000000000007 /* StaffTodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffTodayView.swift; sourceTree = "<group>"; };
+		A10000000000000000000100 /* LiveBookingDebug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveBookingDebug.swift; sourceTree = "<group>"; };
+		A10000000000000000000102 /* BookedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookedView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -144,9 +174,24 @@
 				A1000000000000000000008A /* SupabaseBookingClient.swift */,
 				A1000000000000000000008B /* BookingFlowView.swift */,
 				A1000000000000000000008C /* BookingServices.swift */,
+				A1000000000000000000008D /* BookingAvailability.swift */,
+				A1000000000000000000008E /* BookingTimes.swift */,
+				A1000000000000000000008F /* BookingConfirm.swift */,
+				C1A000000000000000000001 /* BookingCancel.swift */,
+				C1A000000000000000000003 /* CancelSheet.swift */,
+				C1A000000000000000000002 /* CancelFlowModel.swift */,
+				A10000000000000000000100 /* LiveBookingDebug.swift */,
+				A10000000000000000000102 /* BookedView.swift */,
 				A10000000000000000000081 /* SupabaseHomeClient.swift */,
 				A10000000000000000000082 /* HomeView.swift */,
 				A100000000000000000000A3 /* DogsModels.swift */,
+				5DA100000000000000000001 /* StaffDayStack.swift */,
+				5DA100000000000000000002 /* StaffStatusPalette.swift */,
+				5DA100000000000000000003 /* StaffDayModels.swift */,
+				5DA100000000000000000004 /* StaffTodayModel.swift */,
+				5DA100000000000000000005 /* SupabaseStaffDayClient.swift */,
+				5DA100000000000000000006 /* StaffRootView.swift */,
+				5DA100000000000000000007 /* StaffTodayView.swift */,
 				A100000000000000000000A2 /* DogsView.swift */,
 				A100000000000000000000A1 /* SupabaseDogsClient.swift */,
 				A10000000000000000000067 /* Info.plist */,
@@ -154,6 +199,15 @@
 				A10000000000000000000070 /* Fonts */,
 			);
 			path = "ios/SmarterDog";
+			sourceTree = "<group>";
+		};
+		A10000000000000000000025 /* ios/Config */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000018 /* Config.xcconfig */,
+				A10000000000000000000019 /* Config.local.xcconfig.example */,
+			);
+			path = "ios/Config";
 			sourceTree = "<group>";
 		};
 		A10000000000000000000070 /* Fonts */ = {
@@ -167,15 +221,6 @@
 				A10000000000000000000085 /* OFL-Caveat.txt */,
 			);
 			path = Fonts;
-			sourceTree = "<group>";
-		};
-		A10000000000000000000025 /* ios/Config */ = {
-			isa = PBXGroup;
-			children = (
-				A10000000000000000000018 /* Config.xcconfig */,
-				A10000000000000000000019 /* Config.local.xcconfig.example */,
-			);
-			path = "ios/Config";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -275,9 +320,24 @@
 				A1000000000000000000009A /* SupabaseBookingClient.swift in Sources */,
 				A1000000000000000000009B /* BookingFlowView.swift in Sources */,
 				A1000000000000000000009C /* BookingServices.swift in Sources */,
+				A1000000000000000000009D /* BookingAvailability.swift in Sources */,
+				A1000000000000000000009E /* BookingTimes.swift in Sources */,
+				A1000000000000000000009F /* BookingConfirm.swift in Sources */,
+				C1A000000000000000000011 /* BookingCancel.swift in Sources */,
+				C1A000000000000000000013 /* CancelSheet.swift in Sources */,
+				C1A000000000000000000012 /* CancelFlowModel.swift in Sources */,
+				A10000000000000000000101 /* LiveBookingDebug.swift in Sources */,
+				A10000000000000000000103 /* BookedView.swift in Sources */,
 				A10000000000000000000091 /* SupabaseHomeClient.swift in Sources */,
 				A10000000000000000000092 /* HomeView.swift in Sources */,
 				A100000000000000000000B3 /* DogsModels.swift in Sources */,
+				5DA100000000000000000011 /* StaffDayStack.swift in Sources */,
+				5DA100000000000000000012 /* StaffStatusPalette.swift in Sources */,
+				5DA100000000000000000013 /* StaffDayModels.swift in Sources */,
+				5DA100000000000000000014 /* StaffTodayModel.swift in Sources */,
+				5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */,
+				5DA100000000000000000016 /* StaffRootView.swift in Sources */,
+				5DA100000000000000000017 /* StaffTodayView.swift in Sources */,
 				A100000000000000000000B2 /* DogsView.swift in Sources */,
 				A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */,
 				A10000000000000000000004 /* SupabaseConfig.swift in Sources */,
