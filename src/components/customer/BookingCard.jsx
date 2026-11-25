@@ -10,6 +10,7 @@ import { ArrowRight, CalendarClock, PawPrint, RefreshCw, Scissors, X } from "luc
 import { groupUpcomingBookings } from "./groupUpcomingBookings";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 import { Input, Select } from "../ui/index.js";
+import { BOOKING_STATUS } from "../../constants/salon";
 
 /**
  * Upcoming appointments, grouped by the existing customer command boundary.
@@ -100,7 +101,7 @@ export function BookingCard(props) {
   ));
 }
 
-function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext, nextSlot, nextSlotDogName, onChooseSlot }) {
+function AppointmentCard({ upcomingBookings, visitBookings, bookings, dogs, onBook, onBookAgain, onBookingChanged, isNext, nextSlot, nextSlotDogName, onChooseSlot }) {
   const navigate = useNavigate();
   const { cancelBooking } = useCustomerBookingActions();
   const [confirmingReschedule, setConfirmingReschedule] = useState(false);
@@ -119,6 +120,19 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
   const [cancellationCommitted, setCancellationCommitted] = useState(false);
 
   const next = bookings[0];
+  // cancel_customer_booking cancels only a visit whose bookings are all exactly
+  // Booked; a Reconfirmed, arrived or no-show visit is refused (SDC03). The server
+  // counts every row in the visit, including a dog staff have already cancelled,
+  // which this card does not show, so the check also reads `visitBookings` (the
+  // customer's rows before Cancelled ones are dropped) when the caller passes it.
+  // Offer Cancel only when the server would accept it, as the iPhone app does.
+  const sameVisit = (booking) =>
+    next?.groupId
+      ? booking.groupId === next.groupId && booking.bookingDate === next.bookingDate
+      : booking.id === next?.id;
+  const visitRows = [...bookings, ...(visitBookings ?? []).filter(sameVisit)];
+  const canCancelOnline =
+    bookings.length > 0 && visitRows.every((booking) => booking.status === BOOKING_STATUS.BOOKED);
   const dogName = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" })
     .format(bookings.map((booking) => booking.dog?.name || "your dog"));
   const requiresStaffApproval = upcomingBookings.some((booking) => {
@@ -297,15 +311,17 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
               <RefreshCw size={14} aria-hidden="true" />
               {requiresStaffApproval ? "Request a change" : "Reschedule"}
             </button>
-            <button
-              type="button"
-              className="portal-booking-action portal-booking-action--danger"
-              onClick={startCancel}
-              disabled={saving}
-            >
-              <X size={14} aria-hidden="true" />
-              Cancel
-            </button>
+            {canCancelOnline && (
+              <button
+                type="button"
+                className="portal-booking-action portal-booking-action--danger"
+                onClick={startCancel}
+                disabled={saving}
+              >
+                <X size={14} aria-hidden="true" />
+                Cancel
+              </button>
+            )}
           </div>
         )}
 

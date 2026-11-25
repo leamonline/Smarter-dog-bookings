@@ -358,6 +358,7 @@ export function CustomerDashboard({ humanRecord, onSignOut }) {
           {/* Booking card — single source of truth for the next-action block. */}
           <BookingCard
             upcomingBookings={upcomingBookings}
+            visitBookings={bookings}
             dogs={dogs}
             dataLoaded={loaded.bookings}
             onBook={handleBook}
