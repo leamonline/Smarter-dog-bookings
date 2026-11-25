@@ -63,7 +63,7 @@ describe("iPhone cancel mirrors the website and the database", () => {
     expect(sql).toContain("count(*) filter (where b.status = 'Booked')");
     expect(swift).toContain("visit.allSatisfy({ $0.status == BookingStatusName.booked })");
     // The website follows the same rule, so neither offers a button the server refuses.
-    expect(card).toContain("bookings.every((booking) => booking.status === BOOKING_STATUS.BOOKED)");
+    expect(card).toContain("visitRows.every((booking) => booking.status === BOOKING_STATUS.BOOKED)");
   });
 
   it("sends the same parameters the database takes", () => {
