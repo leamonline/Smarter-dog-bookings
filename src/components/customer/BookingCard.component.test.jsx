@@ -32,6 +32,7 @@ const booking = {
   bookingDate: "2099-06-15",
   slot: "09:00",
   service: "full-groom",
+  status: "Booked",
   dog: { name: "Alfie" },
 };
 
@@ -295,5 +296,30 @@ describe("upcoming appointment visibility", () => {
     expect(deposit).toHaveTextContent("For Mabel");
     expect(deposit).toHaveTextContent("SDG-TEST");
     expect(deposit).toHaveTextContent("15");
+  });
+});
+
+describe("Cancel is offered only when the server would accept it", () => {
+  const sibling = { ...booking, id: "booking-2", dog: { name: "Mabel" }, slot: "09:30" };
+
+  it("hides Cancel for a Reconfirmed booking but keeps Reschedule", () => {
+    renderCard(undefined, [{ ...booking, status: "Reconfirmed" }]);
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reschedule" })).toBeInTheDocument();
+  });
+
+  it("hides Cancel when any dog in the visit is no longer just Booked", () => {
+    renderCard(undefined, [booking, { ...sibling, status: "Reconfirmed" }]);
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it.each(["Arrived", "Ready for collection", "No-show"])("hides Cancel for a %s booking", (status) => {
+    renderCard(undefined, [{ ...booking, status }]);
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it("keeps Cancel for a visit that is all Booked", () => {
+    renderCard(undefined, [booking, sibling]);
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 });

@@ -379,7 +379,8 @@ Each is its own pull request, merged only after the full CI bar.
      is safe because the server replays the original receipt, but only for the same reason, so a
      retry must reuse it. Cancel is offered only when the server would accept it: online
      cancellation not switched off, every booking in the visit exactly "Booked" (the server refuses
-     Reconfirmed and a row with no status, though the website still shows the button for them), and
+     Reconfirmed and every later status; since 25 November 2026 the website hides the button for
+     them too), and
      before the earliest drop-off in London time. A visit is every booking sharing the target's
      group on the same date, because the server cancels them together. The guard is
      `src/security/iosBookingCancel.test.ts` (reasons, words, the 500 limit, the "Booked" rule and

@@ -10,6 +10,7 @@ import { ArrowRight, CalendarClock, PawPrint, RefreshCw, Scissors, X } from "luc
 import { groupUpcomingBookings } from "./groupUpcomingBookings";
 import { SERVICE_LABELS, formatSlot, formatDate } from "./dashboardConstants.js";
 import { Input, Select } from "../ui/index.js";
+import { BOOKING_STATUS } from "../../constants/salon";
 
 /**
  * Upcoming appointments, grouped by the existing customer command boundary.
@@ -119,6 +120,11 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
   const [cancellationCommitted, setCancellationCommitted] = useState(false);
 
   const next = bookings[0];
+  // cancel_customer_booking cancels only a visit whose bookings are all exactly
+  // Booked; a Reconfirmed, checked-in or no-show visit is refused (SDC03). Offer
+  // Cancel only when the server would accept it. The iPhone app follows the same rule.
+  const canCancelOnline =
+    bookings.length > 0 && bookings.every((booking) => booking.status === BOOKING_STATUS.BOOKED);
   const dogName = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" })
     .format(bookings.map((booking) => booking.dog?.name || "your dog"));
   const requiresStaffApproval = upcomingBookings.some((booking) => {
@@ -297,15 +303,17 @@ function AppointmentCard({ upcomingBookings, bookings, dogs, onBook, onBookAgain
               <RefreshCw size={14} aria-hidden="true" />
               {requiresStaffApproval ? "Request a change" : "Reschedule"}
             </button>
-            <button
-              type="button"
-              className="portal-booking-action portal-booking-action--danger"
-              onClick={startCancel}
-              disabled={saving}
-            >
-              <X size={14} aria-hidden="true" />
-              Cancel
-            </button>
+            {canCancelOnline && (
+              <button
+                type="button"
+                className="portal-booking-action portal-booking-action--danger"
+                onClick={startCancel}
+                disabled={saving}
+              >
+                <X size={14} aria-hidden="true" />
+                Cancel
+              </button>
+            )}
           </div>
         )}
 
