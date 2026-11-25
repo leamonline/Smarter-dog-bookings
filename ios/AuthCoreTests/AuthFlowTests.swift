@@ -25,7 +25,7 @@ final class AuthFlowTests: XCTestCase {
         XCTAssertEqual(PhoneNumber.nationalDisplay(from: "+447700900123"), "07700 900123")
     }
 
-    func testPhoneDigitsForTelLinksMatchesTheWebsite() {
+    func testPhoneDigitsForTelLinksMatchesTheWebsite() async {
         XCTAssertEqual(PhoneNumber.normalisePhoneDigits("07700 900123"), "447700900123")
         XCTAssertEqual(PhoneNumber.normalisePhoneDigits("+44 (0)7700 900123"), "447700900123")
         XCTAssertEqual(PhoneNumber.normalisePhoneDigits("00447700900123"), "447700900123")
