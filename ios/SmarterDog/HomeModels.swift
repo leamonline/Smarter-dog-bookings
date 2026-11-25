@@ -21,6 +21,8 @@ struct BookingRow: Decodable, Equatable, Sendable {
     var service: String?
     var status: String?
     var dog_id: String?
+    /// Shared by the dogs booked together for one visit. Cancelling one cancels them all.
+    var group_id: String? = nil
 }
 
 struct DogSummary: Identifiable, Equatable, Sendable {

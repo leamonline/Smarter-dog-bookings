@@ -366,7 +366,31 @@ Each is its own pull request, merged only after the full CI bar.
 5. **Booked screen** and its motion.
 6. **Release.** Turn the confirm on for the internal TestFlight build, then
    widen.
-7. **Later slices.** Several dogs, cancel and reschedule, waitlist.
+7. **Later slices.** Several dogs, cancel and reschedule, waitlist. Order decided by the owner on
+   25 November 2026: **cancel first**, then several dogs, then reschedule (a reschedule of a
+   two-dog visit needs the grouped allocation, so it waits for several dogs).
+   - **Cancel, step 1 of 2 (models): built.** `ios/SmarterDog/BookingCancel.swift`, pure Swift,
+     tested on Linux. The reasons are the website's four (`BookingCard.jsx`), cleaned the same way
+     (markup removed, at most 500 characters). The receipt from `cancel_customer_booking` is checked
+     as the website checks it (`isValidCancellationRow`): it must name the booking asked about, and
+     its ids and count must agree; anything else is an unknown outcome, never "cancelled". Refusals
+     use the website's words by code (`SDC01`, `SDC02`, otherwise the general line). An unknown reply
+     is settled only by a fresh read: a row now reading Cancelled or No-show went through. Retrying
+     is safe because the server replays the original receipt, but only for the same reason, so a
+     retry must reuse it. Cancel is offered only when the server would accept it: online
+     cancellation not switched off, every booking in the visit exactly "Booked" (the server refuses
+     Reconfirmed and a row with no status, though the website still shows the button for them), and
+     before the earliest drop-off in London time. A visit is every booking sharing the target's
+     group on the same date, because the server cancels them together. The guard is
+     `src/security/iosBookingCancel.test.ts` (reasons, words, the 500 limit, the "Booked" rule and
+     the parameters, read from the website and the newest migration).
+   - **No-shows (ADR 015):** a cancel on the appointment's own London date is saved as a No-show by a
+     database trigger. The app adds no rule and shows no warning step (owner decision, 24 November).
+   - **Cancel, step 2 of 2 (next):** the Cancel action on Home, the confirm sheet naming every dog in
+     the visit, the send as a plain web request behind the Debug-only staging switch (widening the
+     reviewed exception in `iosProjectIsolation.test.ts` to this one call), Home reading `group_id`,
+     and the outcome messages. Then the owner books and cancels Test Pup on staging, once on an
+     earlier day and once on the day itself (which should show as No-show for staff).
 
 ## Testing
 
