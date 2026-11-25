@@ -366,7 +366,40 @@ Each is its own pull request, merged only after the full CI bar.
 5. **Booked screen** and its motion.
 6. **Release.** Turn the confirm on for the internal TestFlight build, then
    widen.
-7. **Later slices.** Several dogs, cancel and reschedule, waitlist.
+7. **Later slices.** Several dogs, cancel and reschedule, waitlist. Order decided by the owner on
+   25 November 2026: **cancel first**, then several dogs, then reschedule (a reschedule of a
+   two-dog visit needs the grouped allocation, so it waits for several dogs).
+   - **Cancel, step 1 of 2 (models): built.** `ios/SmarterDog/BookingCancel.swift`, pure Swift,
+     tested on Linux. The reasons are the website's four (`BookingCard.jsx`), cleaned the same way
+     (markup removed, at most 500 characters). The receipt from `cancel_customer_booking` is checked
+     as the website checks it (`isValidCancellationRow`): it must name the booking asked about, and
+     its ids and count must agree; anything else is an unknown outcome, never "cancelled". Refusals
+     use the website's words by code (`SDC01`, `SDC02`, otherwise the general line). An unknown reply
+     is settled only by a fresh read: a row now reading Cancelled or No-show went through. Retrying
+     is safe because the server replays the original receipt, but only for the same reason, so a
+     retry must reuse it. Cancel is offered only when the server would accept it: online
+     cancellation not switched off, every booking in the visit exactly "Booked" (the server refuses
+     Reconfirmed and a row with no status, though the website still shows the button for them), and
+     before the earliest drop-off in London time. A visit is every booking sharing the target's
+     group on the same date, because the server cancels them together. The guard is
+     `src/security/iosBookingCancel.test.ts` (reasons, words, the 500 limit, the "Booked" rule and
+     the parameters, read from the website and the newest migration).
+   - **No-shows (ADR 015):** a cancel on the appointment's own London date is saved as a No-show by a
+     database trigger. The app adds no rule and shows no warning step (owner decision, 24 November).
+   - **Cancel, step 2 of 2 (screen and send): built, not yet seen on a screen.** `CancelFlowModel`
+     (Linux-tested: no send without a reason, one request per tap, a reason fixed after an unknown
+     outcome so a retry matches the server's replay, "Check again" reads and never sends) and
+     `CancelSheet` (the website's question and reasons, the visit's time, a note when several dogs
+     go together, the outcome in the website's words, "Keep my booking"). Home works out each
+     visit's `CancelTarget` from `group_id` and status. The Cancel button appears only where a cancel
+     client is given, which today is only "My bookings" inside the Debug-only `-liveBooking` mode, so
+     customer Home is unchanged. The send shares the booking send's one plain web request in
+     `SupabaseBookingClient`; `iosProjectIsolation.test.ts` now allows exactly these two RPC paths.
+     Whether the salon has switched online cancellation off is not read in the app: the server
+     refuses with `SDC01` and the sheet shows the website's words for it.
+   - **Next:** the owner books and cancels Test Pup on staging, once for a later day and once on the
+     day itself (which should show as No-show for staff), and checks the sheet in Xcode with large
+     text and VoiceOver.
 
 ## Testing
 

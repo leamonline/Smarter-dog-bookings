@@ -96,6 +96,7 @@ The booking screens normally show made-up data (`-sampleBooking`). To run the re
 2. In Xcode choose Product, Scheme, Edit Scheme, Run, Arguments. Under **Arguments Passed On Launch** add `-liveBooking`. Under **Environment Variables** add `STAGING_TEST_EMAIL` and `STAGING_TEST_PASSWORD`. Those values stay in your local scheme and are never committed.
 3. The test customer is `ios-staging-test@example.com`. Set its password yourself in the staging dashboard (Authentication, Users) so it is not shared in chat.
 4. Run. A red banner reads "LIVE BOOKING · STAGING". Work through the flow to the summary and tap **Confirm booking**. A real booking is made on staging and the booked screen appears. If the customer is tagged as deposit-required, the booked screen says a deposit is due; the app takes no payment.
+5. To cancel, tap **My bookings** at the top right. Each upcoming visit that can be cancelled online (every dog in it still "Booked", and before drop-off) has a **Cancel** button. Pick a reason and tap **Confirm cancellation**. A cancel made on the appointment's own day is saved as a No-show for staff (ADR 015); the app shows no warning about that, by the owner's decision. Cancel is not shown anywhere outside this mode.
 
 To look at the booked screen without any network or sign-in, launch a Debug build with `-sampleBooked`. It shows the "You're booked." moment with made-up details, including a deposit line. Turn on Reduce Motion in Settings, Accessibility to check it appears without movement.
 

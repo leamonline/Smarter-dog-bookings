@@ -169,17 +169,20 @@ describe("the Xcode project is the committed skeleton", () => {
     const swift = swiftFiles.map((file) => read(file)).join("\n");
     expect(swift).toContain("SupabaseClient(");
     // All network traffic goes through the Supabase library, with ONE reviewed exception: the
-    // booking send in SupabaseBookingClient.swift. It must read the database's own `details` code,
-    // which the pinned library's error type does not expose reliably across versions, so that one
-    // request goes through URLSession and its answer is parsed by `BookingWire`, which is tested
-    // against real recorded answers. The exception is one file and one call site; any other file,
-    // or a second use, fails here.
+    // two customer writes in SupabaseBookingClient.swift (making a booking and cancelling one).
+    // Each must read the database's own error fields, which the pinned library's error type does
+    // not expose reliably across versions, so they share one URLSession call site and their answers
+    // are parsed by `BookingWire` and `CancelWire`, which are tested in Linux CI. The exception is
+    // one file, one call site and exactly these two RPCs; any other file, use or path fails here.
     const withUrlSession = swiftFiles.filter((file) => read(file).includes("URLSession"));
     expect(withUrlSession.map((file) => file.split("/").pop())).toEqual(["SupabaseBookingClient.swift"]);
     const bookingClient = read(withUrlSession[0]);
     expect(bookingClient.match(/URLSession/g)).toHaveLength(1);
     expect(bookingClient).toContain("URLSession.shared.data(for: urlRequest)");
     expect(bookingClient).toContain("rest/v1/rpc/create_customer_booking_group");
+    expect(bookingClient).toContain("rest/v1/rpc/cancel_customer_booking");
+    const rpcPaths = [...bookingClient.matchAll(/"rest\/v1\/rpc\/([a-z_]+)"/g)].map((match) => match[1]);
+    expect(rpcPaths.sort()).toEqual(["cancel_customer_booking", "create_customer_booking_group"]);
     expect(swift).toContain('Text("Smarter Dog")');
     expect(swift).toContain("Continue");
     expect(swift).toContain("Staff sign in");
