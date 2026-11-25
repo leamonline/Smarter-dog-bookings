@@ -9,11 +9,12 @@ import Supabase
 ///   so a mistake in the configuration cannot point it at production.
 /// - The test customer's email and password come from environment variables set locally in the
 ///   Xcode scheme (`STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`), never from the repository.
-/// - Booking is switched on here and nowhere else.
+/// - Booking and cancelling are switched on here and nowhere else. "My bookings" lists the test
+///   customer's upcoming visits with a Cancel button (`UpcomingGroomsSection`).
 struct LiveBookingDebugView: View {
     private enum Phase {
         case signingIn
-        case ready(SupabaseBookingClient)
+        case ready(SupabaseBookingClient, SupabaseHomeClient)
         case blocked(String)
     }
 
@@ -31,16 +32,25 @@ struct LiveBookingDebugView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(AppColor.surface.ignoresSafeArea())
             .task { await signIn() }
-        case .ready(let client):
+        case .ready(let client, let home):
             VStack(spacing: 0) {
-                Text("LIVE BOOKING · STAGING · creates real bookings")
+                Text("LIVE BOOKING · STAGING · creates and cancels real bookings")
                     .font(.caption.weight(.heavy))
                     .tracking(0.8)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
                     .background(Color.red)
-                NavigationStack { BookingFlowView(client: client, canBook: true) }
+                NavigationStack {
+                    BookingFlowView(client: client, canBook: true)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                NavigationLink("My bookings") {
+                                    LiveBookingsDebugList(home: home, cancelClient: client)
+                                }
+                            }
+                        }
+                }
             }
         case .blocked(let reason):
             VStack(alignment: .leading, spacing: AppSpace.s1_5) {
@@ -75,10 +85,42 @@ struct LiveBookingDebugView: View {
         }
         do {
             _ = try await supabase.auth.signIn(email: email, password: password)
-            phase = .ready(SupabaseBookingClient(supabase: supabase))
+            phase = .ready(SupabaseBookingClient(supabase: supabase), SupabaseHomeClient(supabase: supabase))
         } catch {
             phase = .blocked("Signing in to staging failed. Check the email and password in the scheme's environment variables.")
         }
+    }
+}
+/// The test customer's upcoming visits on staging, each with Cancel when the server would accept it.
+private struct LiveBookingsDebugList: View {
+    @State private var model: HomeModel
+    let cancelClient: SalonCancelClient
+
+    init(home: SupabaseHomeClient, cancelClient: SalonCancelClient) {
+        _model = State(initialValue: HomeModel(client: home))
+        self.cancelClient = cancelClient
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppSpace.s2) {
+                switch model.state {
+                case .loading:
+                    ProgressView()
+                case .failed:
+                    ErrorNote(message: "We couldn't load your bookings. Pull down to try again.")
+                case .loaded(let snapshot):
+                    UpcomingGroomsSection(grooms: snapshot.upcoming, cancelClient: cancelClient) {
+                        Task { await model.load() }
+                    }
+                }
+            }
+            .padding(AppSpace.s2)
+        }
+        .background(AppColor.surface.ignoresSafeArea())
+        .navigationTitle("My bookings")
+        .refreshable { await model.load() }
+        .task { await model.load() }
     }
 }
 #endif
