@@ -51,6 +51,18 @@ final class BookingCancelTests: XCTestCase {
         XCTAssertEqual(CancelReason.text(choice: "Other", other: long)?.count, 500)
     }
 
+    func testTheLimitCountsCodePointsAsTheDatabaseDoes() {
+        // 🐕‍🦺 is one Swift character but three code points; PostgreSQL's char_length counts three.
+        let dogs = String(repeating: "🐕‍🦺", count: 200)
+        let sent = CancelReason.text(choice: "Other", other: dogs)
+        XCTAssertEqual(sent?.unicodeScalars.count, 498)
+        XCTAssertEqual(sent?.count, 166)
+        // Accents made of a letter and a combining mark count as two.
+        let accents = String(repeating: "e\u{0301}", count: 300)
+        XCTAssertEqual(CancelReason.text(choice: "Other", other: accents)?.unicodeScalars.count, 500)
+        XCTAssertEqual(CancelReason.fitting(String(repeating: "a", count: 499) + "🐕‍🦺"), String(repeating: "a", count: 499))
+    }
+
     func testTheRequestUsesTheDatabaseParameterNames() throws {
         let data = try JSONEncoder().encode(CancelRequest(p_booking_id: target, p_reason: "Dog unwell"))
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: String])
@@ -76,9 +88,23 @@ final class BookingCancelTests: XCTestCase {
         XCTAssertFalse(receipt(ids: [target, sibling], count: 1).isValid(for: target))
         XCTAssertFalse(receipt(ids: [target, "not-an-id"]).isValid(for: target))
         XCTAssertFalse(receipt(group: "not-an-id").isValid(for: target))
-        var noTime = receipt()
-        noTime.cancelled_at = " "
-        XCTAssertFalse(noTime.isValid(for: target))
+        for bad in [" ", "\n", "not-a-date", "2026-11-25", "2026-02-31T09:00:00+00:00", "2026-11-25T25:00:00Z", "2026-11-25T09:00:00+00:00 extra"] {
+            var noTime = receipt()
+            noTime.cancelled_at = bad
+            XCTAssertFalse(noTime.isValid(for: target), bad)
+        }
+    }
+
+    func testTheTimestampsPostgresSendsAreAccepted() {
+        for good in ["2026-11-25T09:00:00+00:00", "2026-11-25T09:00:00.123456+00:00", "2026-11-25T09:00:00Z",
+                     "2026-11-25 09:00:00.5+00", "2026-06-01T10:00:00.1+01:00"] {
+            XCTAssertTrue(CancelWire.isTimestamp(good), good)
+        }
+    }
+
+    func testAReceiptWithABadTimestampIsUnknownNotCancelled() {
+        let json = #"[{"target_booking_id":"\#(target)","booking_group_id":null,"cancelled_booking_ids":["\#(target)"],"cancelled_count":1,"cancelled_at":"not-a-date"}]"#
+        XCTAssertEqual(CancelWire.sendResult(status: 200, body: body(json), bookingId: target), .unknown)
     }
 
     // MARK: the wire

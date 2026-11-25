@@ -20,6 +20,8 @@ enum CancelReason {
     static let other = "Other"
     static let choices = ["Changed plans", "Dog unwell", "Found another date", other]
     /// The database refuses a reason longer than this (`cancellation_reason_must_be_1_to_500_characters`).
+    /// PostgreSQL's `char_length` counts Unicode code points, so that is what is counted here, not
+    /// the characters Swift sees: one joined emoji such as 🐕‍🦺 is one character but three code points.
     static let maxLength = 500
 
     /// The reason to send, cleaned as the website cleans it: "Other" takes the typed words, any
@@ -29,8 +31,23 @@ enum CancelReason {
         guard let choice, choices.contains(choice) else { return nil }
         let raw = choice == other ? typed.trimmingCharacters(in: .whitespacesAndNewlines) : choice
         let stripped = raw.replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
-        let cleaned = String(stripped.prefix(maxLength)).trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = fitting(stripped.trimmingCharacters(in: .whitespacesAndNewlines))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? nil : cleaned
+    }
+
+    /// The longest start of `text` the database accepts, cut only between whole characters so an
+    /// emoji is never split.
+    static func fitting(_ text: String) -> String {
+        var kept = ""
+        var codePoints = 0
+        for character in text {
+            let size = character.unicodeScalars.count
+            guard codePoints + size <= maxLength else { break }
+            kept.append(character)
+            codePoints += size
+        }
+        return kept
     }
 }
 
@@ -60,7 +77,7 @@ struct CancelReceipt: Decodable, Equatable, Sendable {
             && Set(ids.map { $0.lowercased() }).count == ids.count
             && ids.contains { $0.lowercased() == bookingId.lowercased() }
             && cancelled_count == ids.count
-            && !cancelled_at.trimmingCharacters(in: .whitespaces).isEmpty
+            && CancelWire.isTimestamp(cancelled_at)
     }
 }
 
@@ -96,6 +113,22 @@ enum CancelWire {
         default:
             return .unknown
         }
+    }
+
+    /// A PostgreSQL `timestamptz` as JSON sends it, for example "2026-11-25T09:00:00.123456+00:00".
+    /// Anything else means the receipt cannot be trusted (the website's check needs a parseable date too).
+    static func isTimestamp(_ text: String) -> Bool {
+        let pattern = #"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}(:?\d{2})?)$"#
+        guard text.range(of: pattern, options: .regularExpression) != nil else { return false }
+        // The shape is right; now check it is a real moment (no 31 February, no 25:00).
+        let digits = text.prefix(19).split(whereSeparator: { "-T :".contains($0) }).compactMap { Int($0) }
+        guard digits.count == 6 else { return false }
+        var parts = DateComponents()
+        (parts.year, parts.month, parts.day) = (digits[0], digits[1], digits[2])
+        (parts.hour, parts.minute, parts.second) = (digits[3], digits[4], digits[5])
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return parts.isValidDate(in: calendar)
     }
 
     static func isUUID(_ text: String) -> Bool {
