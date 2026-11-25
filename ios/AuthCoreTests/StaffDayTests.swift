@@ -57,9 +57,13 @@ final class StaffDayTests: XCTestCase {
         XCTAssertTrue(StaffHumanRow.select.contains("phone"))
     }
 
-    func testCallURLKeepsThePlusAndTheDigits() {
-        XCTAssertEqual(StaffDaySelector.callURL("07700 900123")?.absoluteString, "tel:07700900123")
-        XCTAssertEqual(StaffDaySelector.callURL(" +44 (0)7700-900123 ")?.absoluteString, "tel:+4407700900123")
+    func testCallURLNormalisesNumbersToE164() {
+        XCTAssertEqual(StaffDaySelector.callURL("07700 900123")?.absoluteString, "tel:+447700900123")
+        XCTAssertEqual(StaffDaySelector.callURL(" +44 (0)7700-900123 ")?.absoluteString, "tel:+447700900123")
+        XCTAssertEqual(StaffDaySelector.callURL("00447700900123")?.absoluteString, "tel:+447700900123")
+        XCTAssertEqual(StaffDaySelector.callURL("447700900123")?.absoluteString, "tel:+447700900123")
+        XCTAssertEqual(StaffDaySelector.callURL("+44 (0)20 7946 0958")?.absoluteString, "tel:+442079460958")
+        XCTAssertEqual(StaffDaySelector.callURL("+1 415 555 0100")?.absoluteString, "tel:+14155550100")
         XCTAssertNil(StaffDaySelector.callURL(""))
         XCTAssertNil(StaffDaySelector.callURL("n/a"))
         XCTAssertNil(StaffDaySelector.callURL("123"))
