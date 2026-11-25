@@ -243,12 +243,12 @@ enum StaffDaySelector {
     }
 
     /// A `tel:` link for the owner's number, or nil when there is no usable number.
-    /// Keeps a leading + and the digits; drops spaces, dashes and brackets.
+    /// Normalised to E.164 via `PhoneNumber.normalisePhoneDigits`, so
+    /// `+44 (0)7700 900123` dials `+447700900123`, not `+4407700900123`.
     static func callURL(_ phone: String) -> URL? {
-        let trimmed = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-        let digits = trimmed.filter(\.isNumber)
+        let digits = PhoneNumber.normalisePhoneDigits(phone)
         guard digits.count >= 7 else { return nil }
-        return URL(string: "tel:" + (trimmed.hasPrefix("+") ? "+" : "") + digits)
+        return URL(string: "tel:+\(digits)")
     }
 
     // MARK: - Dates
