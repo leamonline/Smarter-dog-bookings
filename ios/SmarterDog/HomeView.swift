@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Customer Home: the next grooms and the customer's dogs. Read-only for now.
+/// Customer Home: the next grooms and the customer's dogs. Read-only unless a cancel client is
+/// given, which only the Debug-only staging mode does (`LiveBookingDebugView`).
 /// Styled to the flyer style board: cream paper, white cards, a Poppins Black
 /// hero title with one yellow swash, one handwritten line, blue for "now".
 @MainActor
@@ -44,6 +45,9 @@ struct CustomerHomeView: View {
         self.auth = auth
         _model = State(initialValue: HomeModel(client: client))
     }
+
+    /// No cancel client: Cancel is not switched on outside the Debug-only staging mode.
+    private let cancelClient: SalonCancelClient? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -98,31 +102,10 @@ struct CustomerHomeView: View {
                 }
             }
         case .loaded(let snapshot):
-            upcoming(snapshot.upcoming)
-            dogs(snapshot.dogs)
-        }
-    }
-
-    private func upcoming(_ grooms: [UpcomingGroom]) -> some View {
-        VStack(alignment: .leading, spacing: AppSpace.s1_5) {
-            SectionLabel(text: "Coming up")
-            if grooms.isEmpty {
-                VStack(alignment: .leading, spacing: AppSpace.s1) {
-                    Text("Nothing booked yet.")
-                        .appHeading(.title3)
-                        .foregroundStyle(AppColor.textPrimary)
-                    Text("Booking from the app is coming. For now, book on the website.")
-                        .font(.body)
-                        .foregroundStyle(AppColor.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    TextLink(title: "Book on the website", destination: SalonLinks.book)
-                }
-                .cardSurface()
-            } else {
-                ForEach(grooms) { groom in
-                    GroomCard(groom: groom)
-                }
+            UpcomingGroomsSection(grooms: snapshot.upcoming, cancelClient: cancelClient) {
+                Task { await model.load() }
             }
+            dogs(snapshot.dogs)
         }
     }
 
@@ -152,19 +135,70 @@ struct CustomerHomeView: View {
     }
 }
 
-private struct GroomCard: View {
-    let groom: UpcomingGroom
+/// "Coming up": the next grooms, each with a Cancel button when a cancel client is given and the
+/// server would accept a cancel for that visit.
+struct UpcomingGroomsSection: View {
+    let grooms: [UpcomingGroom]
+    let cancelClient: SalonCancelClient?
+    /// Called when the cancel sheet closes, so the list can be read again from the server.
+    let onChanged: () -> Void
+    @State private var cancelling: CancelTarget?
 
     var body: some View {
-        HStack(alignment: .top, spacing: AppSpace.s1_5) {
-            if let mascot = ServiceMascot.assetName(forService: groom.service) {
-                MascotCircle(assetName: mascot)
+        VStack(alignment: .leading, spacing: AppSpace.s1_5) {
+            SectionLabel(text: "Coming up")
+            if grooms.isEmpty {
+                VStack(alignment: .leading, spacing: AppSpace.s1) {
+                    Text("Nothing booked yet.")
+                        .appHeading(.title3)
+                        .foregroundStyle(AppColor.textPrimary)
+                    Text("Booking from the app is coming. For now, book on the website.")
+                        .font(.body)
+                        .foregroundStyle(AppColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    TextLink(title: "Book on the website", destination: SalonLinks.book)
+                }
+                .cardSurface()
+            } else {
+                ForEach(grooms) { groom in
+                    GroomCard(groom: groom, onCancel: cancelAction(for: groom))
+                }
             }
-            details
+        }
+        .sheet(item: $cancelling, onDismiss: onChanged) { target in
+            CancelSheet(target: target, client: cancelClient)
+        }
+    }
+
+    private func cancelAction(for groom: UpcomingGroom) -> (() -> Void)? {
+        guard cancelClient != nil, let target = groom.cancelTarget else { return nil }
+        return { cancelling = target }
+    }
+}
+
+private struct GroomCard: View {
+    let groom: UpcomingGroom
+    var onCancel: (() -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppSpace.s1) {
+            HStack(alignment: .top, spacing: AppSpace.s1_5) {
+                if let mascot = ServiceMascot.assetName(forService: groom.service) {
+                    MascotCircle(assetName: mascot)
+                }
+                details
+            }
+            .accessibilityElement(children: .combine)
+            if let onCancel {
+                Button("Cancel", action: onCancel)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppColor.destructive)
+                    .frame(minHeight: 44, alignment: .leading)
+                    .accessibilityLabel("Cancel \(groom.dogName)'s appointment")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
-        .accessibilityElement(children: .combine)
     }
 
     private var details: some View {

@@ -386,11 +386,20 @@ Each is its own pull request, merged only after the full CI bar.
      the parameters, read from the website and the newest migration).
    - **No-shows (ADR 015):** a cancel on the appointment's own London date is saved as a No-show by a
      database trigger. The app adds no rule and shows no warning step (owner decision, 24 November).
-   - **Cancel, step 2 of 2 (next):** the Cancel action on Home, the confirm sheet naming every dog in
-     the visit, the send as a plain web request behind the Debug-only staging switch (widening the
-     reviewed exception in `iosProjectIsolation.test.ts` to this one call), Home reading `group_id`,
-     and the outcome messages. Then the owner books and cancels Test Pup on staging, once on an
-     earlier day and once on the day itself (which should show as No-show for staff).
+   - **Cancel, step 2 of 2 (screen and send): built, not yet seen on a screen.** `CancelFlowModel`
+     (Linux-tested: no send without a reason, one request per tap, a reason fixed after an unknown
+     outcome so a retry matches the server's replay, "Check again" reads and never sends) and
+     `CancelSheet` (the website's question and reasons, the visit's time, a note when several dogs
+     go together, the outcome in the website's words, "Keep my booking"). Home works out each
+     visit's `CancelTarget` from `group_id` and status. The Cancel button appears only where a cancel
+     client is given, which today is only "My bookings" inside the Debug-only `-liveBooking` mode, so
+     customer Home is unchanged. The send shares the booking send's one plain web request in
+     `SupabaseBookingClient`; `iosProjectIsolation.test.ts` now allows exactly these two RPC paths.
+     Whether the salon has switched online cancellation off is not read in the app: the server
+     refuses with `SDC01` and the sheet shows the website's words for it.
+   - **Next:** the owner books and cancels Test Pup on staging, once for a later day and once on the
+     day itself (which should show as No-show for staff), and checks the sheet in Xcode with large
+     text and VoiceOver.
 
 ## Testing
 

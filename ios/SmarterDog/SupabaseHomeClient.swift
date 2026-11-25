@@ -26,7 +26,7 @@ final class SupabaseHomeClient: SalonHomeClient, Sendable {
             .value
         async let bookings: [BookingRow] = supabase
             .from("bookings")
-            .select("id,booking_date,slot,service,status,dog_id")
+            .select("id,booking_date,slot,service,status,dog_id,group_id")
             .gte("booking_date", value: today)
             .order("booking_date")
             .order("slot")

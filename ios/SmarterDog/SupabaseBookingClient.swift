@@ -1,9 +1,9 @@
 import Foundation
 import Supabase
 
-/// Reads for the booking screens. Row Level Security returns only this customer's dogs.
-/// Reads only: nothing here creates a booking.
-final class SupabaseBookingClient: SalonBookingDataClient, Sendable {
+/// Reads for the booking screens, and the two writes (making and cancelling a booking), which are
+/// reached only from the Debug-only staging mode. Row Level Security returns only this customer's rows.
+final class SupabaseBookingClient: SalonBookingDataClient, SalonCancelClient, Sendable {
     private let supabase: SupabaseClient
 
     init(supabase: SupabaseClient) {
@@ -74,7 +74,7 @@ final class SupabaseBookingClient: SalonBookingDataClient, Sendable {
 
     // MARK: sending a booking
     //
-    // The one call in the app that writes. It goes through `create_customer_booking_group` only:
+    // The first write. It goes through `create_customer_booking_group` only:
     // customers cannot insert into `bookings` directly, and the database's three gates (calendar,
     // capacity, pregnancy) apply to it whatever sends it.
     //
@@ -83,17 +83,66 @@ final class SupabaseBookingClient: SalonBookingDataClient, Sendable {
     // database's own `details` code, and the library's error type has changed between versions.
 
     func createBooking(_ request: BookingRequest) async -> BookingSendResult {
+        guard let body = try? JSONEncoder().encode(request) else { return .notSent }
+        switch await post(rpc: "rest/v1/rpc/create_customer_booking_group", body: body) {
+        case .notSent: return .notSent
+        case .unknown: return .unknown
+        case .answered(let status, let data): return BookingWire.sendResult(status: status, body: data)
+        }
+    }
+
+    // MARK: cancelling a booking
+    //
+    // The second write, behind the same Debug-only staging switch as booking. It goes through
+    // `cancel_customer_booking` only, which decides ownership, the rest of the visit and the
+    // salon's policy itself. Its answer is read by `CancelWire`, which checks the receipt names
+    // the booking asked about.
+
+    func cancelBooking(_ request: CancelRequest) async -> CancelSendResult {
+        guard let body = try? JSONEncoder().encode(request) else { return .notSent }
+        switch await post(rpc: "rest/v1/rpc/cancel_customer_booking", body: body) {
+        case .notSent: return .notSent
+        case .unknown: return .unknown
+        case .answered(let status, let data):
+            return CancelWire.sendResult(status: status, body: data, bookingId: request.p_booking_id)
+        }
+    }
+
+    /// The booking as the server holds it now, to settle a cancel whose reply never arrived.
+    /// Row Level Security returns only this customer's. Nil when it was not found or the read failed.
+    func reloadBooking(id: String) async -> BookingRow? {
+        do {
+            let rows: [BookingRow] = try await supabase
+                .from("bookings")
+                .select("id,booking_date,slot,service,status,dog_id,group_id")
+                .eq("id", value: id)
+                .execute()
+                .value
+            return rows.first
+        } catch {
+            return nil
+        }
+    }
+
+    private enum PostResult {
+        /// Nothing left the phone.
+        case notSent
+        /// It may have arrived, and no answer came back.
+        case unknown
+        case answered(status: Int, body: Data)
+    }
+
+    /// The one plain web request in the app, shared by the two writes.
+    private func post(rpc path: String, body: Data) async -> PostResult {
         // Everything up to the send can fail without anything leaving the phone.
         guard let base = URL(string: SupabaseConfig.urlString) else { return .notSent }
         let token: String
-        let body: Data
         do {
             token = try await supabase.auth.session.accessToken
-            body = try JSONEncoder().encode(request)
         } catch {
             return .notSent
         }
-        var urlRequest = URLRequest(url: base.appendingPathComponent("rest/v1/rpc/create_customer_booking_group"))
+        var urlRequest = URLRequest(url: base.appendingPathComponent(path))
         urlRequest.httpMethod = "POST"
         urlRequest.timeoutInterval = 30
         urlRequest.httpBody = body
@@ -104,7 +153,7 @@ final class SupabaseBookingClient: SalonBookingDataClient, Sendable {
         do {
             let (data, response) = try await URLSession.shared.data(for: urlRequest)
             guard let http = response as? HTTPURLResponse else { return .unknown }
-            return BookingWire.sendResult(status: http.statusCode, body: data)
+            return .answered(status: http.statusCode, body: data)
         } catch let error as URLError {
             // A connection that was never made means nothing was sent. A timeout or a dropped
             // connection might have come after the request arrived, so that is unknown.
