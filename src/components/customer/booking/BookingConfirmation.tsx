@@ -1,3 +1,4 @@
+import { formatSlot } from "./formatSlot";
 import { SERVICES, DEPOSIT_PER_DOG_PENCE } from "../../../constants/index";
 import { getServicePriceLabel, getServicePriceAmount } from "../../../engine/bookingRules";
 import type { WizardDog, ServiceId, SlotAllocation } from "../../../types/index";
@@ -48,13 +49,6 @@ interface BookingConfirmationProps {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-}
-
-function formatSlot(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const suffix = h >= 12 ? "pm" : "am";
-  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
 }
 
 function getServiceLabel(serviceId: ServiceId): string {

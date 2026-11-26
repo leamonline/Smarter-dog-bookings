@@ -1,3 +1,4 @@
+import { formatTime12h } from '../../utils/formatTime12h.js';
 import React from 'react';
 import { colors } from '../../constants/colors';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
@@ -6,14 +7,6 @@ import { whatsAppUrl } from '../../constants/salonFacts';
 import SectionDivider from '../SectionDivider';
 import FadeIn from '../FadeIn';
 import OpenDaysCalendar from '../OpenDaysCalendar';
-
-const formatTime12h = (hhmm) => {
-    const [h, m] = String(hhmm || '').split(':').map(Number);
-    if (Number.isNaN(h)) return '';
-    const period = h < 12 ? 'am' : 'pm';
-    const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
-};
 
 const OPEN_DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 

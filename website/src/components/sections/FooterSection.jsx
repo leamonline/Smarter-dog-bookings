@@ -1,3 +1,4 @@
+import { formatTime12h } from '../../utils/formatTime12h.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { colors } from '../../constants/colors';
@@ -29,14 +30,6 @@ const TikTokIcon = () => (
 
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_ABBR = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
-
-const formatTime12h = (hhmm) => {
-    const [h, m] = String(hhmm || '').split(':').map(Number);
-    if (Number.isNaN(h)) return '';
-    const period = h < 12 ? 'am' : 'pm';
-    const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
-};
 
 const formatDayRange = (days) => {
     if (days.length === 0) return '';

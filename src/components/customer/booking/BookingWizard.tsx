@@ -1,3 +1,4 @@
+import { formatSlot } from "./formatSlot";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MESSAGE_CHANNEL_NOTICE } from "../../../constants/salonPolicies";
 import { useLocation } from "react-router-dom";
@@ -88,13 +89,6 @@ interface RescheduleFromState {
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function fmtTimeForReason(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const suffix = h >= 12 ? "pm" : "am";
-  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
-}
 
 function fmtDateForReason(dateStr: string): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
@@ -749,7 +743,7 @@ export function BookingWizard({ humanRecord, onComplete, onCancel }: BookingWiza
         };
       });
 
-      const reason = `Rescheduled to ${fmtDateForReason(selectedDate)} at ${fmtTimeForReason(slotAllocation.dropOffTime)}`;
+      const reason = `Rescheduled to ${fmtDateForReason(selectedDate)} at ${formatSlot(slotAllocation.dropOffTime)}`;
       if (rescheduleFrom && approvalRequired) {
         const { request, error: requestError } =
           await wizard.requestOverrideReschedule({
