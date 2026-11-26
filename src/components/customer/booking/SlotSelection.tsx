@@ -1,3 +1,4 @@
+import { formatSlot } from "./formatSlot";
 import { useEffect, useState } from "react";
 import { SALON_SLOTS } from "../../../constants/index";
 import { findGroupedSlots } from "../../../engine/capacity";
@@ -27,13 +28,6 @@ interface SlotSelectionProps {
    *  preferred slots are surfaced first as "Your usual time". */
   humanId?: string;
   suggestedTime?: string | null;
-}
-
-function formatSlot(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const suffix = h >= 12 ? "pm" : "am";
-  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
 }
 
 function formatDateLabel(dateStr: string | null): string {

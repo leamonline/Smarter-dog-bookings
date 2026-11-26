@@ -1,3 +1,4 @@
+import { formatSlot } from "./formatSlot";
 import { SERVICES } from "../../../constants/index";
 import { getServicePriceLabel, getServicePriceAmount } from "../../../engine/bookingRules";
 import { ScribbleUnderline } from "../../ui/ScribbleUnderline.jsx";
@@ -16,13 +17,6 @@ interface BookingSummarySidebarProps {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-}
-
-function formatSlot(slot: string): string {
-  const [h, m] = slot.split(":").map(Number);
-  const suffix = h >= 12 ? "pm" : "am";
-  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${hour}:${m.toString().padStart(2, "0")}${suffix}`;
 }
 
 function getServiceLabel(serviceId: ServiceId): string {
