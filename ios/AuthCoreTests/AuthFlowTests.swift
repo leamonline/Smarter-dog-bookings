@@ -25,6 +25,17 @@ final class AuthFlowTests: XCTestCase {
         XCTAssertEqual(PhoneNumber.nationalDisplay(from: "+447700900123"), "07700 900123")
     }
 
+    func testPhoneDigitsForTelLinksMatchesTheWebsite() async {
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("07700 900123"), "447700900123")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("+44 (0)7700 900123"), "447700900123")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("00447700900123"), "447700900123")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("447700900123"), "447700900123")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("+44 (0)20 7946 0958"), "442079460958")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("+1 415 555 0100"), "14155550100")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits(""), "")
+        XCTAssertEqual(PhoneNumber.normalisePhoneDigits("n/a"), "")
+    }
+
     func testPhoneRoutesToPasswordCodeOrWebsite() async throws {
         let fake = FakeSalonClient()
         let auth = try await signedOut(fake)

@@ -56,7 +56,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-sampleBooking"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-sampleStaffToday"

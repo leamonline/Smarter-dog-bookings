@@ -32,6 +32,7 @@ const booking = {
   bookingDate: "2099-06-15",
   slot: "09:00",
   service: "full-groom",
+  status: "Booked",
   dog: { name: "Alfie" },
 };
 
@@ -295,5 +296,62 @@ describe("upcoming appointment visibility", () => {
     expect(deposit).toHaveTextContent("For Mabel");
     expect(deposit).toHaveTextContent("SDG-TEST");
     expect(deposit).toHaveTextContent("15");
+  });
+});
+
+describe("Cancel is offered only when the server would accept it", () => {
+  const sibling = { ...booking, id: "booking-2", dog: { name: "Mabel" }, slot: "09:30" };
+
+  it("hides Cancel for a Reconfirmed booking but keeps Reschedule", () => {
+    renderCard(undefined, [{ ...booking, status: "Reconfirmed" }]);
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reschedule" })).toBeInTheDocument();
+  });
+
+  it("hides Cancel when any dog in the visit is no longer just Booked", () => {
+    renderCard(undefined, [booking, { ...sibling, status: "Reconfirmed" }]);
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it.each(["Arrived", "Ready for collection", "No-show"])("hides Cancel for a %s booking", (status) => {
+    renderCard(undefined, [{ ...booking, status }]);
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it("hides Cancel when staff have already cancelled another dog in the visit", () => {
+    // The card only shows live bookings, but the server counts the cancelled dog too.
+    render(
+      <MemoryRouter>
+        <BookingCard
+          upcomingBookings={[booking]}
+          visitBookings={[booking, { ...sibling, status: "Cancelled" }]}
+          dogs={[]}
+          onBook={vi.fn()}
+          onBookingChanged={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("region", { name: /Appointment for Alfie on/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
+  it("ignores a cancelled booking from another visit", () => {
+    render(
+      <MemoryRouter>
+        <BookingCard
+          upcomingBookings={[booking]}
+          visitBookings={[booking, { ...sibling, groupId: null, status: "Cancelled" }, { ...sibling, id: "other-date", bookingDate: "2099-07-15", status: "Cancelled" }]}
+          dogs={[]}
+          onBook={vi.fn()}
+          onBookingChanged={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("keeps Cancel for a visit that is all Booked", () => {
+    renderCard(undefined, [booking, sibling]);
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 });
