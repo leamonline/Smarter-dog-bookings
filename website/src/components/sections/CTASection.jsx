@@ -1,8 +1,7 @@
-import { formatTime12h } from '../../utils/formatTime12h.js';
 import React from 'react';
 import { colors } from '../../constants/colors';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
-import { whatsAppUrl } from '../../constants/salonFacts';
+import { whatsAppUrl, formatTime12h } from '../../constants/salonFacts';
 
 import SectionDivider from '../SectionDivider';
 import FadeIn from '../FadeIn';

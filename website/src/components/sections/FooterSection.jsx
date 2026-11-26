@@ -1,11 +1,10 @@
-import { formatTime12h } from '../../utils/formatTime12h.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { colors } from '../../constants/colors';
 import DogSilhouette from '../DogSilhouette';
 import BackgroundSticker from '../BackgroundSticker';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
-import { whatsAppUrl } from '../../constants/salonFacts';
+import { whatsAppUrl, formatTime12h } from '../../constants/salonFacts';
 import { STAFF_LOGIN_URL } from '../../constants/links';
 import GuideLinks from '../GuideLinks';
 

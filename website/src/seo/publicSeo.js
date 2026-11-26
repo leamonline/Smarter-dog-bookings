@@ -1,6 +1,5 @@
-import { formatTime12h } from '../utils/formatTime12h.js';
 import { NEED_PAGES } from '../content/needPages';
-import { SALON_FACTS_FALLBACK, whatsAppUrl } from '../constants/salonFacts';
+import { SALON_FACTS_FALLBACK, whatsAppUrl, formatTime12h } from '../constants/salonFacts';
 import { HOME_DESCRIPTION, HOME_TITLE, formatDocumentTitle } from './documentTitle';
 
 export const SITE_URL = 'https://smarterdog.co.uk';
