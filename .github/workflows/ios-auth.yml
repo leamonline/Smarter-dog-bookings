@@ -8,6 +8,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+
 concurrency:
   group: ios-auth-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
