@@ -23,7 +23,12 @@ jobs:
       # setup-swift v3 verifies the Swiftly archive before Swiftly imports keys.
       - name: Import Swift release signing keys
         run: |
-          curl --fail --silent --show-error --location https://www.swift.org/keys/all-keys.asc --output "$RUNNER_TEMP/swift-signing-keys.asc"
+          curl --fail --silent --show-error --location --compressed https://www.swift.org/keys/all-keys.asc --output "$RUNNER_TEMP/swift-signing-keys.asc"
+          file "$RUNNER_TEMP/swift-signing-keys.asc"
+          if gzip --test "$RUNNER_TEMP/swift-signing-keys.asc" 2>/dev/null; then
+            mv "$RUNNER_TEMP/swift-signing-keys.asc" "$RUNNER_TEMP/swift-signing-keys.asc.gz"
+            gzip --decompress "$RUNNER_TEMP/swift-signing-keys.asc.gz"
+          fi
           gpg --batch --import "$RUNNER_TEMP/swift-signing-keys.asc"
       - uses: swift-actions/setup-swift@v3
         with:
