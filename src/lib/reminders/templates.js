@@ -13,6 +13,7 @@
 
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../constants/whatsappTemplates.js";
 import { collectionSmsText } from "../../../supabase/functions/_shared/collectionFallback";
+import { formatSlotTime as formatTime } from "../formatSlotTime.js";
 
 // The Meta-approved template used for appointment reminders. Must stay
 // in sync with an Active template in WhatsApp Manager.
@@ -30,14 +31,7 @@ export function joinNames(names) {
   return list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
 }
 
-/** "09:00" -> "9:00am". */
-export function formatTime(slot) {
-  if (!slot) return "";
-  const [h, m] = slot.split(":").map(Number);
-  const period = h < 12 ? "am" : "pm";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")}${period}`;
-}
+export { formatTime };
 
 // Parse the date at noon UTC and format in UTC so the weekday/day never
 // drifts with the host timezone (a bare "YYYY-MM-DD" parses as local

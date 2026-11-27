@@ -19,14 +19,7 @@ import { CheckCircle2, Circle, Clock, Send } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
 import { resolveRemindersTone } from "./tone/reminders";
 import { SendReminderModal } from "../modals/send-reminder/SendReminderModal.jsx";
-
-function formatSlot(slot) {
-  if (!slot) return "";
-  const [h, m] = slot.split(":").map(Number);
-  const period = h < 12 ? "am" : "pm";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")}${period}`;
-}
+import { formatSlotTime as formatSlot } from "../../lib/formatSlotTime.js";
 
 function formatSentTime(iso) {
   if (!iso) return "";
