@@ -1,6 +1,6 @@
 # Codex project initialisation
 
-- Status: Active
+- Status: Completed
 - Issue: [#1314](https://github.com/leamonline/Smarter-dog-bookings/issues/1314)
 - Base: `main@4f32ac83d956381e6609fe0026173646570fc191`
 - Last verified: 27 November 2026
@@ -101,3 +101,15 @@ None within the approved scope.
 - **Revision and ownership** — `codex/project-initialisation`, based on `4f32ac83`. One writer for documentation, skills and evaluation.
 - **Evidence** — On 27 November, local documentation and skill checks, the offline build, typecheck, migration and Edge auth checks, 5,889 Vitest tests and 269 Swift package tests passed. Lint passed with 66 warnings and skipped the Chromium icon render. Both skills were discovered and exercised in the [fresh CLI pilot](../../../prompts/evals/codex-workflows.md#initial-pilot-on-27-november-2026).
 - **Next** — Review the PR and its exact-head CI evidence linked from [issue #1314](https://github.com/leamonline/Smarter-dog-bookings/issues/1314). Merge requires separate approval.
+
+## Acceptance evidence
+
+GitHub records [PR #1315](https://github.com/leamonline/Smarter-dog-bookings/pull/1315)
+merged into `main@d9c39e1187a52d16ca46ad37704fa58e74810c3e` on 27 November 2026.
+The [issue](https://github.com/leamonline/Smarter-dog-bookings/issues/1314) closed
+after the merge. The [PR checks](https://github.com/leamonline/Smarter-dog-bookings/pull/1315/checks)
+include the five required gates. The
+[post-merge migration verification](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/46061585188)
+and [iPhone auth run](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/46061585086)
+passed. GitHub recorded a successful Vercel Production deployment for that SHA.
+The earlier checkpoint above records the pre-merge hand-off.
