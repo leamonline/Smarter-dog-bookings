@@ -36,8 +36,8 @@ Several important journeys cross inconsistent boundaries:
   PostgreSQL, so copies can drift;
 - frontend and Edge code can deploy independently of manually applied database
   migrations;
-- browser and Edge authentication evidence is incomplete at the pull-request
-  boundary; and
+- browser and Edge authentication assurance depends on maintained CI checks
+  and evidence for the revision under review; and
 - useful operational signals exist, but their definitions, confidence, privacy
   and ownership are not governed together.
 
@@ -118,8 +118,9 @@ or a deployment can be healthy in isolation but incompatible as a system.
 
 ## Current state
 
-These are repository facts at the baseline above, not a claim that every
-production environment has been freshly queried.
+This table retains the historical baseline context. The browser and Edge
+authentication rows were rechecked on 27 November 2026 at `main@4f32ac83`.
+Use dated release records for production claims.
 
 | Area | Confirmed current state | Evidence |
 |---|---|---|
@@ -130,8 +131,8 @@ production environment has been freshly queried.
 | Staff reschedule messaging | A staff move can update the diary without creating a durable visit-level customer notification. | [useBookings.ts](src/supabase/hooks/useBookings.ts), issue #604 |
 | Notifications | `notification_log` tracks booking/trigger-oriented delivery, but there is no governed visit-operation intent plus append-only attempt history. | [notification_log migration](supabase/migrations/20260403160647_notification_log.sql), issue #610 |
 | Release compatibility | The migration-applied check exists, but there is no generic runtime capability projection joining app, Edge and schema support. | issue #607 |
-| Browser gate | Pull requests intentionally skip Playwright; all configured desktop, tablet and mobile projects run Chromium. | [CI workflow](.github/workflows/ci.yml), [Playwright config](playwright.config.ts) |
-| Edge authentication | CI deploys functions with `--no-verify-jwt`; in-function checks are the boundary. The complete caller/authentication inventory and discovery guard do not yet exist. | [Supabase config](supabase/config.toml), [Edge deployment workflow](.github/workflows/deploy-edge-functions.yml) |
+| Browser gate | Pull requests run production-build Chromium and WebKit checks. The full browser matrix runs on main and on manual dispatch. | [CI workflow](.github/workflows/ci.yml), [Playwright config](playwright.config.ts) |
+| Edge authentication | CI deploys functions with `--no-verify-jwt`; in-function checks are the boundary. CI checks each deployable function against the [caller and authentication inventory](docs/edge-function-auth.md). | [Supabase config](supabase/config.toml), [Edge deployment workflow](.github/workflows/deploy-edge-functions.yml) |
 | AI assistance | Known-customer generation is staff-invoked; auto-send and autonomous booking require global and per-conversation gates that default off, plus risk checks. | [WhatsApp agent](supabase/functions/whatsapp-agent/handler.ts), [AI mode controls](src/supabase/hooks/inbox/useAIModeControls.ts) |
 | Measurement | Funnel, denial, notification and AI audit signals exist, but operation identity, ownership and decision use are incomplete. | [measurement catalogue](docs/specifications/measurement-catalogue.md) |
 

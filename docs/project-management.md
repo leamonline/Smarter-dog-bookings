@@ -57,7 +57,9 @@ Recommended title: **Smarter Dog — Architecture Convergence**
 Repository: `leamonline/Smarter-dog-bookings`
 Visibility: private unless the repository's privacy changes
 
-The current GitHub token has repository and workflow scopes but not `read:project` / `project`. Therefore this Project was not inspected or configured as part of the 9 August repository-memory change. Obtain the scopes deliberately, then create or adapt one Project rather than creating duplicates:
+The Project was not inspected or configured during the 9 August repository-memory change. For read-only inspection of an existing personal Project with GitHub CLI, `read:project` is sufficient when the account already has access to the board. Start with `gh project list --owner leamonline`, then use `gh project view` and `gh project item-list`. Scope changes require separate owner approval.
+
+Creating or changing a Project requires separate authorisation and the write scope shown below. Inspect for an existing Project before creating one:
 
 ```bash
 gh auth refresh -s read:project,project
@@ -146,6 +148,34 @@ The canonical sequence and stop/continue gate live in [ROADMAP.md](../ROADMAP.md
 3. Only a recorded GO proceeds to the minimal release/capability seam, visit-level reschedule notification delivery, canonical capacity evaluator and legacy-compatible staff reschedule command.
 
 Serialise migration writers and the generated types/RPC/client integration spine. Documentation, authentication inventory and isolated CI work can proceed in parallel when their owned paths do not overlap.
+
+## Authorised development and session recovery
+
+1. **Find the work.** Start with the requested issue or search open issues and
+   PRs for the same change. Read the issue's parent, blockers and linked plan
+   when they apply. Use the Project where accessible. The backlog helps
+   identify work, and the user's task establishes authority to act.
+2. **Check ownership.** Compare assignees, recent comments, draft and open PRs,
+   active plans, local branches/worktrees and relevant Codex chats if available.
+   Reuse the established branch or worktree on a clear hand-off. If another
+   writer owns the task or overlap cannot be resolved, record the dependency
+   or choose an authorised, independent slice. Give parallel writers disjoint
+   paths and serialise the shared surfaces named in [AGENTS.md](../AGENTS.md).
+3. **Recover context.** Read the [checkpoint](../.agent/PLANS.md#checkpoint-and-recovery)
+   and inspect current Git status, branch and candidate SHA. Load only the
+   governing policy, ADR and runbook from the [documentation map](README.md).
+   When Graphify is available, name this repository and compare its index SHA
+   with the checkout. Verify changed or unindexed paths locally. Use targeted
+   local searches if graph evidence is stale or unavailable.
+4. **Select and implement.** Use the [skill registry](../prompts/README.md#repository-skills)
+   for booking and release review. For other work choose the relevant tools
+   and follow the repository's validation rules. Make routine choices within
+   scope and observe the approval boundaries in [AGENTS.md](../AGENTS.md).
+5. **Verify and hand off.** Run focused checks and the applicable repository
+   checks using synthetic data. Update the issue with material discoveries,
+   blockers and evidence. Prepare a PR with the issue and plan, current head,
+   verification and gaps, plus compatibility or rollback evidence where
+   relevant. Preserve the [merge boundary](#merging-a-pull-request).
 
 ## Branch controls and merge gate
 

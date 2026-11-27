@@ -3,7 +3,7 @@
 **Status:** Active
 **Authority:** Current component, trust-boundary and deployment map
 **Baseline:** `main@8eb8800fb345aeeba4887b266a4ff95a85fb7802`
-**Last verified:** 9 August 2026
+**Last verified:** 9 August 2026 at the historical baseline above. Routes, browser gates and the Edge auth inventory were rechecked on 27 November 2026 at `main@4f32ac83`.
 
 This is a map of the system that exists, not a promise that every planned
 capability is live. Where the distinction matters:
@@ -75,21 +75,20 @@ flowchart LR
   Vercel --> Utility
 ```
 
-The arrows show principal data flows, not an assertion that every Edge
-Function uses the same authentication mechanism. It does not: that distributed
-authentication boundary is a current gap tracked by issue #605.
+The arrows show principal data flows. Edge Functions use caller-specific
+authentication documented in the [Edge auth contract](../edge-function-auth.md).
 
 ## Components and responsibilities
 
 | Component | Current responsibility | Authority or limitation |
 |---|---|---|
-| React/Vite application | Staff dashboard at `/*` and customer portal at `/customer/*`; presentation, local preflight, optimistic UI and realtime reconciliation | It is not the final authority for capacity, identity, policy or permissions. The deterministic sample-data mode is not durable offline operation. |
-| Supabase Auth | Staff email/password sessions and customer phone-OTP sessions | A valid session establishes identity, not business permission. Database grants, RLS and command checks still apply. |
+| React/Vite application | Staff dashboard at `/staff/*` and customer portal at `/book/*`; presentation, local preflight, optimistic UI and realtime reconciliation | It is not the final authority for capacity, identity, policy or permissions. The deterministic sample-data mode is not durable offline operation. |
+| Supabase Auth | Staff email/password sessions and customer phone sign-in with password or OTP | A valid session establishes identity, not business permission. Database grants, RLS and command checks still apply. |
 | Data API and RPCs | RLS-filtered reads, direct legacy writes and security-definer/invoker commands | The command transaction is the boundary for atomic domain changes. Direct booking-row writers remain a migration constraint. |
 | PostgreSQL | Durable domain state, RLS, constraints, triggers, RPCs, audit events and capacity enforcement | **Confirmed:** it is the final capacity and transaction authority. |
 | `bookings` | One operational row per dog/service line, including grooming status | **Confirmed current:** live staff write paths still create, update and delete these rows. |
 | `booking_visits` and related tables | One visit aggregate, lineage, policy/deposit/incident records, projections and typed visit commands | **Confirmed substrate:** legacy writes dual-write `legacy_compat` visits. Most visit mutation commands are deliberately dark, so this is not yet the sole live authority. |
-| Edge Functions | WhatsApp ingress and Flow handling, notifications, AI assistance, calendar feeds, postcode lookup and other privileged integration work | CI deploys with gateway JWT verification disabled; each function must enforce its own caller contract. Coverage is not yet complete. |
+| Edge Functions | WhatsApp ingress and Flow handling, notifications, AI assistance, calendar feeds, postcode lookup and other privileged integration work | CI deploys with gateway JWT verification disabled; each function enforces its own caller contract. CI checks the inventory against the deployable sources. |
 | Realtime | Reconciles browser state after database changes and powers live inbox/dashboard updates | It is a change signal, not a command or delivery guarantee. |
 | Storage | Private dog and WhatsApp media objects | Access depends on bucket policy, RLS or signed access; object URLs must not be treated as public by default. |
 | `notification_log` | Current booking/recipient/trigger-oriented notification state and provider evidence | It has `pending`, `sent` and `failed` states plus partial idempotency. It is not the proposed visit-level intent and append-only attempt history. |
@@ -158,7 +157,7 @@ provider accepted or delivered a message.
 
 - **Staff:** Supabase Auth identifies the user; `staff_profiles`, `is_staff()`
   and owner-specific checks determine staff/owner authority.
-- **Customers:** Supabase Auth phone OTP identifies the account. A guarded
+- **Customers:** Supabase Auth identifies the account through phone sign-in. A guarded
   linking command binds the verified identity to the matching human before RLS
   exposes customer-owned records.
 - **Anonymous callers:** only explicitly granted low-PII projections and
@@ -167,9 +166,8 @@ provider accepted or delivered a message.
 - **Edge Functions:** the deployment workflow currently uses
   `--no-verify-jwt`. Functions rely on HMACs, provider signatures, internal
   secrets, session checks, role checks and origin policy in different
-  combinations. There are 27 deployable entry points but 22 function sections
-  in `supabase/config.toml`; five entry points are implicit. This is a
-  confirmed inventory gap, not proof that those five are unauthenticated.
+  combinations. The [Edge auth contract](../edge-function-auth.md) describes
+  the checked-in manifest, CI guard and limits of the checks.
 - **External providers:** requests and callbacks cross organisational
   boundaries. Provider acceptance, provider delivery and customer receipt are
   distinct facts and must be represented honestly.
@@ -204,9 +202,9 @@ processing. Current notification functions claim partial idempotency by
 inserting a `pending` row and later updating it to `sent` or `failed`; a reaper
 marks stale pending rows failed.
 
-That design cannot distinguish a conclusive pre-send failure from a worker
-crash or timeout after a provider may have accepted the request. The accepted
-target separates:
+The current [send contract](../send-outcomes.md) records ambiguous sends
+explicitly within the existing log and defines when to stop retry or fallback.
+The accepted target separates:
 
 - the committed appointment operation;
 - one durable visit-level notification intent; and
@@ -245,9 +243,9 @@ and [ADR 006](decisions/006-manual-target-verified-database-rollout.md).
 - **Playwright:** production-build browser journeys over deterministic sample
   data and a narrow intercepted policy transport.
 - **CI:** lint, TypeScript, migration validation, Vitest and build run on pull
-  requests; database tests run for database-related changes; the current E2E
-  job deliberately skips pull requests and all configured projects use
-  Chromium.
+  requests. The [CI workflow](../../.github/workflows/ci.yml) runs production-build
+  Chromium and WebKit smoke checks on PRs and a full browser matrix on main
+  or manual dispatch. Database checks run for matching changes.
 
 Tests prove the checked contract at a commit. They do not prove current
 provider configuration, current production feature flags or a production
@@ -270,19 +268,17 @@ migration target; those need explicit release evidence.
 - Production evidence in general documentation stays aggregate-only unless
   separate authority permits identifiable data handling.
 
-## Current gaps
+## Convergence gaps
 
 | Area | Confirmed gap | Governing record |
 |---|---|---|
 | Staff reschedule | In-place booking-row moves do not create a customer reschedule notification | Issues #604/#609; [go/no-go research](../research/2026-08-09-reschedule-automation-go-no-go.md) |
-| Edge authentication | No complete machine-readable caller/auth contract for all 27 functions | Issue #605 |
-| Pull-request browsers | Playwright is skipped on PRs and WebKit is not configured | Issue #606 |
 | Runtime compatibility | Booking-policy status exists; generic named schema/application capabilities do not | Issue #607; [ADR 004](decisions/004-serial-schema-convergence-and-runtime-capabilities.md) |
-| Capacity parity | Browser, Deno and SQL remain separate implementations; final PostgreSQL authority exists but parity/race evidence is incomplete | Issue #608; [ADR 001](decisions/001-postgresql-capacity-authority.md) |
+| Capacity parity | Browser, Deno and SQL remain separate implementations. Parity and race suites guard against regression. | [Capacity contract](../capacity-engine.md); [ADR 001](decisions/001-postgresql-capacity-authority.md) |
 | Visit cutover | Strong visit substrate exists, but live staff write authority remains split | Issue #609; [ADR 002](decisions/002-separate-visit-authority-from-policy-activation.md) |
 | Notifications | No visit-level intent plus append-only attempt history or `delivery_unknown` state | Issue #610; [notification specification](../specifications/notification-delivery.md) |
-| Interface truth | Enabled-looking unavailable action, raw error text and demo/offline terminology remain inconsistent in code at the baseline | Issue #611 |
-| Measurement | Useful signals exist without one governed metric catalogue | Issue #612 |
+| Measurement | The catalogue governs definitions and records signal limits. | [Measurement catalogue](../specifications/measurement-catalogue.md) |
 
-The dated issue-by-issue evidence and production arithmetic are recorded in
-the [9 August audit](../research/2026-08-09-issue-603-plan-reality-audit.md).
+The [9 August audit](../research/2026-08-09-issue-603-plan-reality-audit.md)
+retains the earlier findings. The [roadmap](../../ROADMAP.md) records Tranche A
+completion and the STOP decision for live convergence.

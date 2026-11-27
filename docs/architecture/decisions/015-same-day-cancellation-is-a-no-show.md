@@ -1,6 +1,6 @@
 # ADR 015: A customer's same-day cancellation is a no-show; two in 12 months requires a deposit
 
-Status: Accepted by the owner on 24 November 2026. Implemented on a branch (migration `20261124200000`), which has not been applied to production.
+Status: Accepted by the owner on 24 November 2026. [Migration history](../../migrations.md#same-day-customer-cancellation-is-a-no-show-1300--production-applied-24-november-2026) records production application of `20261124200000` on 24 November 2026.
 Date: 2026-11-24
 Supersedes: the counting and classification parts of [ADR 013](013-allow-late-cancellations-with-customer-history.md). ADR 013's permission to cancel late still stands.
 Plan: [Same-day cancellation is a no-show](../../plans/active/2026-11-24-same-day-no-show-policy.md)

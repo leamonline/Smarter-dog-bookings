@@ -39,6 +39,15 @@ last_reviewed: YYYY-MM-DD
 
 Increment `version` when instructions, constraints or output contracts change materially. Small spelling or link repairs may retain the version. Preserve superseded prompts in `archive/` only when an issue, decision or production history still depends on them.
 
+## Repository skills
+
+- [Booking change](../.agents/skills/smarter-dog-booking-change/SKILL.md) routes authorised booking changes through the policy, write authority and verification sources.
+- [Release review](../.agents/skills/smarter-dog-release-review/SKILL.md) gathers read-only evidence for an exact candidate and target.
+
+Both skills start at version 1. Record material revisions here with their
+evaluation evidence. Use the [Codex workflow evaluation](evals/codex-workflows.md)
+when changing either skill.
+
 ## Runtime prompts
 
 Keep a runtime prompt next to the code that assembles and sends it so code review can see inputs, security controls and output parsing together. Register it in [the runtime prompt inventory](product/runtime-prompt-inventory.md) rather than copying the text here. A production prompt change should link its governing requirements, tests or evaluation cases and rollout evidence.

@@ -18,7 +18,15 @@ test-results/
 .playwright/
 
 # AI assistant working directories — local session artifacts, not shipping code
-.agents/
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/smarter-dog-booking-change/
+!/.agents/skills/smarter-dog-release-review/
+/.agents/skills/smarter-dog-booking-change/*
+/.agents/skills/smarter-dog-release-review/*
+!/.agents/skills/smarter-dog-booking-change/SKILL.md
+!/.agents/skills/smarter-dog-release-review/SKILL.md
 # Claude Code: keep personal/local state out, but track the shared SessionStart
 # hook so every session provisions the database-test stack the same way.
 .claude/*
