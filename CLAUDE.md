@@ -152,7 +152,7 @@ Data flow: **UI → hooks → repositories / RPC → Supabase client → Postgre
   `salonSettings.ts` (config defaults), `salonContact.ts`.
 - `src/hooks/` — UI-level state hooks. `src/supabase/hooks/` — data hooks (facades composing focused
   sub-hooks). `src/supabase/repositories/` — transform snake_case DB rows → camelCase app objects.
-  `src/supabase/rpc.ts` — RPC wrappers. `src/supabase/client.js` + `customerClient.js` — two clients.
+  `src/supabase/rpc.ts` — RPC wrappers. `src/supabase/client.ts` + `customerClient.ts` — two clients.
 - `supabase/migrations/` — ordered SQL history, applied in **filename order**, **by hand** (see Gotchas).
   `supabase/functions/` — Deno Edge Functions (`_shared/` is common code). Do not hardcode
   counts in documentation; discovery checks should enumerate them.
@@ -300,7 +300,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   prose matching; the wizard and denial telemetry depend on both, so preserve the code, the DETAIL
   contract, and the message shape (governed by `denialCodeContract.test.ts`). The gates are **table-level**, so any new booking route (RPC,
   Edge Function, future path) inherits all three automatically — don't re-implement them per-RPC.
-- **Two Supabase clients** (`client.js` staff, `customerClient.js` customer) use separate auth storage
+- **Two Supabase clients** (`client.ts` staff, `customerClient.ts` customer) use separate auth storage
   keys so sessions don't clobber each other. Keep them separate.
 - **WhatsApp auto-send / autonomous booking are OFF by default** behind 7 gates (5 in the agent, 2 in
   `whatsapp-send`) + a kill switch (`AI_ASSISTANT_ENABLED`); booking-touching intents never auto-send
@@ -344,9 +344,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   the builder takes a 5-field `BookingSubject` so a leak is a type error, and a test asserts the
   rendered output. Every threshold lives in `slackAlertThresholds.ts`; don't scatter them, and don't
   add a fourth copy of `DAILY_DOG_CAP` there. See [docs/slack-alerts.md](docs/slack-alerts.md).
-- **Known debt (don't be surprised):** ~12 components import `supabase` directly (bypassing
-  hooks/repositories); realtime channel names aren't centralised (double-mount in HMR can collide);
-  `as any` clusters in reports/booking-wizard/slot-availability. See `TECHNICAL-DEBT-REGISTER.md`.
+- **Technical debt:** see the [debt register](TECHNICAL-DEBT-REGISTER.md) for dated observations, then check current code and lint rules.
 
 ## Guardrails for Claude Code
 
@@ -354,7 +352,7 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   changed Edge Functions — never push untested work there. Since the combined build
   ([scripts/build-combined.mjs](scripts/build-combined.mjs)) that deployment carries **the marketing
   site as well as the booking app**, so a bad merge takes down smarterdog.co.uk too, not just the
-  salon's internal tooling. DB migrations do **not** auto-apply; apply them to prod first.
+  salon's internal tooling. Database migrations have a separately authorised, target-verified release procedure in [docs/migrations.md](docs/migrations.md).
 - **Rolling back:** [docs/rollback.md](docs/rollback.md) covers the three layers: Vercel instant
   rollback, redeploying an Edge Function, and forward-fixing the database (it cannot roll back).
 - **Database backups:** the weekly encrypted `pg_dump` (`database-backup.yml`, `production` environment,

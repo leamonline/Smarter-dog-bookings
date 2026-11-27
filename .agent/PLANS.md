@@ -116,6 +116,25 @@ Use observable acceptance criteria. Include code review, checks, rollout depende
 
 List decisions that require evidence or human judgement. Name the decision owner only when known. A product-policy question is a blocker, not licence for an agent to invent policy.
 
+## Checkpoint and recovery
+
+For work that spans sessions, keep one replaceable checkpoint under
+`## Checkpoint` in the active plan. For work tracked only in an issue, use
+one editable progress comment. Link to that record from the issue or PR when
+needed. Keep ongoing status and ownership on GitHub.
+
+- **Revision and ownership** — issue or PR link, branch and worktree, base and
+  last verified candidate SHA, scope and current writer.
+- **Evidence** — only completed checks and decisions that the next session
+  needs. Link the result and note the revision, date and environment.
+- **Next** — smallest remaining step and any blocker or approval it depends on.
+
+Update the checkpoint before hand-off or a long pause and when a material
+decision or blocker changes. If a session resumes, verify current branch,
+uncommitted changes, issue/PR activity and evidence SHA before editing. Reuse
+valid evidence and rerun checks affected by drift. Keep local paths generic
+where a record is public, and omit credentials and identifiable data.
+
 ## Evidence discipline
 
 - Positive source evidence can establish existence; a negative search only establishes what that search did not find.

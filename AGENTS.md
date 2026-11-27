@@ -28,6 +28,8 @@ Implementation does not silently overrule signed product policy. Record a materi
 
 ## Safe change workflow
 
+- Use [task intake and recovery](docs/project-management.md#authorised-development-and-session-recovery) to check ownership, select skills and resume from existing evidence.
+- Make routine engineering decisions within the authorised issue. Obtain separate approval for business, authentication or security policy changes, production database changes or deployments (including deploy-triggering merges), payment activation, destructive operations, customer-facing communications, live convergence decisions and material architecture changes outside scope.
 - Work from an up-to-date branch off `main`; `main` deploys the frontend and changed Edge Functions.
 - Find or create the corresponding issue. Check its blockers before implementation.
 - Give each parallel agent exclusive ownership. Do not assign simultaneous writers to migrations, generated database types, shared RPC wrappers, hooks, configuration or the same UI integration point.
@@ -49,7 +51,7 @@ Implementation does not silently overrule signed product policy. Record a materi
 - Customer notification delivery must never be inferred from an attempted provider call. Ambiguous outcomes fail closed and require reconciliation before automated retry.
 - Never commit credentials, `.env*`, private keys or identifiable customer data. Do not inspect `.env.local`, flow keys or `docs/private/` unless the task explicitly requires it.
 - `VITE_` values are public browser configuration, never secrets.
-- Tests run in deterministic sample-data mode. Local development otherwise connects to the live Supabase project when credentials are present; do not use real customer records for development or verification.
+- Tests and `npm run dev` use deterministic sample data. `npm run dev:live` connects to the configured hosted project. Use synthetic data for development and verification.
 
 ## Code and validation conventions
 
