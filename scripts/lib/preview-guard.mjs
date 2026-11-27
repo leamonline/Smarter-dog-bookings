@@ -1,16 +1,8 @@
 // Which data a Vercel build is allowed to bake in (#875).
 //
-// VITE_ variables are fixed at build time, so the build is the last point at
-// which a wrong one can be stopped. Two mistakes, both silent at runtime:
-//
-//   - a PREVIEW build without VITE_FORCE_OFFLINE=1 connects to production:
-//     anyone with the preview link can read real customers and, signed in as
-//     staff, trigger real messages;
-//   - a PRODUCTION build WITH it serves sample data to the salon and to real
-//     customers, as though bookings had vanished.
-//
-// Outside Vercel (local builds, CI, Playwright) VERCEL_ENV is unset and this
-// says nothing — those callers choose offline mode themselves.
+// VITE_ values are fixed at build time. Preview requires sample mode and
+// both child builds must drop hosted Supabase bindings. The customer and
+// marketing clients initialise separately from the staff sample-data switch.
 
 /** Returns an error message for a forbidden combination, or null when the build may proceed. */
 export function previewDataGuard(env) {
@@ -29,6 +21,9 @@ export function previewDataGuard(env) {
       "Environment Variables, Preview only). See #875."
     );
   }
+  if (vercelEnv === "preview" && env.SKIP_BUILDS) {
+    return "Refusing to reuse existing build output for a Vercel PREVIEW. Build both apps with the Preview environment.";
+  }
   if (vercelEnv === "production" && offline) {
     return (
       "Refusing to build PRODUCTION with VITE_FORCE_OFFLINE=1 — the live app would " +
@@ -36,4 +31,18 @@ export function previewDataGuard(env) {
     );
   }
   return null;
+}
+
+
+// Set empty values so Vite cannot pick up inherited bindings or .env values.
+// This covers the staff, customer and marketing clients in both builds.
+export function combinedBuildEnvironment(env) {
+  if (env.VERCEL_ENV !== "preview") return env;
+
+  return {
+    ...env,
+    VITE_SUPABASE_URL: "",
+    VITE_SUPABASE_PUBLISHABLE_KEY: "",
+    VITE_SUPABASE_ANON_KEY: "",
+  };
 }

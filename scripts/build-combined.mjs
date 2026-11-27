@@ -18,15 +18,12 @@ import { join, relative, resolve } from "node:path";
 import {
   BOOKING_ROOT_EXCLUSIONS, disallowsEverything, findCollisions, mergeRobots,
 } from "./lib/combined-output.mjs";
-import { previewDataGuard } from "./lib/preview-guard.mjs";
+import { combinedBuildEnvironment, previewDataGuard } from "./lib/preview-guard.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const websiteDist = join(root, "website", "dist");
 const bookingDist = join(root, "dist");
 const outDir = join(root, "dist-combined");
-
-const run = (cmd, args) =>
-  execFileSync(cmd, args, { cwd: root, stdio: "inherit", env: process.env });
 
 function filesIn(dir) {
   const out = [];
@@ -53,6 +50,10 @@ function assert(condition, message) {
 // last point at which the wrong one can be stopped.
 const dataGuard = previewDataGuard(process.env);
 assert(dataGuard === null, dataGuard);
+
+const buildEnv = combinedBuildEnvironment(process.env);
+const run = (cmd, args) =>
+  execFileSync(cmd, args, { cwd: root, stdio: "inherit", env: buildEnv });
 
 // 1. Build both. The website has its own lockfile and node_modules.
 if (!process.env.SKIP_BUILDS) {
