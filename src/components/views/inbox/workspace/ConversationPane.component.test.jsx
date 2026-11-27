@@ -86,6 +86,21 @@ describe("ConversationPane", () => {
     expect(onSelectConversation.mock.calls).toEqual([["c"], ["a"]]);
   });
 
+  it("keeps an externally selected conversation in view without taking focus", () => {
+    const { props, rerender } = renderPane();
+    const list = screen.getByRole("list", { name: "Conversations" });
+    const [first, second] = within(list).getAllByRole("button");
+    const scrollIntoView = vi.fn();
+    second.scrollIntoView = scrollIntoView;
+    first.focus();
+
+    rerender(<ConversationPane {...props} selectedId="b" />);
+
+    expect(second).toHaveAttribute("aria-current", "true");
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+    expect(first).toHaveFocus();
+  });
+
   it("tabs independently to checkboxes, open buttons and the failed-send action", async () => {
     const user = userEvent.setup();
     const failed = { ...conversations[1], has_failed_message: true };

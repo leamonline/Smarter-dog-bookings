@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useInboxWaitingTimes } from "../../../../supabase/hooks/useInboxWaitingTimes";
 import { Plus, Search, X } from "lucide-react";
 import { PageHeaderAction } from "../../../ui/index.js";
@@ -89,6 +89,13 @@ export function ConversationPane({
 }) {
   const waitingTimes = useInboxWaitingTimes(conversations);
   const openButtonRefs = useRef([]);
+  const selectedIndex = displayedConversations.findIndex(
+    (conversation) => conversation.id === selectedId,
+  );
+
+  useEffect(() => {
+    openButtonRefs.current[selectedIndex]?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedId, selectedIndex]);
 
   function handleOpenKeyDown(event, index) {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
