@@ -36,7 +36,7 @@ The scheme is already called **SmarterDog**. If the scheme menu at the top does 
 
 ## 2. Choose your team
 
-This is what lets the app run on your phone. No team ID is saved in the repository. You choose yours on the Mac.
+This is what lets the app run on your phone. The project records the salon's Apple developer team (`ML5PLXXF9R`) for automatic signing in Debug and Release. This public identifier contains no signing credentials. On the Mac, sign in with an Apple ID that belongs to that team.
 
 1. In Xcode’s menu bar, open **Xcode → Settings → Accounts**.
 2. Click **+** and sign in with the Apple ID that is on the developer programme. Close Settings.
@@ -44,9 +44,9 @@ This is what lets the app run on your phone. No team ID is saved in the reposito
 4. Under TARGETS, click **SmarterDog**.
 5. Open the **Signing & Capabilities** tab.
 6. Leave **Automatically manage signing** ticked.
-7. In **Team**, choose your name. Do not type a team ID into a file.
+7. In **Team**, choose the salon's team. Do not type a team ID into a file.
 
-Xcode may then show the project file as changed. That change is your team. You do not have to commit it. Xcode Cloud uses the team you pick when you create the workflow.
+If you choose a different team for local testing, keep that change local. Xcode Cloud must use the same salon team as the committed project.
 
 If Team is empty, the Apple ID in Settings is missing, or that Apple ID has not joined the developer programme.
 
