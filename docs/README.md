@@ -18,6 +18,7 @@ It does not duplicate those sources.
 | What is being done, and in what order? | [`../ROADMAP.md`](../ROADMAP.md) and [GitHub issue #603](https://github.com/leamonline/Smarter-dog-bookings/issues/603) |
 | How should an AI agent work here? | [`../AGENTS.md`](../AGENTS.md) |
 | How do I pick up or hand over authorised work? | [Task intake and recovery](project-management.md#authorised-development-and-session-recovery) and the [skill registry](../prompts/README.md#repository-skills) |
+| Where do cloud development and verification run? | [Cloud development runbook](runbooks/cloud-development.md) |
 | How should a substantial change be planned? | [`../.agent/PLANS.md`](../.agent/PLANS.md) |
 | What does the product currently do? | [`product/`](product/) and [`architecture/overview.md`](architecture/overview.md) |
 | Which decisions are settled? | [`architecture/decisions/`](architecture/decisions/) |
