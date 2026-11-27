@@ -1,4 +1,4 @@
-// ios/ is a SwiftUI skeleton for a later iPhone app. Linux CI cannot compile it,
+// ios/ is the separate iPhone app. Linux CI cannot compile its SwiftUI views,
 // and the web pipeline must not start treating it as part of the booking app.
 // This file locks that boundary and the project settings Xcode Cloud needs.
 // It does not, and cannot, run xcodebuild.
@@ -81,9 +81,10 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(archive).toContain('buildConfiguration = "Release"');
     // Sources stay under ios/. The project file is at the repo root so Xcode
     // Cloud's saved name, SmarterDog.xcodeproj, resolves.
-    expect(project).toContain('path = "ios/SmarterDog";');
-    expect(project).toContain('path = "ios/Config";');
-    expect(project).toContain('path = "ios/README.md";');
+    // Xcode may omit quotes around these paths when it saves the project.
+    const paths = [...project.matchAll(/\bpath\s*=\s*(?:"([^"]+)"|([^;\s]+))\s*;/g)]
+      .map((match) => match[1] ?? match[2]);
+    expect(paths).toEqual(expect.arrayContaining(["ios/SmarterDog", "ios/Config", "ios/README.md"]));
   });
 
   it("targets iOS 18, iPhone, Swift 6, and the placeholder bundle id", () => {
@@ -95,8 +96,6 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(project).not.toContain("UISupportedInterfaceOrientations_iPad");
     expect(project).toContain("PRODUCT_BUNDLE_IDENTIFIER = uk.co.smarterdog.app;");
     expect(project).toContain('INFOPLIST_KEY_CFBundleDisplayName = "Smarter Dog";');
-    expect(project).toContain("CODE_SIGN_STYLE = Automatic;");
-    expect(project).not.toContain("DEVELOPMENT_TEAM");
     expect(project).toContain("GENERATE_INFOPLIST_FILE = YES;");
     // A fonts-only plist is merged into the generated one. It must not replace
     // generation, and it must not be copied as a second resource.
@@ -122,6 +121,22 @@ describe("the Xcode project is the committed skeleton", () => {
     expect(fontsPlist).toContain("<string>$(TURNSTILE_SITE_KEY)</string>");
     expect(fontsPlist).not.toContain("supabase.co");
     expect(fontsPlist).not.toContain("sb_publishable_");
+  });
+
+  it("uses the salon's automatic signing team in Debug and Release", () => {
+    const project = read(projectPath);
+    const appConfigurations = [...project.matchAll(/isa = XCBuildConfiguration;([\s\S]*?)\n\t\t\};/g)]
+      .map((match) => match[1])
+      .filter((configuration) => configuration.includes("PRODUCT_BUNDLE_IDENTIFIER"));
+    expect(appConfigurations).toHaveLength(2);
+    expect(appConfigurations.map((configuration) => configuration.match(/\bname\s*=\s*(Debug|Release);/)?.[1]).sort())
+      .toEqual(["Debug", "Release"]);
+    for (const configuration of appConfigurations) {
+      expect(configuration).toMatch(/\bCODE_SIGN_STYLE\s*=\s*(?:"Automatic"|Automatic)\s*;/);
+      // A public team identifier, not a signing credential. Reject another
+      // developer's local team and require the same salon team in both builds.
+      expect(configuration).toMatch(/\bDEVELOPMENT_TEAM\s*=\s*(?:"ML5PLXXF9R"|ML5PLXXF9R)\s*;/);
+    }
   });
 
   it("links supabase-swift 2.x and signs in with that client", () => {
