@@ -25,7 +25,7 @@ const SCREENS: Array<{ name: string; path: string; ceilings: Ceilings }> = [
   { name: "Calendar", path: "/staff?date=2026-10-26", ceilings: {} },
   { name: "Dogs", path: "/staff/dogs", ceilings: {} },
   { name: "Customers", path: "/staff/humans", ceilings: {} },
-  { name: "Inbox", path: "/staff/inbox", ceilings: { "nested-interactive": 4 } },
+  { name: "Inbox", path: "/staff/inbox", ceilings: { "nested-interactive": 0 } },
   { name: "Settings", path: "/staff/settings", ceilings: {} },
   { name: "Reports", path: "/staff/reports", ceilings: {} },
   // The customer sign-in is clean today, so it must stay clean.
@@ -71,4 +71,52 @@ test.describe("Accessibility (axe)", () => {
       expect(worse, `${screen.name} got worse:\n${report}`).toEqual([]);
     });
   }
+});
+
+test("Inbox conversation controls are independently keyboard reachable", async ({ page }, testInfo) => {
+  const origin = new URL(testInfo.project.use.baseURL!).origin;
+  await page.route("**/*", (route) =>
+    new URL(route.request().url()).origin === origin ? route.continue() : route.abort(),
+  );
+  await page.goto("/staff/inbox");
+
+  const list = page.getByRole("list", { name: "Conversations" });
+  const sarah = list.getByRole("button", { name: /Sarah Jones/ });
+  const david = list.getByRole("button", { name: /David Miller/ });
+  const checkbox = list.getByRole("checkbox", { name: /David Miller/ });
+  const failed = list.getByRole("button", { name: /Show the message that did not send/ });
+  const thread = page.getByRole("region", { name: "Message thread" });
+
+  await sarah.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(david).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(sarah).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  await expect(checkbox).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(checkbox).toBeChecked();
+  await expect(page.getByRole("button", { name: "Close 1 conversation" })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(checkbox).not.toBeChecked();
+
+  await page.keyboard.press("Tab");
+  await expect(david).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(thread.getByText("David Miller", { exact: true })).toBeVisible();
+
+  const back = thread.getByRole("button", { name: "Back to inbox" });
+  if (await back.isVisible()) {
+    await back.press("Enter");
+    await expect(list).toBeVisible();
+    await david.focus();
+  } else {
+    await expect(david).toBeFocused();
+  }
+
+  await page.keyboard.press("Tab");
+  await expect(failed).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(thread.locator("[data-delivery-failed='true']")).toBeFocused();
 });

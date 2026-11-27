@@ -312,12 +312,20 @@ describe("InboxView", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the compact conversation listbox through the route entry", () => {
-    renderInbox();
+  it("renders a visible conversation as a list item through the route entry", () => {
+    renderInbox(baseState({
+      conversations: [{
+        id: "conv-1",
+        phone_e164: "+447700900111",
+        humans: { name: "Sarah", surname: "Jones" },
+        unread_count: 1,
+      }],
+    }));
 
-    expect(
-      screen.getByRole("listbox", { name: "Conversations" }),
-    ).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Conversations" });
+    expect(within(list).getByRole("listitem")).toContainElement(
+      within(list).getByRole("button", { name: /Sarah Jones/ }),
+    );
   });
 
   it("shows the empty-state copy when there are zero conversations", () => {

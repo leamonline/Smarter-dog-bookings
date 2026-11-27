@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useInboxWaitingTimes } from "../../../../supabase/hooks/useInboxWaitingTimes";
 import { Plus, Search, X } from "lucide-react";
 import { PageHeaderAction } from "../../../ui/index.js";
@@ -88,52 +88,15 @@ export function ConversationPane({
   onShowFailed,
 }) {
   const waitingTimes = useInboxWaitingTimes(conversations);
-  const selectedIndex = displayedConversations.findIndex(
-    (conversation) => conversation.id === selectedId,
-  );
-  const [activeIndex, setActiveIndex] = useState(() =>
-    selectedIndex >= 0 ? selectedIndex : 0,
-  );
-  const rowRefs = useRef([]);
+  const openButtonRefs = useRef([]);
 
-  useEffect(() => {
-    setActiveIndex((currentIndex) => {
-      if (displayedConversations.length === 0) return 0;
-      if (selectedIndex >= 0) return selectedIndex;
-      return Math.min(currentIndex, displayedConversations.length - 1);
-    });
-  }, [displayedConversations.length, selectedIndex]);
+  function handleOpenKeyDown(event, index) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
 
-  useEffect(() => {
-    rowRefs.current[activeIndex]?.scrollIntoView?.({ block: "nearest" });
-  }, [activeIndex, displayedConversations]);
-
-  function handleListKeyDown(event) {
-    if (displayedConversations.length === 0) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex((currentIndex) =>
-        Math.min(currentIndex + 1, displayedConversations.length - 1),
-      );
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex((currentIndex) => Math.max(currentIndex - 1, 0));
-      return;
-    }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      onSelectConversation(displayedConversations[activeIndex].id);
-    }
+    event.preventDefault();
+    const offset = event.key === "ArrowDown" ? 1 : -1;
+    openButtonRefs.current[index + offset]?.focus();
   }
-
-  function handleSelect(index, conversationId) {
-    setActiveIndex(index);
-    onSelectConversation(conversationId);
-  }
-
-  const activeConversation = displayedConversations[activeIndex] ?? null;
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-white">
@@ -201,14 +164,7 @@ export function ConversationPane({
         <span className="sr-only" role="status">{conversationSummary}</span>
       </div>
 
-      <div
-        role="listbox"
-        aria-label="Conversations"
-        aria-activedescendant={activeConversation ? `conversation-option-${activeConversation.id}` : undefined}
-        tabIndex={0}
-        onKeyDown={handleListKeyDown}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-ink"
-      >
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {loadingList ? (
           <div className="p-4"><LoadingSpinner label="Loading messages…" /></div>
         ) : listError ? (
@@ -269,25 +225,23 @@ export function ConversationPane({
             )}
           </div>
         ) : (
-          displayedConversations.map((conversation, index) => (
-            <div
-              key={conversation.id}
-              id={`conversation-option-${conversation.id}`}
-              ref={(node) => { rowRefs.current[index] = node; }}
-              role="option"
-              aria-selected={conversation.id === selectedId}
-            >
-              <ConversationListItem
-                conv={conversation}
-                waitingLabel={waitingTimes[conversation.id]}
-                isSelected={conversation.id === selectedId}
-                onSelect={(conversationId) => handleSelect(index, conversationId)}
-                isChecked={selectedIds.has(conversation.id)}
-                onToggleSelect={onToggleSelect}
-                onShowFailed={onShowFailed}
-              />
-            </div>
-          ))
+          <ul role="list" aria-label="Conversations" className="m-0 list-none p-0">
+            {displayedConversations.map((conversation, index) => (
+              <li key={conversation.id}>
+                <ConversationListItem
+                  conv={conversation}
+                  waitingLabel={waitingTimes[conversation.id]}
+                  isSelected={conversation.id === selectedId}
+                  onSelect={onSelectConversation}
+                  openButtonRef={(node) => { openButtonRefs.current[index] = node; }}
+                  onOpenKeyDown={(event) => handleOpenKeyDown(event, index)}
+                  isChecked={selectedIds.has(conversation.id)}
+                  onToggleSelect={onToggleSelect}
+                  onShowFailed={onShowFailed}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
