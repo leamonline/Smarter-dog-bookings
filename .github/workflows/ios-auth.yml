@@ -20,8 +20,19 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install GPG for Swiftly toolchain verification
         run: sudo apt-get update && sudo apt-get install -y gnupg
+      # setup-swift v3 verifies the Swiftly archive before Swiftly imports keys.
+      - name: Import Swift release signing keys
+        run: |
+          curl --fail --silent --show-error --location --compressed https://www.swift.org/keys/all-keys.asc --output "$RUNNER_TEMP/swift-signing-keys.asc"
+          file "$RUNNER_TEMP/swift-signing-keys.asc"
+          if gzip --test "$RUNNER_TEMP/swift-signing-keys.asc" 2>/dev/null; then
+            mv "$RUNNER_TEMP/swift-signing-keys.asc" "$RUNNER_TEMP/swift-signing-keys.asc.gz"
+            gzip --decompress "$RUNNER_TEMP/swift-signing-keys.asc.gz"
+          fi
+          gpg --batch --import "$RUNNER_TEMP/swift-signing-keys.asc"
       - uses: swift-actions/setup-swift@v3
         with:
           swift-version: "6.0.3"
+          skip-verify-signature: false
       - name: Test sign-in decisions
         run: swift test --package-path ios
