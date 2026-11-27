@@ -108,9 +108,20 @@ describe("the Xcode project is the committed skeleton", () => {
     expect([...fontArray.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1])).toEqual([
       "Poppins-Bold.ttf",
       "Poppins-SemiBold.ttf",
+      "Poppins-Black.ttf",
+      "Caveat-Bold.ttf",
     ]);
-    expect(fontsPlist.match(/<key>/g)).toHaveLength(1);
-    expect(fontsPlist).not.toContain("Supabase");
+    // Xcode ignores custom INFOPLIST_KEY_ entries, so the three connection keys
+    // live in this plist as references to Config.xcconfig. Never literal values.
+    expect(fontsPlist.match(/<key>/g)).toHaveLength(5);
+    // No dark mode (owner decision, 23 November 2026). The sanctioned way is this key.
+    // Screens must not force a scheme in Swift (iosColourType.test.ts forbids that).
+    expect(fontsPlist).toMatch(/<key>UIUserInterfaceStyle<\/key>\s*<string>Light<\/string>/);
+    expect(fontsPlist).toContain("<string>$(SUPABASE_URL)</string>");
+    expect(fontsPlist).toContain("<string>$(SUPABASE_PUBLISHABLE_KEY)</string>");
+    expect(fontsPlist).toContain("<string>$(TURNSTILE_SITE_KEY)</string>");
+    expect(fontsPlist).not.toContain("supabase.co");
+    expect(fontsPlist).not.toContain("sb_publishable_");
   });
 
   it("links supabase-swift 2.x and signs in with that client", () => {
@@ -157,7 +168,21 @@ describe("the Xcode project is the committed skeleton", () => {
     }
     const swift = swiftFiles.map((file) => read(file)).join("\n");
     expect(swift).toContain("SupabaseClient(");
-    expect(swift).not.toContain("URLSession");
+    // All network traffic goes through the Supabase library, with ONE reviewed exception: the
+    // two customer writes in SupabaseBookingClient.swift (making a booking and cancelling one).
+    // Each must read the database's own error fields, which the pinned library's error type does
+    // not expose reliably across versions, so they share one URLSession call site and their answers
+    // are parsed by `BookingWire` and `CancelWire`, which are tested in Linux CI. The exception is
+    // one file, one call site and exactly these two RPCs; any other file, use or path fails here.
+    const withUrlSession = swiftFiles.filter((file) => read(file).includes("URLSession"));
+    expect(withUrlSession.map((file) => file.split("/").pop())).toEqual(["SupabaseBookingClient.swift"]);
+    const bookingClient = read(withUrlSession[0]);
+    expect(bookingClient.match(/URLSession/g)).toHaveLength(1);
+    expect(bookingClient).toContain("URLSession.shared.data(for: urlRequest)");
+    expect(bookingClient).toContain("rest/v1/rpc/create_customer_booking_group");
+    expect(bookingClient).toContain("rest/v1/rpc/cancel_customer_booking");
+    const rpcPaths = [...bookingClient.matchAll(/"rest\/v1\/rpc\/([a-z_]+)"/g)].map((match) => match[1]);
+    expect(rpcPaths.sort()).toEqual(["cancel_customer_booking", "create_customer_booking_group"]);
     expect(swift).toContain('Text("Smarter Dog")');
     expect(swift).toContain("Continue");
     expect(swift).toContain("Staff sign in");
@@ -278,8 +303,8 @@ describe("the Xcode project is the committed skeleton", () => {
     };
     expect(contents.info).toEqual({ author: "xcode", version: 1 });
     expect(contents.images.map((image) => image.filename)).toEqual([
-      "AppIcon.png",
-      "AppIcon-Dark.png",
+      "SmarterDog-iOS-Default-1024@1x.png",
+      "SmarterDog-iOS-Dark-1024@1x.png",
       "AppIcon-Tinted.png",
     ]);
     for (const image of contents.images) {
@@ -296,8 +321,8 @@ describe("the Xcode project is the committed skeleton", () => {
     // Colour type 2 is RGB with no alpha. Type 6 is RGBA. App Store rejects an
     // alpha channel on the light 1024 icon.
     const approved = [
-      ["AppIcon.png", 2, "4e7dc516c4f53afed8c79f484ae90145f54e48249dd998d828fc83137119fc46"],
-      ["AppIcon-Dark.png", 6, "debc5b0daa9701aa5869e2dc39dd7d98d5ada85dfa47b30f2e2465a5a5d5d30a"],
+      ["SmarterDog-iOS-Default-1024@1x.png", 2, "3221446cf17f3f9b8cca99dea964a806f0926696483dae973926c5032315cab5"],
+      ["SmarterDog-iOS-Dark-1024@1x.png", 6, "9ae9093586eb58e103dac507749fef75fa945639f1a6e1313627d3d4e51d132b"],
       ["AppIcon-Tinted.png", 2, "bbe53a8f9e9f73ba7c5283d9b4dfb02c85c3d5fd896bdd29ee26931c291d5a76"],
     ] as const;
     for (const [name, colourType, sha256] of approved) {
@@ -313,7 +338,9 @@ describe("the Xcode project is the committed skeleton", () => {
     const composer = "ios/SmarterDog/SmarterDog.icon";
     expect(existsSync(join(root, composer, "icon.json"))).toBe(true);
     expect(existsSync(join(root, composer, "Assets/dog.svg"))).toBe(true);
-    expect(existsSync(join(root, composer, "Assets/dog.png"))).toBe(true);
+    // icon.json names dog.svg. dog.png is not part of this package.
+    expect(read(`${composer}/icon.json`)).toContain('"image-name" : "dog.svg"');
+    expect(read(`${composer}/icon.json`)).not.toContain("dog.png");
     const iconDocument = JSON.parse(read(`${composer}/icon.json`)) as {
       groups?: unknown[];
       "supported-platforms"?: { squares?: string[] };

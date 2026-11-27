@@ -78,11 +78,16 @@ most cases, a migration.** These are not settings and there is no UI for them:
 | Same-day cutoff | 30 minutes before the slot | `IMMEDIATE_CUTOFF_MINUTES`, mirrored for UI gating only |
 | Pregnancy gate | blocks non-staff inserts | Trigger-enforced; staff bypass is deliberate clinical judgement |
 
-The engine exists **three times** — frontend, Deno, and the PostgreSQL trigger —
-so a "fixed rule" change means changing all three together and extending the
-governed scenario set in `src/engine/capacityParityFixtures.ts`, which all three
-parity harnesses consume. That is the real cost, and the reason these are not
-settings.
+The engine exists **four times** — frontend, Deno, the PostgreSQL trigger and, for
+the customer's one-dog offers, the iPhone app (`ios/SmarterDog/CapacityEngine.swift`) —
+so a "fixed rule" change means changing all of them together and extending the
+governed scenario set in `src/engine/capacityParityFixtures.ts`, which every
+parity harness consumes. The iPhone copy is guarded by
+`ios/AuthCoreTests/capacity-parity.json`, which is generated from that same list
+with the website engine's answers by
+`src/engine/capacityParityFixtures.ios.test.ts`; after a rule change, regenerate
+it with `UPDATE_IOS_CAPACITY_FIXTURES=1` or that test fails. That is the real
+cost, and the reason these are not settings.
 
 ## Approved large-dog slots
 
@@ -119,7 +124,7 @@ takeovers with no sharing.
 > nothing (audit finding AUDIT-1, 2026-07-01). The current card is read-only
 > and no longer reads or writes that column (#1060). The contract migration in
 > [migration history](migrations.md) removes it. Changing the real rules means changing all
-> three hardcoded copies above **together** and adding the scenario to
+> three hardcoded copies above **together** (and the iPhone copy, see above) and adding the scenario to
 > `src/engine/capacityParityFixtures.ts` — the one list that
 > `src/lib/whatsapp/capacityParity.test.ts` (browser ↔ Deno),
 > `src/engine/capacityParityFixtures.test.ts` and

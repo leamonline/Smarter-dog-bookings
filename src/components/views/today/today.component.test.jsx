@@ -450,8 +450,10 @@ describe("the day stack page — selected-date operations", () => {
     });
 
     expect(card("b-asked")).toHaveAttribute("data-status-key", "unconfirmed");
-    // A reminder that never reached the owner needs chasing just the same.
-    expect(card("b-failed")).toHaveAttribute("data-status-key", "unconfirmed");
+    // A reminder that never reached the owner needs chasing just the same, and
+    // since 24 November 2026 the card says why (owner decision).
+    expect(card("b-failed")).toHaveAttribute("data-status-key", "reminderFailed");
+    expect(within(card("b-failed")).getByText("Reminder failed")).toBeInTheDocument();
     expect(head("b-failed").querySelector("[data-undelivered]")).toHaveTextContent("Reminder not delivered");
     expect(card("b-replied")).toHaveAttribute("data-status-key", "confirmed");
     expect(card("b-quiet")).toHaveAttribute("data-status-key", "expected");

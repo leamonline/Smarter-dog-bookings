@@ -229,7 +229,7 @@ const LandingPopup = ({ onBookClick }) => {
                                     <span aria-hidden="true">🌐</span>
                                     <span>
                                         Book online anytime at{' '}
-                                        <span className="font-semibold" style={{ color: colors.pink }}>
+                                        <span className="font-semibold" style={{ color: colors.cyanText }}>
                                             smarterdog.co.uk
                                         </span>
                                     </span>
@@ -243,12 +243,12 @@ const LandingPopup = ({ onBookClick }) => {
                                 className="relative bg-white p-2 pb-6 shadow-layered"
                                 style={{ transform: 'rotate(4deg)', width: '140px' }}
                             >
-                                {/* Pink tape */}
+                                {/* Yellow tape */}
                                 <span
                                     aria-hidden="true"
                                     className="absolute -top-2 left-1/2 w-20 h-5 opacity-80"
                                     style={{
-                                        backgroundColor: colors.pink + 'CC',
+                                        backgroundColor: colors.yellow + 'CC',
                                         transform: 'translateX(-50%) rotate(-3deg)',
                                         clipPath: 'polygon(2% 0%, 98% 0%, 100% 100%, 0% 100%)'
                                     }}
@@ -280,8 +280,8 @@ const LandingPopup = ({ onBookClick }) => {
                         <button
                             type="button"
                             onClick={handleBookNow}
-                            className="px-12 py-4 rounded-full font-bold text-white text-lg transition-all duration-300 hover:shadow-xl hover:scale-105 active-squish"
-                            style={{ backgroundColor: colors.pink }}
+                            className="px-12 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:shadow-xl hover:scale-105 active-squish"
+                            style={{ backgroundColor: colors.yellow, color: colors.plum }}
                         >
                             Book now
                         </button>

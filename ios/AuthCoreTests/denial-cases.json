@@ -1,0 +1,152 @@
+[
+ {
+  "message": "Capped at 1 (2-2-1 rule)",
+  "details": "capacity_2_2_1",
+  "reason": "capacity_2_2_1"
+ },
+ {
+  "message": "anything at all",
+  "details": "daily_cap",
+  "reason": "daily_cap"
+ },
+ {
+  "message": "anything at all",
+  "details": "  seat_blocked  ",
+  "reason": "seat_blocked"
+ },
+ {
+  "message": "Pregnant dog",
+  "details": "pregnant",
+  "reason": "pregnant"
+ },
+ {
+  "message": "Slot is full",
+  "details": "something_else",
+  "reason": "slot_full"
+ },
+ {
+  "message": null,
+  "details": "customer_slot_blocked",
+  "reason": "customer_slot_blocked"
+ },
+ {
+  "message": "Capped at 1 (2-2-1 rule)",
+  "details": null,
+  "reason": "capacity_2_2_1"
+ },
+ {
+  "message": "This slot is full",
+  "details": null,
+  "reason": "slot_full"
+ },
+ {
+  "message": "We are fully booked for that day (14 dogs per day)",
+  "details": null,
+  "reason": "daily_cap"
+ },
+ {
+  "message": "Back-to-back large dogs only allowed at 12:30 + 13:00",
+  "details": null,
+  "reason": "large_dog_ineligible"
+ },
+ {
+  "message": "13:00 is closed — large dog at 12:00 triggered early close",
+  "details": null,
+  "reason": "large_dog_ineligible"
+ },
+ {
+  "message": "9:00am conditional: 8:30am must be empty",
+  "details": null,
+  "reason": "large_dog_ineligible"
+ },
+ {
+  "message": "Same-day bookings are only open for flagged slots",
+  "details": null,
+  "reason": "past_cutoff"
+ },
+ {
+  "message": "That slot is too close to the start time",
+  "details": null,
+  "reason": "past_cutoff"
+ },
+ {
+  "message": "Booking date is in the past",
+  "details": null,
+  "reason": "past_date"
+ },
+ {
+  "message": "Seat is blocked",
+  "details": null,
+  "reason": "seat_blocked"
+ },
+ {
+  "message": "The salon is closed on that day",
+  "details": null,
+  "reason": "calendar_closed"
+ },
+ {
+  "message": "This dog is already booked for that slot",
+  "details": null,
+  "reason": "double_booked"
+ },
+ {
+  "message": "The same dog is listed twice",
+  "details": null,
+  "reason": "double_booked"
+ },
+ {
+  "message": "Invalid slot",
+  "details": null,
+  "reason": "unavailable"
+ },
+ {
+  "message": "Your account is awaiting approval. We'll be in touch",
+  "details": null,
+  "reason": "awaiting_approval"
+ },
+ {
+  "message": "Please complete your profile (name, address and policy agreement) before booking",
+  "details": null,
+  "reason": "profile_incomplete"
+ },
+ {
+  "message": "dog_size_unconfirmed",
+  "details": null,
+  "reason": "dog_size_unconfirmed"
+ },
+ {
+  "message": "Row 1: that dog is not on your account",
+  "details": null,
+  "reason": "dog_not_owned"
+ },
+ {
+  "message": "This time is blocked for your account",
+  "details": null,
+  "reason": "customer_slot_blocked"
+ },
+ {
+  "message": "Pregnant dogs cannot be booked online",
+  "details": null,
+  "reason": "pregnant"
+ },
+ {
+  "message": "Your account is awaiting approval and the salon is closed",
+  "details": null,
+  "reason": "awaiting_approval"
+ },
+ {
+  "message": "something nobody has seen before",
+  "details": null,
+  "reason": "unknown"
+ },
+ {
+  "message": "",
+  "details": null,
+  "reason": "unknown"
+ },
+ {
+  "message": null,
+  "details": null,
+  "reason": "unknown"
+ }
+]

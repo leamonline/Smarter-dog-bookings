@@ -21,15 +21,16 @@ values:
 | Primary CTA colour | `bg-brand-yellow` / `text-brand-ink` (yellow fill, charcoal label; portal booking actions too) |
 | Danger / destructive | `bg-brand-coral-dark text-white` (hover `bg-brand-coral-deep`); use bright coral only as an accent |
 | Success / confirmed | `bg-brand-green-*` (numbered 50–900 scale) |
-| Size semantics | `--color-size-small` (yellow), `--color-size-medium` (teal), `--color-size-large` (coral) — used by `SizeDot`/`SizeTag`, keep this mapping if you build new size UI |
+| Size semantics | `--color-size-small` and `--color-size-medium` (charcoal: a neutral letter chip), `--color-size-large` (navy, the only coloured size) — used by `SizeDot`/`SizeTag`/`SIZE_THEME`; keep this mapping if you build new size UI. Charts use an ordered blue scale instead |
 | Body ink | `text-ink` / `text-ink-muted` (charcoal and accessible staff grey). Do not use placeholder tokens for required text |
 | Card surface | `bg-white border border-slate-200 rounded-card shadow-card-resting` (what `<Card>` renders — reuse this recipe for any new card-like surface instead of `shadow-md`) |
 | Form-control radius | `rounded-control` (10px — inputs and segmented controls; Button and IconButton are pills) |
 | Motion | `duration-[var(--duration-base)]` (180ms — the standard interactive-transition speed) |
 
 Fonts: **Montserrat** is body/UI (`font-sans`), **Poppins** is
-display/headings (`font-display`), **Barlow Condensed** is for selected hero lines
-(`font-hero`), Caveat is a retained legacy font token, not a default for new work.
+display/headings (`font-display`), **Poppins Black** (Poppins 900 under its own
+family name) is for hero lines only (`font-hero` with `font-black`), and **Caveat**
+(`font-handwriting`) is the one short handwritten line a hero screen may carry.
 Rebuild this bundle after token/font changes. Don't
 introduce a different font family for new text.
 

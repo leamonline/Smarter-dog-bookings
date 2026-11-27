@@ -235,7 +235,7 @@ describe("BookingWizard — receipt guidance for changing the booking", () => {
     const footnote = await bookAndReadFootnote();
 
     expect(footnote).toHaveTextContent(/send a reminder the day before/i);
-    expect(footnote).toHaveTextContent(/WhatsApp where we can, and text you if it doesn’t reach you/);
+    expect(footnote).toHaveTextContent(/WhatsApp where possible or send you a text if preferred/);
     expect(screen.getByRole("heading", { name: "All booked in!" })).toHaveFocus();
     expect(screen.getByText("booking-1", { selector: "code" })).toBeVisible();
   });

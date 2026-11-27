@@ -27,11 +27,17 @@ const TermsPage = ({ onBookClick }) => {
             ]
         },
         {
+            // Owner's wording, 24 November 2026 (ADR 015). Keep it word for word.
             title: "Cancellations & No-Shows",
+            intro: "We know life doesn't always go to plan! If you need to cancel your dog's appointment, we'd really appreciate as much notice as possible.",
             items: [
-                "We require at least 24 hours' notice for cancellations.",
-                "No-shows or late cancellations may require a non-refundable deposit before future bookings.",
-                "Deposits are decided on a case-by-case basis and must be paid before the next appointment is confirmed."
+                "You can cancel here any time before the day of your appointment.",
+                "Cancellations on the day and missed appointments will be recorded.",
+                "Repeated no-shows will require a non-refundable deposit to secure future bookings. This will be taken off the cost of the groom."
+            ],
+            outro: [
+                "Giving us a little notice means we can offer your appointment to another dog who might be waiting for a pamper.",
+                "Thank you for your understanding and for supporting our little salon."
             ]
         },
         {
@@ -119,7 +125,7 @@ const TermsPage = ({ onBookClick }) => {
             <main id="main-content" className="pt-24 pb-16 px-6">
                 <div className="max-w-3xl mx-auto">
                     {/* Breadcrumb */}
-                    <p className="body-font text-base mb-4" style={{ color: colors.teal }}>
+                    <p className="body-font text-base mb-4" style={{ color: colors.inkMuted }}>
                         Policies & Terms
                     </p>
 
@@ -131,7 +137,7 @@ const TermsPage = ({ onBookClick }) => {
                         >
                             Terms & Conditions
                         </h1>
-                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg leading-relaxed" style={{ color: colors.inkMuted }}>
                             These guidelines help us keep every dog comfortable and safe while running the salon smoothly. By booking an appointment with Smarter Dog Grooming Salon, you agree to the following:
                         </p>
                     </div>
@@ -150,18 +156,28 @@ const TermsPage = ({ onBookClick }) => {
                                 >
                                     {section.title}
                                 </h2>
+                                {section.intro && (
+                                    <p className="body-font text-lg leading-relaxed mb-4" style={{ color: colors.inkMuted }}>
+                                        {section.intro}
+                                    </p>
+                                )}
                                 <ul className="space-y-4">
                                     {section.items.map((item, j) => (
                                         <li
                                             key={j}
                                             className="body-font text-lg leading-relaxed flex gap-3"
-                                            style={{ color: colors.teal }}
+                                            style={{ color: colors.inkMuted }}
                                         >
-                                            <span style={{ color: colors.teal }} className="flex-shrink-0">•</span>
+                                            <span style={{ color: colors.inkMuted }} className="flex-shrink-0">•</span>
                                             <span>{item}</span>
                                         </li>
                                     ))}
                                 </ul>
+                                {section.outro?.map((line, k) => (
+                                    <p key={k} className="body-font text-lg leading-relaxed mt-4" style={{ color: colors.inkMuted }}>
+                                        {line}
+                                    </p>
+                                ))}
                             </div>
                         ))}
                     </div>
@@ -170,13 +186,13 @@ const TermsPage = ({ onBookClick }) => {
                     <div className="mt-12 text-center bg-white rounded-2xl p-8 shadow-sm">
                         <p
                             className="body-font text-lg italic mb-6"
-                            style={{ color: colors.teal }}
+                            style={{ color: colors.inkMuted }}
                         >
                             Thank you for supporting a safe, calm, and welfare-focused grooming environment for every dog who visits us.
                         </p>
-                        <p className="body-font text-base" style={{ color: colors.teal }}>
+                        <p className="body-font text-base" style={{ color: colors.inkMuted }}>
                             If you have questions about any of these policies, please message us on{' '}
-                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.teal }}>
+                            <a href={whatsAppUrl(facts.businessPhone)} target="_blank" rel="noopener noreferrer" className="font-semibold underline hover:opacity-70" style={{ color: colors.inkMuted }}>
                                 WhatsApp
                             </a>
                         </p>

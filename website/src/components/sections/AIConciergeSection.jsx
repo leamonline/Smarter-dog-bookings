@@ -157,7 +157,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                     <div className="text-center mb-10">
                         <span
                             className="inline-block px-4 py-2 rounded-full text-sm font-bold mb-4"
-                            style={{ backgroundColor: colors.cyanLight, color: colors.teal }}
+                            style={{ backgroundColor: colors.cyanLight, color: colors.inkMuted }}
                         >
                             AI Booking Concierge
                         </span>
@@ -167,7 +167,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                         >
                             Not sure what to book?
                         </h2>
-                        <p className="body-font text-lg max-w-2xl mx-auto" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg max-w-2xl mx-auto" style={{ color: colors.inkMuted }}>
                             Tell us a few details and our concierge will suggest the best service and visit rhythm.
                         </p>
                     </div>
@@ -182,7 +182,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                             </h3>
                             <div className="space-y-4">
                                 <div className="max-w-[85%] rounded-2xl px-4 py-3" style={{ backgroundColor: colors.cyanLight }}>
-                                    <p className="body-font text-sm" style={{ color: colors.teal }}>
+                                    <p className="body-font text-sm" style={{ color: colors.inkMuted }}>
                                         Hi, I can shortlist the right grooming plan in under a minute.
                                     </p>
                                 </div>
@@ -198,17 +198,17 @@ const AIConciergeSection = ({ onBookClick }) => {
                                     </p>
                                 </div>
                                 <div className="max-w-[85%] rounded-2xl px-4 py-3" style={{ backgroundColor: colors.cyanLight }}>
-                                    <p className="body-font text-sm font-semibold mb-1" style={{ color: colors.teal }}>
+                                    <p className="body-font text-sm font-semibold mb-1" style={{ color: colors.inkMuted }}>
                                         Recommended:
                                     </p>
-                                    <p className="body-font text-sm" style={{ color: colors.teal }}>
+                                    <p className="body-font text-sm" style={{ color: colors.inkMuted }}>
                                         {recommendation.summary}
                                     </p>
-                                    <p className="body-font text-xs mt-2" style={{ color: colors.teal }}>
+                                    <p className="body-font text-xs mt-2" style={{ color: colors.inkMuted }}>
                                         {recommendation.rationale}
                                     </p>
                                 </div>
-                                <p className="body-font text-xs" style={{ color: colors.teal }}>
+                                <p className="body-font text-xs" style={{ color: colors.inkMuted }}>
                                     Final service is always confirmed by the grooming team when we review your request.
                                 </p>
                             </div>
@@ -217,7 +217,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-layered border border-gray-100">
                             <div className="grid sm:grid-cols-2 gap-4 mb-5">
                                 <div>
-                                    <label htmlFor="concierge-dog-name" className="block text-sm font-bold mb-1" style={{ color: colors.teal }}>
+                                    <label htmlFor="concierge-dog-name" className="block text-sm font-bold mb-1" style={{ color: colors.inkMuted }}>
                                         Dog&apos;s name
                                     </label>
                                     <input
@@ -230,7 +230,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="concierge-breed" className="block text-sm font-bold mb-1" style={{ color: colors.teal }}>
+                                    <label htmlFor="concierge-breed" className="block text-sm font-bold mb-1" style={{ color: colors.inkMuted }}>
                                         Breed
                                     </label>
                                     <input
@@ -245,7 +245,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                             </div>
 
                             <fieldset className="mb-5">
-                                <legend className="block text-sm font-bold mb-2" style={{ color: colors.teal }}>
+                                <legend className="block text-sm font-bold mb-2" style={{ color: colors.inkMuted }}>
                                     Coat type
                                 </legend>
                                 <div className="flex flex-wrap gap-2">
@@ -259,7 +259,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                                                 className={chipClassName(isActive)}
                                                 style={{
                                                     backgroundColor: isActive ? colors.cyanLight : 'white',
-                                                    borderColor: isActive ? colors.cyan : '#E5E7EB',
+                                                    borderColor: isActive ? colors.cyanText : '#E5E7EB',
                                                     color: colors.plum,
                                                 }}
                                                 aria-pressed={isActive}
@@ -272,7 +272,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                             </fieldset>
 
                             <fieldset className="mb-5">
-                                <legend className="block text-sm font-bold mb-2" style={{ color: colors.teal }}>
+                                <legend className="block text-sm font-bold mb-2" style={{ color: colors.inkMuted }}>
                                     Main goal
                                 </legend>
                                 <div className="flex flex-wrap gap-2">
@@ -285,8 +285,8 @@ const AIConciergeSection = ({ onBookClick }) => {
                                                 onClick={() => handleOptionChange('goal', option.value)}
                                                 className={chipClassName(isActive)}
                                                 style={{
-                                                    backgroundColor: isActive ? colors.yellowLight : 'white',
-                                                    borderColor: isActive ? colors.yellow : '#E5E7EB',
+                                                    backgroundColor: isActive ? colors.cyanLight : 'white',
+                                                    borderColor: isActive ? colors.cyanText : '#E5E7EB',
                                                     color: colors.plum,
                                                 }}
                                                 aria-pressed={isActive}
@@ -299,7 +299,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                             </fieldset>
 
                             <fieldset className="mb-5">
-                                <legend className="block text-sm font-bold mb-2" style={{ color: colors.teal }}>
+                                <legend className="block text-sm font-bold mb-2" style={{ color: colors.inkMuted }}>
                                     Temperament
                                 </legend>
                                 <div className="flex flex-wrap gap-2">
@@ -312,8 +312,8 @@ const AIConciergeSection = ({ onBookClick }) => {
                                                 onClick={() => handleOptionChange('temperament', option.value)}
                                                 className={chipClassName(isActive)}
                                                 style={{
-                                                    backgroundColor: isActive ? colors.greenLight : 'white',
-                                                    borderColor: isActive ? colors.green : '#E5E7EB',
+                                                    backgroundColor: isActive ? colors.cyanLight : 'white',
+                                                    borderColor: isActive ? colors.cyanText : '#E5E7EB',
                                                     color: colors.plum,
                                                 }}
                                                 aria-pressed={isActive}
@@ -325,7 +325,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                                 </div>
                             </fieldset>
 
-                            <label htmlFor="visit-rhythm" className="block text-sm font-bold mb-2" style={{ color: colors.teal }}>
+                            <label htmlFor="visit-rhythm" className="block text-sm font-bold mb-2" style={{ color: colors.inkMuted }}>
                                 Visit rhythm
                             </label>
                             <select
@@ -345,14 +345,14 @@ const AIConciergeSection = ({ onBookClick }) => {
 
                     <div
                         className="mt-8 rounded-3xl p-6 md:p-8 border"
-                        style={{ backgroundColor: 'white', borderColor: colors.greenLight }}
+                        style={{ backgroundColor: 'white', borderColor: colors.cyanLight }}
                     >
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                             <div>
                                 <h3 className="heading-font text-2xl font-bold" style={{ color: colors.plum }}>
                                     Suggested plan: {recommendation.service}
                                 </h3>
-                                <p className="body-font text-base mt-2" style={{ color: colors.teal }}>
+                                <p className="body-font text-base mt-2" style={{ color: colors.inkMuted }}>
                                     {recommendation.summary}
                                 </p>
                             </div>
@@ -360,7 +360,7 @@ const AIConciergeSection = ({ onBookClick }) => {
                                 type="button"
                                 onClick={handleUseRecommendation}
                                 className="px-8 py-4 rounded-full font-bold text-base transition-all hover:scale-105 hover:shadow-lg"
-                                style={{ backgroundColor: colors.green, color: colors.plum }}
+                                style={{ backgroundColor: colors.yellow, color: colors.plum }}
                             >
                                 Use this and book now
                             </button>

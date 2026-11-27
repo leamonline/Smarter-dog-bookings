@@ -113,10 +113,10 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
 
             // Match the week-strip dots: the date sits in a circle whose
             // colour answers "can I book this day?" — closed → muted grey,
-            // open → green, full → blue. Selected wins (yellow); today keeps
-            // a yellow ring.
+            // open → green, full → charcoal. Selected wins (brand blue with a
+            // ring, flyer visual language decision 5); today keeps a yellow ring.
             const circleStyle = isSelected
-              ? "bg-brand-yellow text-brand-ink shadow-[0_2px_6px_rgba(254,204,19,0.35)]"
+              ? "bg-brand-cyan text-white ring-2 ring-brand-cyan ring-offset-1"
               : dayCircleStyle({ isPast, dogCount: monthLoading ? null : count, isOpen });
 
             return (
@@ -146,7 +146,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
             Today
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-yellow inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-cyan inline-block" />
             Selected
           </span>
           <span className="inline-flex items-center gap-1">
@@ -154,7 +154,7 @@ export function MiniCalendarCard({ currentDateObj, onSelectDate, bare = false })
             Open
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-ink inline-block" />
             Full
           </span>
           <span className="inline-flex items-center gap-1">

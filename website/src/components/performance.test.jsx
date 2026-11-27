@@ -34,7 +34,7 @@ describe('React Performance Tests', () => {
           title="Full Groom"
           desc="Complete service"
           bgColor="white"
-          accentColor={colors.pink}
+          accentColor={colors.yellow}
         />
       );
       const renderDuration = performance.now() - startTime;
@@ -71,7 +71,7 @@ describe('React Performance Tests', () => {
             title="Full Groom"
             desc="Complete service"
             bgColor="white"
-            accentColor={colors.pink}
+            accentColor={colors.yellow}
           />
         </Profiler>
       );
@@ -87,7 +87,7 @@ describe('React Performance Tests', () => {
             title="Full Groom"
             desc="Complete service"
             bgColor="white"
-            accentColor={colors.pink}
+            accentColor={colors.yellow}
           />
         </Profiler>
       );
@@ -120,7 +120,7 @@ describe('React Performance Tests', () => {
             title={`Service ${i}`}
             desc="Description"
             bgColor="white"
-            accentColor={colors.pink}
+            accentColor={colors.yellow}
           />
         );
         const renderTime = performance.now() - startTime;
@@ -152,7 +152,7 @@ describe('React Performance Tests', () => {
               title={`Service ${i}`}
               desc="Description"
               bgColor="white"
-              accentColor={colors.pink}
+              accentColor={colors.yellow}
             />
           ))}
         </div>

@@ -51,7 +51,7 @@ describe('Accessibility', () => {
         title="Full Groom"
         desc="Complete grooming service"
         bgColor="white"
-        accentColor={colors.pink}
+        accentColor={colors.yellow}
       />
     );
 

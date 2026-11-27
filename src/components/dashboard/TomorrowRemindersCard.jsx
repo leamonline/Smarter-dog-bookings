@@ -19,14 +19,7 @@ import { CheckCircle2, Circle, Clock, Send } from "lucide-react";
 import { RightRailCard } from "./RightRailCard.jsx";
 import { resolveRemindersTone } from "./tone/reminders";
 import { SendReminderModal } from "../modals/send-reminder/SendReminderModal.jsx";
-
-function formatSlot(slot) {
-  if (!slot) return "";
-  const [h, m] = slot.split(":").map(Number);
-  const period = h < 12 ? "am" : "pm";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")}${period}`;
-}
+import { formatSlotTime as formatSlot } from "../../lib/formatSlotTime.js";
 
 function formatSentTime(iso) {
   if (!iso) return "";
@@ -206,7 +199,7 @@ export function TomorrowRemindersCard({ bare = false, data, onOpen }) {
           <button
             type="button"
             onClick={onOpen}
-            className="inline-flex items-center justify-center py-1.5 px-3 rounded-md bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+            className="inline-flex items-center justify-center py-1.5 px-3 rounded-md bg-sd-cloud-tint border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
           >
             Review all {totalCount}
           </button>

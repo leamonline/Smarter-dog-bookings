@@ -24,6 +24,13 @@ export const POLICIES_VERSION = "2026-06-08";
 //
 // NOTE for whoever owns the Terms/Privacy text on smarterdog.co.uk: it should
 // say the same, and POLICIES_VERSION should be bumped when it does.
-export const MESSAGE_CHANNEL_NOTICE = "We use WhatsApp where we can, and text you if it doesn’t reach you.";
+//
+// Wording signed off by the owner on 22 November 2026. The heading appears on the
+// booking confirm step; the notice itself appears there and on both screens where
+// a customer gives their mobile number.
+export const MESSAGE_CHANNEL_NOTICE = "We\u2019ll use WhatsApp where possible or send you a text if preferred.";
+export const ESSENTIAL_MESSAGES_HEADING = "We\u2019ll keep you in the loop!";
 export const ESSENTIAL_MESSAGES_NOTICE =
-  "We\u2019ll message you about your booking: confirmations, reminders, any changes to it, and when your dog is ready for collection. " + MESSAGE_CHANNEL_NOTICE + " We only send promotions if you separately say yes.";
+  "We\u2019ll send you confirmations, booking updates, and a message when your dog is ready to come home. " +
+  MESSAGE_CHANNEL_NOTICE +
+  " Don\u2019t worry, we\u2019ll only send you offers or promotions if you\u2019ve said you\u2019d like them!";

@@ -12,6 +12,7 @@
 // ============================================================
 
 import { SERVICES } from "../constants/salon.ts";
+import { formatSlotTime as formatTime } from "./formatSlotTime.js";
 
 const SERVICE_LABEL = Object.fromEntries(SERVICES.map((s) => [s.id, s.name]));
 
@@ -23,14 +24,6 @@ function formatDate(yyyyMmDd) {
   if (!yyyyMmDd) return "";
   const d = new Date(`${yyyyMmDd}T12:00:00Z`);
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-}
-
-function formatTime(slot) {
-  if (!slot) return "";
-  const [h, m] = slot.split(":").map(Number);
-  const period = h < 12 ? "am" : "pm";
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}:${String(m).padStart(2, "0")}${period}`;
 }
 
 function dogParenthetical(breed) {

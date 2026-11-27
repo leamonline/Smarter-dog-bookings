@@ -361,7 +361,7 @@ export function JoinThePackOnboarding({ humanRecord, onComplete, onSignOut }) {
                 value={formatPhoneForDisplay(verifiedPhone) || verifiedPhone}
                 readOnly
                 tabIndex={-1}
-                className="portal-input w-full bg-slate-50 text-slate-500"
+                className="portal-input w-full bg-sd-cloud-tint text-slate-500"
               />
               <p className="text-xs text-slate-400 mt-1">
                 Verified by text — this is the number you&apos;ll sign in with.

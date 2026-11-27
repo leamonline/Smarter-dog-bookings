@@ -47,7 +47,7 @@ function contrast(a: string, b: string): number {
 
 const WHITE = "#FFFFFF";
 const PAPER = () => resolve("color-brand-paper");
-const PAGE = "#F8FAFC"; // --color-surface-page is theme(--color-slate-50)
+const PAGE = "#F8FAFC"; // slate-50: the cool panel some staff surfaces still use. The page itself is paper since the flyer step 3 (PAPER below).
 
 describe("design tokens: published contrast ratios match the CSS", () => {
   // [foreground token, background, ratio the design system documents]. When a
@@ -132,6 +132,36 @@ describe("fonts: Montserrat faces", () => {
       const ext = new RegExp(`font-weight:\\s*${weight};[^}]*montserrat-latin-ext\\.woff2`);
       expect(css, `latin-ext face for weight ${weight}`).toMatch(ext);
     }
+  });
+});
+
+describe("fonts: Poppins and the hero face", () => {
+  const facesOf = (family: string) =>
+    [...css.matchAll(new RegExp(`@font-face\\s*\\{[^}]*font-family:\\s*"${family}"[^}]*\\}`, "g"))].map((m) => m[0]);
+  const fontsDir = fileURLToPath(new URL("../public/app/fonts/", import.meta.url));
+
+  // A 900 face inside "Poppins" would win the font match for every heading set
+  // to 800 or 900 (font-extrabold, font-black) and re-weight them without anyone
+  // asking. The heavy face lives under its own family, which only font-hero names.
+  it("keeps Poppins to the 600 and 700 faces the headings were designed with", () => {
+    const faces = facesOf("Poppins");
+    expect(faces.length).toBe(4);
+    for (const face of faces) expect(face).toMatch(/font-weight:\s*(600|700);/);
+  });
+
+  it("serves hero lines from Poppins Black, latin and latin-ext, and nothing else uses it", () => {
+    const faces = facesOf("Poppins Black");
+    expect(faces).toHaveLength(2);
+    for (const face of faces) expect(face).toMatch(/font-weight:\s*900;/);
+    expect(faces.join("\n")).toContain("/app/fonts/poppins-900.woff2");
+    expect(faces.join("\n")).toContain("/app/fonts/poppins-900-latin-ext.woff2");
+    expect(statSync(join(fontsDir, "poppins-900.woff2")).size).toBeGreaterThan(1000);
+    expect(statSync(join(fontsDir, "poppins-900-latin-ext.woff2")).size).toBeGreaterThan(1000);
+    expect(css).toContain('--font-hero: "Poppins Black", "Poppins", "Montserrat", sans-serif;');
+  });
+
+  it("no longer declares Barlow Condensed, which nothing rendered", () => {
+    expect(css).not.toMatch(/Barlow/);
   });
 });
 

@@ -290,7 +290,7 @@ export function RescheduleModal({ booking, currentDateObj, sizeTheme, onConfirm,
                           : isSel
                             ? "border-transparent"
                             : overbook
-                              ? "bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300"
+                              ? "bg-sd-cloud-tint text-slate-400 border-slate-200 hover:border-slate-300"
                               : "bg-white text-slate-800 border-emerald-200 hover:border-emerald-400"
                       }`}
                       style={isSel && !overbook ? { background: theme.primary, color: theme.headerText, borderColor: theme.primary } : undefined}

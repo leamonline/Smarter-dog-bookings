@@ -93,11 +93,12 @@ private struct TurnstileWebView: UIViewRepresentable {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            let body = message.body as? [String: Any]
-            let event = body?["event"] as? String ?? ""
-            let token = body?["token"] as? String ?? ""
-            Task { @MainActor [weak self] in
-                self?.deliver(event: event, token: token)
+            // WebKit calls this on the main thread. Newer SDKs make `body` main-actor only.
+            MainActor.assumeIsolated {
+                let body = message.body as? [String: Any]
+                let event = body?["event"] as? String ?? ""
+                let token = body?["token"] as? String ?? ""
+                deliver(event: event, token: token)
             }
         }
 

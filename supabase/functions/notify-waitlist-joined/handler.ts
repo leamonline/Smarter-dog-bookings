@@ -86,7 +86,8 @@ export async function handleWaitlistJoined(req: Request): Promise<Response> {
     }
 
     const subject = `Waitlist joined — ${humanName} for ${dateFormatted}`;
-    const email = await sendEmailDetailed(alertEmail, subject, alertMessage);
+    // A staff alert: branded like every email, but no customer booking button.
+    const email = await sendEmailDetailed(alertEmail, subject, alertMessage, { portalButton: false });
     const channel = "email";
     if (!email.ok) {
       console.error(`notify-waitlist-joined email failed: ${email.errorMessage ?? email.status}`);

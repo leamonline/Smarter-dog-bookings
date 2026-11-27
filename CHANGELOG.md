@@ -5,6 +5,65 @@
 - A customer who has been asked for a deposit can pay the £10 in the iPhone app by Apple Pay or card, through Square. The app is not using an App Store purchase. The switch is off until `IOS_DEPOSITS_ENABLED` is set to true, and no Square secret is stored in the repository.
 - Cancel with the salon's usual notice (24 hours, unless that number has been changed) and the £10 is refunded. Cancel after that, or not show up, and the salon keeps it. Move the appointment and the same £10 stays on the new booking. Staff can waive a deposit that has not been paid, or refund one that has, including one the rules had kept.
 - Needs migration `20261122143000` applied before the switch is turned on. Do not turn the switch on until the Square sandbox secrets are set. See [docs/ios-deposits.md](docs/ios-deposits.md).
+## Unreleased — CI: browser tests run in the Playwright image
+
+- The two browser-test jobs (`pr-production-smoke` on pull requests, `e2e` on `main`) now run inside Microsoft's official Playwright image instead of installing Playwright's system libraries from Ubuntu's package mirror on every run. On 24 November that mirror slowed to about 65 kB/s for an hour and a half, and the install step took 33 minutes instead of under one. A small `playwright-version` job reads the locked Playwright version so the image always matches it, including after a Dependabot upgrade. The browser cache steps are gone, as the image carries the browsers. If the version job fails, the browser jobs fail too rather than being skipped (`src/security/playwrightContainerCi.test.ts`).
+
+## Unreleased — iPhone staff Today: two review fixes
+
+- The iPhone More tab's **Calendar** now opens the calendar even in a fresh browser tab. The staff website still lands on Today once per tab, except for a link marked `?calendar` (`src/routing/todayLanding.ts`).
+- At the largest text sizes a safety warning on a Today row wraps instead of being cut off.
+
+## Unreleased — iPhone app: staff Today (read only)
+
+- Staff who sign in to the iPhone app now land on **Today**: the day's dogs in appointment order with their status in words and the website's colours, safety warnings, and how long each dog has been where it is, exactly as the staff website's Today. Arrows move between days. Tap a dog for its details. A **More** tab opens the staff website for everything else. Nothing is changed from the phone yet. Plan phases S0 and S1 ([plan](docs/plans/active/2026-11-23-iphone-staff.md)).
+- The Swift copy is checked against the website's own engine on a governed list of days (`staff-day-parity.json`), so a website change cannot leave the phone saying something different without a test failing.
+
+## Unreleased — plan: the iPhone staff app
+
+- A plan for the iPhone app's staff side ([plan](docs/plans/active/2026-11-23-iphone-staff.md)), for the owner's approval before any code: native for the salon floor (Today, status moves, check-out, staff notifications), links to the website for the desk (calendar, bookings, customers, reports, settings), in phases that each reach TestFlight, with a go/no-go after the first two.
+
+## Unreleased — flyer visual language, step 4: emails
+
+- The salon's emails (booking confirmed, cancelled, reminders, welcome) now arrive in the flyer's look: the blue and yellow stripe, the message on a white card on cream, a yellow "Book or manage online" button and the salon's address. The words are exactly as before, and a plain-text copy travels with every email for apps that prefer it. The staff waitlist alert gets the same look without the customer button. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
+
+## Unreleased — the website hero, tidied
+
+- The homepage hero has one yellow button with "Easy peasy" handwritten beside it (the yellow tag that looked like a second button and the "quick and easy" sticker are gone), a "★ 4.9 on Google · Since 1982" line, the yellow swash under "gorgeous." only, yellow photo tape you can see on the blue, and a caption on the front photo only, so none is cut off. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
+
+## Unreleased — flyer visual language, step 4: the website
+
+- smarterdog.co.uk takes on the flyer palette, keeping its bold full-width bands: the coral services and closing bands are now brand blue, the green Houndsly band a pale sky blue, and coral, teal-green and orange are gone from the site. Body text that was teal is the booking app's muted grey; every booking button is yellow.
+- The flyer stripe runs across the top of every page, the homepage hero is in Poppins 900, and the handwriting is Caveat 700.
+- 15 colour-contrast failures on the live site (coral headings, faded captions, yellow and coral links on Community, a white-on-green 404 button) are fixed. Details in the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md).
+
+## Unreleased — flyer visual language, step 3 follow-ups
+
+- The yellow swash under the Bookings and Today date titles.
+- The mini calendar and the week strip mark the selected day in brand blue with a ring; a full day is now charcoal instead of sky blue, so blue only ever means "selected".
+- Solid cool-grey panels across the staff screens are now a warm grey wash, so they sit naturally on the cream page.
+- Design-system ratchet ceilings lowered to the new counts.
+
+## Unreleased — flyer visual language, step 3: the staff dashboard
+
+- **Status colours are new** (staff need telling before this goes live): one hue per status in the flyer's print style. Expected is warm cream, Unconfirmed coral-orange, Confirmed and Reconfirmed periwinkle, Arrived green, Ready gold, No-show and Cancelled brick red, Collected grey. The words are unchanged and always shown.
+- **Dog sizes**: Small and Medium are neutral letter chips; only Large is coloured (navy), on its chip, its calendar card's top edge and the modals that took their colour from the size. Reports charts use a light-to-dark blue scale.
+- Brand blue marks the active tab and pressed chips; the flyer stripe runs across the top of every staff screen; every staff screen sits on the cream paper; staff sign-in gets the heavy hero titles and stripe; the empty Dogs and Customers directories show a mascot.
+- See the [plan](docs/plans/active/2026-11-22-flyer-visual-language.md) for what is left for a follow-up.
+
+## Unreleased — new wording on the booking confirm step
+
+- The confirm step now says "Need to change your appointment?" and "We'll keep you in the loop!" in the owner's words (signed off 22 November 2026). The notice period comes from the salon's setting (24 hours by default) through the server, so the page never promises a deadline the system does not enforce. Under any other deadline rule, or before the server has answered, the server's own sentence shows, as before.
+- A late cancellation "may mean we ask for a deposit on future bookings", matching the website Terms. Rescheduling is mentioned only when it is switched on.
+- The messaging notice is new everywhere it appears (the confirm step and both sign-up/profile screens), and the booked screen's channel sentence follows it.
+
+## Unreleased — flyer visual language, step 2: the customer portal
+
+- The customer portal takes on the salon flyer's look ([plan](docs/plans/active/2026-11-22-flyer-visual-language.md)): the blue and yellow segmented stripe across the top of sign-in, the dashboard and every booking step; hero titles in Poppins 900; the flyer's mascot beside each service; selected dogs, services, dates and times in brand blue with a tick (yellow stays for Continue); one handwritten Caveat line on sign-in, the dashboard and the booked screen.
+- "All booked in!" shows the dog's own photo in the taped polaroid when the customer has added one, with the service mascot on its corner. This needed a fix: the wizard dropped each dog's photo when it loaded them, so the screen could never show it.
+- Motion is three single moves on the booked screen (the swash draws in, the polaroid settles, the mascot bounces once), all off under reduced motion. The looping floating paws are gone.
+- Poppins 900 is registered under its own font name, so no existing heading changes weight. Barlow Condensed, which nothing used, is removed: 37KB out, 13KB of Poppins 900 in, so the app precaches about 24KB less.
+- Staff screens are unchanged; they follow in step 3.
 
 ## Unreleased — flyer visual language: approved rules and plan
 

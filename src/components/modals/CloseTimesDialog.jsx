@@ -270,7 +270,7 @@ export function CloseTimesDialog({
         )}
       </div>
 
-      <footer className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100 bg-slate-50">
+      <footer className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100 bg-sd-cloud-tint">
         <Button variant="ghost" onClick={onClose}>
           Cancel
         </Button>

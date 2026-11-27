@@ -10,10 +10,14 @@ const LABELS = { small: "Small dog", medium: "Medium dog", large: "Large dog" };
 
 // Medium/large/unset use the darker brand shades as the fill so the white
 // letter clears WCAG AA 4.5:1 (the lighter teal/coral/cyan sat at ~4.0/3.6/2.4).
+// Flyer visual language, decision 7: Small and Medium are neutral letter chips
+// (white, charcoal outline and letter); only Large is coloured, navy with a
+// white letter. The letter is the signal; colour only marks the size that
+// changes what a slot can hold.
 const COLOURS = {
-  small: { bg: "var(--color-size-small)", border: "var(--color-brand-yellow-dark)", fg: "var(--color-brand-ink)" },
-  medium: { bg: "var(--color-brand-teal-dark)", border: "var(--color-brand-teal-dark)", fg: "#FFFFFF" },
-  large: { bg: "var(--color-brand-coral-dark)", border: "var(--color-brand-coral-dark)", fg: "#FFFFFF" },
+  small: { bg: "var(--color-surface-card)", border: "var(--color-size-small)", fg: "var(--color-brand-ink)" },
+  medium: { bg: "var(--color-surface-card)", border: "var(--color-size-medium)", fg: "var(--color-brand-ink)" },
+  large: { bg: "var(--color-size-large)", border: "var(--color-size-large)", fg: "#FFFFFF" },
   unset: { bg: "#0E7490", border: "#0C5168", fg: "#FFFFFF" },
 };
 

@@ -39,7 +39,7 @@ const paints: Record<string, Paint> = {
   DashNavy: { light: "1B3654", dark: "8AA4C4" },
   Oak: { light: "C19654", dark: "C9A56B" },
   Brass: { light: "C5B05C", dark: "D4C078" },
-  Separator: { light: "E5D6C6", dark: "4A3C32" },
+  AppSeparator: { light: "E5D6C6", dark: "4A3C32" },
   Success: { light: "3A5538", dark: "9CB890" },
   SuccessSoft: { light: "E6EEE4", dark: "2F4034" },
   Warning: { light: "6B4A18", dark: "D8B878" },
@@ -208,6 +208,10 @@ describe("iPhone fonts", () => {
 
     expect(postScriptName("ios/SmarterDog/Fonts/Poppins-Bold.ttf")).toBe("Poppins-Bold");
     expect(postScriptName("ios/SmarterDog/Fonts/Poppins-SemiBold.ttf")).toBe("Poppins-SemiBold");
+    // Flyer style board: Poppins Black for hero titles, Caveat Bold for one handwritten line.
+    expect(postScriptName("ios/SmarterDog/Fonts/Poppins-Black.ttf")).toBe("Poppins-Black");
+    expect(postScriptName("ios/SmarterDog/Fonts/Caveat-Bold.ttf")).toBe("Caveat-Bold");
+    expect(read("ios/SmarterDog/Fonts/OFL-Caveat.txt")).toContain("Caveat Project Authors");
 
     const licence = read("ios/SmarterDog/Fonts/OFL.txt");
     expect(licence).toContain("SIL Open Font License");
@@ -224,6 +228,8 @@ describe("iPhone fonts", () => {
     expect([...fontArray.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1])).toEqual([
       "Poppins-Bold.ttf",
       "Poppins-SemiBold.ttf",
+      "Poppins-Black.ttf",
+      "Caveat-Bold.ttf",
     ]);
     expect(project).not.toContain("INFOPLIST_KEY_UIAppFonts");
     expect(read("ios/SmarterDog/AppFont.swift")).toContain("CTFontManagerRegisterFontsForURL");
@@ -273,6 +279,13 @@ describe("sign-in screens use the catalogue", () => {
     "ios/SmarterDog/Decorations.swift",
     "ios/SmarterDog/AppColor.swift",
     "ios/SmarterDog/AppFont.swift",
+    // The staff screens take their status colours from StaffStatusPalette.swift: the
+    // website's booking status palette held as data, checked value for value against
+    // src/constants/statusPalette.ts by StaffDayParityTests. That file is the one
+    // deliberate home of hex on the iPhone; the screens themselves carry none.
+    "ios/SmarterDog/StaffRootView.swift",
+    "ios/SmarterDog/StaffTodayView.swift",
+    "ios/SmarterDog/CancelSheet.swift",
   ];
 
   it("keeps hex and the old website colours out of the screens", () => {
@@ -292,10 +305,19 @@ describe("sign-in screens use the catalogue", () => {
     expect(error).not.toContain("actionYellow");
     expect(signIn).toContain('Text("Come scruffy.")');
     expect(signIn).toContain('HighlightedWord(text: "gorgeous.")');
-    expect(signIn).toContain("DashRibbon()");
-    expect(signIn).toContain("CheckerboardEdge()");
     expect(signIn).toContain("DogWordmark()");
     expect(signIn).toContain("WordmarkAccent()");
+    // Flyer style board (22 November 2026): the stripe replaces the dash ribbon, the
+    // checkerboard is out (decision 4), heroes are Poppins Black, one Caveat line.
+    expect(signIn).toContain("BrandStripe(");
+    expect(signIn).toContain(".appHero()");
+    expect(signIn).toContain('HandwrittenLine(text: "Book your groom online")');
+    expect(signIn).toContain('MascotCircle(assetName: "MascotBathBrush"');
+    for (const file of walk("ios/SmarterDog").filter((name) => name.endsWith(".swift"))) {
+      const source = read(file);
+      expect(source, file).not.toContain("CheckerboardEdge");
+      expect(source, file).not.toContain("DashRibbon");
+    }
     expect(read("ios/SmarterDog/RootView.swift")).toContain('IconCircle(systemName: "pawprint.fill")');
     expect(read("ios/SmarterDog/SecurityCheckView.swift")).toContain('data-theme="auto"');
   });
@@ -328,6 +350,20 @@ describe("sign-in screens use the catalogue", () => {
     };
     expect(dog.properties["template-rendering-intent"]).toBe("template");
     expect(dog.properties["preserves-vector-representation"]).toBe(true);
+  });
+
+  it("ships one mascot image set per bookable service, as opaque PNGs", () => {
+    const sets = ["MascotFullGroom", "MascotBathBrush", "MascotBathDeshed", "MascotPuppyGroom"];
+    for (const name of sets) {
+      const dir = `ios/SmarterDog/Assets.xcassets/${name}.imageset`;
+      const json = JSON.parse(read(`${dir}/Contents.json`)) as { images: { filename: string }[] };
+      expect(json.images.map((image) => image.filename)).toEqual([`${name}.png`]);
+      const png = readFileSync(join(root, `${dir}/${name}.png`));
+      expect(png.subarray(1, 4).toString()).toBe("PNG");
+      // The 250px website artwork: sharp up to about 80pt on screen.
+      expect(png.readUInt32BE(16)).toBe(250);
+      expect(png.readUInt32BE(20)).toBe(250);
+    }
   });
 
   // The home-screen icon and the public salon connection are pinned by

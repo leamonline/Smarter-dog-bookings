@@ -1,9 +1,9 @@
 # Flyer visual language for the web app
 
-Status: Active (step 1 of 4 in progress)
-Issue: None yet. Raise one before step 2 opens a pull request that changes screens.
-Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248)
-Last verified: 2026-11-22
+Status: Active (steps 1 to 3 merged in #1259, #1261 and #1264, follow-ups in #1268; step 4 website merged in #1269 and #1272, emails in review)
+Issue: [#1262](https://github.com/leamonline/Smarter-dog-bookings/issues/1262) (raised 22 November 2026, during step 2 review)
+Base: `claude/vibrant-gates-wqx9lv` at `1936a62` (`main` merge of #1248) for step 1; `17a673b` for step 2
+Last verified: 2026-11-23
 Owners: `docs/ux/**`, `src/index.css`, `src/customer-portal.css`, `src/constants/statusPalette.ts`, `src/components/ui/**`, `src/components/customer/**`, `src/components/auth/**`, `public/app/fonts/**`, `.design-sync/**`
 Dependencies: None in-repo. Builds on the [brand reskin](2026-09-20-brand-reskin.md) palette and the [design-system components and tokens](2026-10-25-design-system-components-and-tokens.md) work.
 Related requirements: `REQ-A11Y-001`
@@ -274,6 +274,12 @@ offline sample data (`src/data/sample.js`), never real customers.
   rules in `src/index.css`: `.human-directory-card__name`,
   `.human-pack-roster__label` and `.human-directory-card__profile > button`. Search again and decide each one deliberately in step 2. Montserrat 800 requests are unaffected because no
   heavier Montserrat face exists.
+  **Resolved in step 2 (22 November 2026).** The search found about fifteen
+  staff headings set to `font-extrabold` or `font-black` on Poppins, not four.
+  Rather than edit each, Poppins 900 is registered under its own family name,
+  `Poppins Black`, which only `--font-hero` names. The `Poppins` family keeps
+  its 600 and 700 faces, so none of those headings changes;
+  `src/designTokens.integrity.test.ts` pins both halves.
 - **Mascot resolution.** 250px files are only sharp to about 120px. A larger use
   needs the original artwork from the owner.
 - **Release risk.** `main` deploys the booking app and the marketing site
@@ -287,7 +293,7 @@ rollback or a revert ([rollback](../../rollback.md)).
 
 ## Implementation sequence
 
-### Step 1: rules and values (this pull request)
+### Step 1: rules and values (merged, #1259)
 
 - Rewrite the rules in `docs/ux/design-system.md` and `docs/ux/warm-colours.md`
   that the approved language contradicts, marked with the step that ships each.
@@ -312,6 +318,33 @@ lands with its first use, in place, in the step below that ships it.
 - Portal: stripe frame, hero titles, mascots in the service picker, selected
   state in blue, polaroids, the booked moment, Caveat lines, hero copy.
 
+**As built (22 November 2026).** Decisions and findings during the build, added
+here rather than rewriting the outline above:
+
+- `BrandStripe`, `ServiceMascot` and a `draw` option on `ScribbleUnderline` are
+  shared components in `src/components/ui/`; their styles and the three motion
+  keyframes live at the end of `src/index.css` so step 3 can reuse them. The
+  existing taped polaroid and title underline were reused, not rebuilt.
+- **Polaroids.** The dashboard's dogs card is a list, so its photo avatars stay as
+  they are (decision 9: never in lists). The dog's own photo becomes a polaroid on
+  the booked moment.
+- **A bug found on the way.** The wizard copied only some of each dog's fields,
+  so the booked screen could never have shown the dog's photo. It now carries
+  `photoPath`, with a regression test that fails without the fix
+  (`BookingWizard.bookedMoment.component.test.tsx`).
+- **Motion.** The loop of floating paws on the booked and waitlist screens is
+  removed: the approved motion is three single moves, and nothing keeps going.
+  The sign-in page's slowly drifting silhouettes stay: the owner chose to keep
+  them moving (22 November 2026), a deliberate exception for that screen. They
+  already stand still under reduced motion.
+- **Progress dots.** Done steps in the wizard's stepper move from yellow to brand
+  blue: they show progress, not something to press.
+- **Hero copy, signed off by the owner on 22 November 2026.** "Book your groom
+  online" in Caveat on sign-in (first shipped as "Come scruffy. Leave
+  gorgeous."; the owner chose the flyer's other line), the salon slogan in
+  Caveat on the dashboard, and "See you soon!" on the booked moment. Existing
+  titles are unchanged.
+
 ### Step 3: staff dashboard
 
 - Status values swapped in place in `statusPalette.ts`; size colours; Large navy
@@ -320,10 +353,139 @@ lands with its first use, in place, in the step below that ships it.
   empty and done states, cream page on the calendar.
 - Tell the team about the new status colours before merge.
 
+**As built (22 November 2026).** Added here rather than rewriting the outline:
+
+- Status values swapped in place in `statusPalette.ts`; the pinned-value test
+  now pins the approved palette and also checks Confirmed stays off every brand
+  blue.
+- Sizes: `SizeDot` (white chip, charcoal outline and letter for S and M; navy
+  for L), `SIZE_THEME` (one neutral theme for S and M, navy for L; `primary`
+  and `gradient` stay fills under white text, because Reschedule and Chain
+  booking put text on them), the calendar card's top edge (Large only), and
+  the `--color-size-*` tokens. Reports charts get an ordered blue scale, since a
+  chart must tell all three sizes apart.
+- Selection: `--color-border-accent` and `ToggleChip`'s default pressed tone are
+  brand blue; focus stays charcoal.
+- Chrome: the stripe above the desktop toolbar; on phones a 4px stripe drawn
+  inside the top bar's own bottom padding, because an extra 13px pushed the day
+  stack's Check out button under the undo toast (`e2e/day-stack.spec.ts`,
+  #1001). The active tab is blue on desktop and phone.
+- Cream page: `body` and `--color-surface-page` are paper on every staff screen.
+- Staff sign-in: the hero stripe and Poppins Black titles. No new copy.
+- Empty states: `EmptyState mark="mascot"` (puppy mascot, hero title) on the
+  true-empty Dogs and Customers directories.
+- **Not done in this step, for a follow-up:** the swash under staff page titles
+  (the calendar's date title component was not changed), the mini calendar's
+  yellow "Selected" date, and other hand-written selected states outside the
+  shared controls. Some staff panels keep a cool slate-50 fill on the cream
+  page.
+
+**Step 3 follow-ups (23 November 2026).**
+
+- The yellow swash now sits under the Bookings date title (`AppContextRow`) and
+  the Today date title (`TodayHeader`, on a wrapper so the truncating title does
+  not clip it).
+- The mini calendar and the week strip: the selected day is a brand-blue circle
+  with a ring; Full changes from sky blue to charcoal, so blue means only
+  "selected" (owner's choice, 23 November 2026). Today keeps its yellow ring.
+- The 49 solid `bg-slate-50` fills are now the warm grey wash
+  `bg-sd-cloud-tint` (`#F6F4F2`), so panels sit warmly on the cream page.
+  Translucent `bg-slate-50/…` variants take on the cream behind them and stay.
+- The design-system ratchets are lowered to the new counts.
+- Still outside the shared controls: individual hand-written selected states in
+  modals and pickers keep their colours until each is next touched.
+
 ### Step 4: website, iPhone app, emails
+
+**iPhone progress (23 November 2026):** customer Home, sign-in, the stripe on every screen and the four service mascots are in `ios/` (PR #1265 and its follow-up). Still to do on the iPhone: staff screens (the [iPhone staff app](2026-11-23-iphone-staff.md) plan; staff Today read-only in review) and the booked moment (polaroid) when booking arrives.
 
 Separate plans in their own codebases, reusing these values.
 
+**Website, as built (23 November 2026).** The owner chose "Flyer palette, keep
+bands": the bold full-width section bands stay, recoloured to the flyer family,
+and coral, teal-green and orange are retired. All in `website/`; nothing shared
+at code level (ADR 009).
+
+- `website/src/constants/colors.js` holds the app's values: `plum` (ink),
+  `offWhite` (paper), `cyan` (flyer blue), `cyanText` (brand blue), `navy`,
+  `yellow`, `cyanLight` (now the app's sky tint, `#EAF4FF`), plus `inkMuted`
+  (`#57677C`, the app's muted text) and `whatsapp` (`#25D366`). `pink`, `teal`,
+  `green`, `orange`, `mutedGreen`, `blueSlate` and their tints are gone; a test
+  keeps them out and pins every contrast ratio the file quotes.
+- Bands on the homepage: sky-blue hero (unchanged), brand-blue services and
+  closing CTA (`blueBand`, the two former coral bands, with white text at
+  6.2:1), yellow gallery (unchanged), sky-tint Houndsly (was muted green),
+  charcoal footer. The Services page cards sit on sky blue and its timeline on
+  navy (were teal and blue slate). Community categories alternate sky and
+  yellow tints.
+- The text teal (about 200 uses) becomes the app's muted ink; titles that used
+  it become charcoal. Every link colour on the Community page is brand blue (the
+  yellow and coral links were 1.5:1 and 3.6:1).
+- Buttons: every booking button is yellow with charcoal text, including the
+  former green, coral, white and sky-blue ones; WhatsApp buttons use WhatsApp's
+  own green; the cookie Accept and scroll-to-top buttons are charcoal; selected
+  chips are brand blue over the sky tint.
+- Gallery and Houndsly tape alternates blue and yellow; decorative stickers are
+  brand blue.
+- Type: the homepage hero is Poppins 900 with −3.5% tracking. Google Fonts now
+  loads Poppins 900 (nothing else on the site asks for 800 or 900, so no
+  heading changes weight) and only Caveat 700, which `.handwriting` uses.
+- The stripe (`BrandStripe` in `website/src/components/sections/Navigation.jsx`, its only user, because the website's dev-server module budget has no headroom) runs across the top of
+  every page on a thin strip of white inside the navigation, because the flyer
+  blue segments vanish on the sky-blue hero.
+- Contrast: an axe scan of every route found 15 failures on the live site before
+  this change and none after.
+- **Not done in #1269:** the hero still carried more than one handwritten
+  line. Emails are not started.
+
+**Website hero tidy-up (23 November 2026, the owner's choice of "full tidy
+pass").** The hero said "easy" four ways at once and some details looked broken:
+
+- One yellow control, the booking button. The yellow "Easy peasy" tag looked
+  like a second button and did nothing; it is now the hero's single Caveat line,
+  in charcoal beside the button (below it on tablets). The "quick and easy"
+  sticker is gone.
+- In its place a proof line, "★ 4.9 on Google · Since 1982", from
+  `GOOGLE_RATING` and `FOUNDED_YEAR` in `website/src/constants/salonFacts.js`,
+  which the stats strip and the reviews now read too. It also shows on phones,
+  where the button lives in the sticky footer.
+- The swash sits under "gorgeous." only, clear of the descenders, and draws in
+  once (420ms), with the finished line under reduced motion.
+- The polaroids take translucent yellow tape (the blue vanished on the sky
+  blue) and only the front one keeps its caption; the other two were clipped by
+  the front photo. They keep their descriptions as alt text through a new `alt`
+  prop on `PolaroidImage`.
+- Headline tracking eases from −3.5% to −2.5% so "Leave gorgeous" no longer
+  runs together; "Ashton-under-Lyne" no longer breaks at its hyphen; the hero's
+  bottom padding is smaller, so the stats strip starts sooner.
+- No new module: the dev-server module budget in
+  `website/e2e/performance.spec.js` still has no headroom (79 on Chromium, 80 on
+  WebKit, the same as before).
+
+
+**Emails, as built (23 November 2026).** The owner chose a "branded wrapper":
+one shared template for every email, the words unchanged.
+
+- Before: six edge functions sent plain text through SendGrid (booking
+  confirmed, cancelled, two reminder paths, welcome, and the staff waitlist
+  alert). Email is the last channel after WhatsApp and SMS, so it reaches few
+  customers (38 had neither when the messaging policy was written).
+- Now `supabase/functions/_shared/email.ts` sends two parts: the plain text,
+  word for word, then the same words in HTML from `_shared/emailHtml.ts`. No
+  caller's wording changed.
+- The HTML: the flyer stripe as nine coloured table cells (it shows with images
+  blocked), "Smarter Dog Grooming" in charcoal, the message on a white card on
+  cream, a yellow "Book or manage online" button to the customer portal
+  (`CUSTOMER_PORTAL_URL`, overridable per environment), and the salon's name and
+  address from `SALON_LOCATION` in the muted grey. The staff waitlist alert
+  passes `portalButton: false` and gets no button.
+- Email clients are not browsers: tables and inline styles only, no images, no
+  web fonts (Poppins or Montserrat where installed, Arial otherwise), no style
+  block. Every piece of text is escaped; web addresses in a staff-written
+  reminder become links, escaped piece by piece.
+- Not reachable from this repository: the staff password-reset email, whose
+  template lives in the Supabase dashboard. Customer sign-in codes go by SMS,
+  not email.
 ## Testing
 
 - Step 1: `npm run check:docs` (links). No code changed.

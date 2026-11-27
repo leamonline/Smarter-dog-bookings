@@ -1,5 +1,31 @@
 # Migration history
 
+## Same-day customer cancellation is a no-show (#1300) — production applied 24 November 2026
+
+`20261124200000_same_day_cancellation_is_no_show.sql` ([ADR 015](architecture/decisions/015-same-day-cancellation-is-a-no-show.md)):
+a customer cancelling on the appointment's London date is saved as `No-show`;
+two no-shows in 12 months, counted from the apply time, turn the deposit on;
+notice-window strikes stop. Owner decisions taken in the project thread on 24
+November 2026.
+
+**Staging:** not applied. The Supabase tool available to the session was not
+verifiably pointed at staging, so the change was proven on CI's disposable
+database instead: the full pgTAP suite passed on PR head `be0dcc5f`, including
+new `267` and rewritten `235` and `266` (the first run found and fixed a
+counting bug: staff multi-dog bookings carry no `group_id`, so the count is
+per owner and date).
+
+**Production** (`nlzhllhkigmsvrzduefz`): the owner dispatched and approved the
+**Apply named migrations to production** workflow,
+[run 45507776716](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/45507776716),
+at 23:11 GMT on 24 November, from PR #1300 head
+`be0dcc5fc3981603153f98827f5903d9303a767b`. Receipt: `outcome: applied`,
+`before.rows: 0`, `ledgerVerified: true`, `postcondition: true` (the classifier
+trigger exists and `record_late_customer_cancellation` is gone). File SHA-256
+`3184980fcc60211cc190f8c8aa333cacd650d2a52ababa7864827c34894fd032`, matching
+the committed file. The owner merged #1300 at 23:14 GMT (merge `2d37eff0`); its `migrations-applied` check passed on rerun against the same head.
+The no-show count starts from this apply time (`policy_milestones.same_day_no_show_v1`).
+
 ## Retired capacity settings column (#1176) — production applied 3 November 2026
 
 `20261103120000_drop_enforce_capacity.sql` drops only

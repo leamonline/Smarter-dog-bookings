@@ -7,14 +7,16 @@ import { formatHolidayDate } from '../utils/holidayNotice';
 
 const DAY_LABEL = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
 
-// Opaque backgrounds only -- a translucent chip over the section's pink
-// backdrop composites to a colour axe/WCAG checks against directly, and a
+// Opaque backgrounds only -- a translucent chip over the CTA's brand-blue
+// band composites to a colour axe/WCAG checks against directly, and a
 // semi-transparent white-on-white ("closed") measured well under the
-// required 4.5:1 contrast ratio once blended with the pink behind it.
+// required 4.5:1 contrast ratio once blended with the band behind it.
+// Text that sits on the band itself (the holiday line, the legend) is white:
+// 6.2:1 on brand blue, where charcoal would be 2.7:1.
 const STATE_STYLE = {
     open: { bg: '#FFFFFF', color: colors.plum, label: 'Open' },
     closed: { bg: colors.plum, color: '#FFFFFF', label: 'Closed' },
-    'extra-open': { bg: colors.green, color: colors.plum, label: 'Extra opening' },
+    'extra-open': { bg: colors.cyan, color: colors.plum, label: 'Extra opening' },
     'holiday-closed': { bg: colors.yellow, color: colors.plum, label: 'Closed for a holiday' },
 };
 
@@ -36,7 +38,7 @@ const OpenDaysCalendar = ({ days = 14 }) => {
             {plan.holiday && (
                 <p
                     className="body-font text-base font-semibold mb-3"
-                    style={{ color: colors.plum }}
+                    style={{ color: '#FFFFFF' }}
                 >
                     We’re closed for a holiday until {formatHolidayDate(plan.holiday.reopens_on)}. Here’s when we’re open once we’re back:
                 </p>
@@ -73,7 +75,7 @@ const OpenDaysCalendar = ({ days = 14 }) => {
             </div>
             <div
                 className="flex flex-wrap justify-center gap-3 mt-3 text-xs"
-                style={{ color: colors.plum }}
+                style={{ color: '#FFFFFF' }}
             >
                 <span className="inline-flex items-center gap-1.5">
                     <span
@@ -83,7 +85,7 @@ const OpenDaysCalendar = ({ days = 14 }) => {
                     Open
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: colors.green }} />
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: colors.cyan, border: '1px solid #FFFFFF' }} />
                     Extra opening
                 </span>
                 <span className="inline-flex items-center gap-1.5">

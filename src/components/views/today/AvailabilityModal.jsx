@@ -130,7 +130,7 @@ export function AvailabilityModal({
       <div className="px-5 pb-5">
         {isDayOpen ? (
           <>
-            <div className="rounded-card bg-slate-50 border border-slate-100 px-4 py-3 mb-3">
+            <div className="rounded-card bg-sd-cloud-tint border border-slate-100 px-4 py-3 mb-3">
               <p className="text-body text-slate-700">
                 <span className="font-bold text-slate-800">{dogsBooked}</span> {dogsBooked === 1 ? "dog" : "dogs"} booked
                 {" · "}

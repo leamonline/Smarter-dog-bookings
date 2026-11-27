@@ -1,19 +1,11 @@
 import React from 'react';
 import { colors } from '../../constants/colors';
 import { useSalonFacts } from '../../hooks/useSalonFacts';
-import { whatsAppUrl } from '../../constants/salonFacts';
+import { whatsAppUrl, formatTime12h } from '../../constants/salonFacts';
 
 import SectionDivider from '../SectionDivider';
 import FadeIn from '../FadeIn';
 import OpenDaysCalendar from '../OpenDaysCalendar';
-
-const formatTime12h = (hhmm) => {
-    const [h, m] = String(hhmm || '').split(':').map(Number);
-    if (Number.isNaN(h)) return '';
-    const period = h < 12 ? 'am' : 'pm';
-    const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
-};
 
 const OPEN_DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -33,7 +25,7 @@ const CTASection = ({ onBookClick }) => {
         <>
             <section
                 className="py-20 relative overflow-hidden"
-                style={{ backgroundColor: colors.pink }}
+                style={{ backgroundColor: colors.blueBand }}
             >
                 {/* Decorative circles */}
                 <div
@@ -61,13 +53,13 @@ const CTASection = ({ onBookClick }) => {
                         </h3>
                         <p
                             className="body-font text-lg mb-3"
-                            style={{ color: colors.plum }}
+                            style={{ color: 'white' }}
                         >
                             {openHoursSentence(facts.businessHours)}
                         </p>
                         <p
                             className="body-font text-base mb-6"
-                            style={{ color: colors.plum }}
+                            style={{ color: 'white' }}
                         >
                             New here? You&apos;ll set up an account first, and we check new sign-ups on salon days (Monday to Wednesday) before your first booking.
                         </p>
@@ -76,7 +68,7 @@ const CTASection = ({ onBookClick }) => {
                                 onClick={() => onBookClick('CTA Section')}
                                 className="px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
                                 style={{
-                                    backgroundColor: 'white',
+                                    backgroundColor: colors.yellow,
                                     color: colors.plum
                                 }}
                             >
@@ -87,7 +79,7 @@ const CTASection = ({ onBookClick }) => {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-10 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 flex items-center gap-2"
-                                style={{ backgroundColor: '#25D366', color: colors.plum }}
+                                style={{ backgroundColor: colors.whatsapp, color: colors.plum }}
                             >
                                 <span>WhatsApp us</span>
                             </a>
@@ -97,7 +89,7 @@ const CTASection = ({ onBookClick }) => {
                 </FadeIn>
             </section>
 
-            <SectionDivider type="wave" color={colors.yellow} backgroundColor={colors.pink} />
+            <SectionDivider type="wave" color={colors.yellow} backgroundColor={colors.blueBand} />
         </>
     );
 };

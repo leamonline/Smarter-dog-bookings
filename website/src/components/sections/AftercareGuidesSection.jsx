@@ -64,7 +64,7 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                         <h2 className="heading-font text-4xl md:text-5xl font-bold mb-4" style={{ color: colors.plum }}>
                             Keep that fresh groom looking great at home
                         </h2>
-                        <p className="body-font text-lg" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg" style={{ color: colors.inkMuted }}>
                             Pick your coat type for a practical routine, right tools, and a recommended rebook rhythm.
                         </p>
                     </div>
@@ -80,9 +80,9 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                                 onClick={() => setActiveGuideId(guide.id)}
                                 className="px-5 py-2 rounded-full border-2 font-semibold transition-all duration-300 hover:scale-105"
                                 style={{
-                                    borderColor: isActive ? colors.plum : `${colors.teal}55`,
+                                    borderColor: isActive ? colors.plum : `${colors.inkMuted}55`,
                                     backgroundColor: isActive ? colors.plum : 'white',
-                                    color: isActive ? 'white' : colors.teal,
+                                    color: isActive ? 'white' : colors.inkMuted,
                                 }}
                                 aria-pressed={isActive}
                             >
@@ -100,12 +100,12 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                         </div>
                         <ul className="space-y-2">
                             {activeGuide.breeds.map((breed) => (
-                                <li key={breed} className="body-font text-base" style={{ color: colors.teal }}>
+                                <li key={breed} className="body-font text-base" style={{ color: colors.inkMuted }}>
                                     {breed}
                                 </li>
                             ))}
                         </ul>
-                        <p className="body-font text-sm mt-5" style={{ color: colors.teal }}>
+                        <p className="body-font text-sm mt-5" style={{ color: colors.inkMuted }}>
                             Tools: <strong>{activeGuide.tools}</strong>
                         </p>
                     </article>
@@ -117,7 +117,7 @@ const AftercareGuidesSection = ({ onBookClick }) => {
                         </div>
                         <ul className="space-y-3">
                             {activeGuide.checklist.map((item) => (
-                                <li key={item} className="body-font text-base flex gap-2" style={{ color: colors.teal }}>
+                                <li key={item} className="body-font text-base flex gap-2" style={{ color: colors.inkMuted }}>
                                     <span aria-hidden="true">✓</span>
                                     <span>{item}</span>
                                 </li>

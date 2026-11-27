@@ -142,7 +142,7 @@ export function HoursSettings({ config, onUpdateConfig = NOOP_SAVE, canEdit = tr
                     } ${
                       d.closed
                         ? "border-brand-red bg-red-100 text-brand-red"
-                        : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
+                        : "border-slate-200 bg-sd-cloud-tint text-slate-500 hover:bg-red-100 hover:text-brand-red hover:border-brand-red"
                     }`}
                   >
                     {"✕"}

@@ -77,9 +77,14 @@ Deno.test("a waitlist join emails the salon and logs sent on the email channel",
   const mail = mailCalls[0].body as {
     personalizations: Array<{ to: Array<{ email: string }> }>;
     subject: string;
-    content: Array<{ value: string }>;
+    content: Array<{ type: string; value: string }>;
   };
   assertEquals(mail.personalizations[0].to[0].email, "alerts@smarterdog.test");
+  // Plain text first, then the branded HTML of the same words; a staff alert
+  // carries no customer booking button.
+  assertEquals(mail.content.map((part) => part.type), ["text/plain", "text/html"]);
+  assertStringIncludes(mail.content[1].value, "has joined the waitlist");
+  assert(!mail.content[1].value.includes("Book or manage online"), "no customer button on a staff alert");
   assertStringIncludes(mail.subject, "Waitlist joined");
   assertStringIncludes(mail.subject, "Synthetic Person");
   assertStringIncludes(mail.content[0].value, "Bella, Max");

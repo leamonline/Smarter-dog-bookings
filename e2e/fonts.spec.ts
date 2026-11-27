@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/test";
 // a layout test on Linux CI (a wide one). This is the check that would have
 // said so at once.
 
-const BRAND = /Montserrat|Poppins|Barlow/i;
+const BRAND = /Montserrat|Poppins|Caveat/i;
 
 test.describe("Fonts", () => {
   test("ordinary text in each weight is painted in a brand font, not the system fallback", async ({ page }) => {

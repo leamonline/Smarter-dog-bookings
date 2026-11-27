@@ -25,8 +25,8 @@ function SectionSkeleton() {
       {[0, 1, 2].map((i) => (
         <div key={i} className="rounded-card border border-brand-paper-line bg-white p-4">
           <div className="mb-3 h-5 w-48 rounded bg-slate-100" />
-          <div className="mb-2 h-14 rounded-tile bg-slate-50" />
-          <div className="h-14 rounded-tile bg-slate-50" />
+          <div className="mb-2 h-14 rounded-tile bg-sd-cloud-tint" />
+          <div className="h-14 rounded-tile bg-sd-cloud-tint" />
         </div>
       ))}
     </div>

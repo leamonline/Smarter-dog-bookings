@@ -1,0 +1,844 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Smarter Dog Style Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Covered+By+Your+Grace&family=Montserrat:wght@400;500;600;700&family=Nothing+You+Could+Do&family=Poppins:wght@600;700;800;900&family=Reenie+Beanie&display=swap">
+<style>
+/* Layout: the board is built in the language it proposes. Cream paper, the flyer stripe as a frame,
+   heavy type only for the hero, plain white cards for everything that holds information.
+   Single light theme by choice: it depicts a light-only product, so every colour is set explicitly. */
+:root {
+  /* Surfaces */
+  --paper: #F7EFE6;        /* existing --color-brand-paper */
+  --paper-deep: #EFE4D6;
+  --paper-line: #E4D9CB;
+  --card: #FFFFFF;
+  /* Ink */
+  --ink: #1F1F1F;          /* existing --color-brand-ink */
+  --ink-soft: #4A4A4A;
+  --muted: #57677C;        /* existing --color-text-muted */
+  /* Brand partner: blue */
+  --flyer-blue: #5595DC;   /* existing brand-cyan-light: decoration only, 2.8:1 on paper */
+  --blue: #2A62A8;         /* existing brand-cyan: text, links, active, selected */
+  --navy: #1F4E8C;         /* existing brand-cyan-dark: stripe accent, Large dogs */
+  --sky: #EAF4FF;          /* existing sd-sky-tint: selected fill */
+  /* Action */
+  --yellow: #FECC13;
+  --yellow-dark: #D4A500;
+  --tape-yellow: rgba(254, 204, 19, 0.72);
+  --tape-blue: rgba(85, 149, 220, 0.6);
+  --shadow-soft: 0 6px 20px -12px rgba(31, 31, 31, 0.22);
+  --shadow-lift: 0 14px 30px -14px rgba(31, 31, 31, 0.32);
+  /* Type */
+  --font-hero: "Poppins", "Montserrat", system-ui, sans-serif;
+  --font-body: "Montserrat", system-ui, -apple-system, sans-serif;
+  --font-script: "Caveat", cursive;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 500;
+}
+img { max-width: 100%; display: block; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--blue); }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Caveat ships in the app at 700 only (@fontsource/caveat/700), so every handwritten line uses 700. */
+.hero .script, .signin .script-line, .confirm .script-line { font-weight: 700; }
+
+/* ── Stripe: the flyer's segmented band ───────────────────── */
+.stripe { display: flex; gap: 6px; height: 16px; }
+.stripe span { border-radius: 5px; background: var(--flyer-blue); flex: 1; }
+.stripe .w2 { flex: 2.1; }
+.stripe .y { background: var(--yellow); }
+.stripe .n { background: var(--navy); }
+.stripe.thin { height: 7px; gap: 4px; }
+.stripe.thin span { border-radius: 3px; }
+.band-top { padding-block: 12px 0; }
+
+/* ── Swashes ─────────────────────────────────────────────── */
+.swash-under { position: relative; display: inline-block; z-index: 0; }
+.swash-under::after {
+  content: ""; position: absolute; z-index: -1;
+  left: -3%; right: -3%; bottom: -0.2em; height: 0.34em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 24' preserveAspectRatio='none'%3E%3Cpath d='M4 17 C 70 7, 160 5, 296 10' stroke='%23FECC13' stroke-width='9' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") no-repeat center / 100% 100%;
+}
+.swash-hi { position: relative; display: inline-block; z-index: 0; padding: 0 0.18em; }
+.swash-hi::before {
+  content: ""; position: absolute; z-index: -1; inset: 0.12em -0.08em 0.02em;
+  background: var(--yellow);
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
+  transform: rotate(-1.6deg) skewX(-4deg);
+}
+
+/* ── Hero ────────────────────────────────────────────────── */
+.hero { padding-block: 36px 40px; display: grid; gap: 28px; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: center; }
+.logo { width: 220px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.hero h1 { font-family: var(--font-hero); font-weight: 900; font-size: clamp(44px, 7vw, 84px); line-height: 0.98; letter-spacing: -0.035em; margin-top: 18px; }
+.hero .script { font-family: var(--font-script); font-size: clamp(26px, 3.4vw, 38px); color: var(--blue); margin-top: 6px; transform: rotate(-3deg); transform-origin: left; display: inline-block; }
+.hero .lede { font-size: 17px; max-width: 58ch; margin-top: 16px; color: var(--ink-soft); }
+.hero-art { position: relative; min-height: 300px; }
+.hero-art .polaroid { position: absolute; width: 62%; }
+.hero-art .p1 { left: 0; top: 10px; transform: rotate(-5deg); }
+.hero-art .p2 { right: 0; top: 70px; transform: rotate(4deg); }
+.hero-art .mascot { position: absolute; width: 96px; left: 44%; bottom: -10px; }
+
+/* ── Sections ────────────────────────────────────────────── */
+section.block { padding-block: 44px; border-top: 2px dashed var(--paper-line); }
+.sec-head { display: grid; gap: 10px; margin-bottom: 26px; max-width: 70ch; }
+.sec-head h2 { font-family: var(--font-hero); font-weight: 700; font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -0.02em; line-height: 1.15; }
+.sec-head p { color: var(--ink-soft); }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); }
+.card { background: var(--card); border-radius: 16px; box-shadow: var(--shadow-soft); border: 1px solid rgba(31,31,31,0.05); }
+.note { font-size: 13px; color: var(--muted); }
+.grid { display: grid; gap: 18px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid > * { min-width: 0; }
+.stack { grid-template-columns: minmax(0, 1fr); }
+.sw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ── Decisions ───────────────────────────────────────────── */
+.decisions { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px 22px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.decisions li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 14px 16px; background: var(--card); border-radius: 12px; box-shadow: var(--shadow-soft); }
+.decisions li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.decisions .n { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.decisions b { display: block; font-size: 14px; }
+.decisions span { font-size: 13.5px; color: var(--ink-soft); }
+
+/* ── Palette ─────────────────────────────────────────────── */
+.swatch { overflow: hidden; display: grid; grid-template-rows: 96px auto; }
+.swatch .chip { display: flex; align-items: flex-end; padding: 10px 12px; font-weight: 700; font-size: 13px; }
+.swatch .meta { padding: 12px 14px 14px; display: grid; gap: 4px; }
+.swatch .meta b { font-size: 14px; }
+.swatch code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--ink-soft); }
+.swatch .role { font-size: 13px; color: var(--ink-soft); }
+.pill-new, .pill-kept { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; justify-self: start; }
+.pill-kept { background: var(--paper-deep); color: var(--ink-soft); }
+.pill-new { background: var(--sky); color: var(--blue); }
+
+/* ── Motifs ──────────────────────────────────────────────── */
+.motif { padding: 20px; display: grid; gap: 14px; align-content: start; }
+.motif h3 { font-size: 16px; font-weight: 700; }
+.demo-word { font-family: var(--font-hero); font-weight: 900; font-size: 34px; letter-spacing: -0.03em; line-height: 1.1; }
+.polaroid { background: #FFFFFF; padding: 10px 10px 34px; box-shadow: var(--shadow-lift); position: relative; }
+.polaroid img { aspect-ratio: 1 / 1; object-fit: cover; width: 100%; }
+.polaroid::before { content: ""; position: absolute; top: -12px; left: 50%; width: 42%; height: 24px; transform: translateX(-50%) rotate(-3deg); background: var(--tape-yellow); }
+.polaroid.blue-tape::before { background: var(--tape-blue); transform: translateX(-50%) rotate(2deg); }
+.mascot { border-radius: 50%; border: 4px solid #FFFFFF; box-shadow: var(--shadow-soft); aspect-ratio: 1 / 1; object-fit: cover; }
+.mascots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.mascots figure { margin: 0; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.mascots figcaption { font-weight: 700; font-size: 14px; }
+.mascots figcaption small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+.walkins { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: var(--paper-deep); }
+.walkins img { width: 56px; }
+.walkins p { font-size: 13.5px; color: var(--ink-soft); flex: 1 1 220px; min-width: 0; }
+
+/* ── Type ────────────────────────────────────────────────── */
+.spec { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 6px 22px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--paper-line); }
+.spec:last-child { border-bottom: 0; }
+.spec .lab { font-size: 12.5px; color: var(--muted); }
+.spec .lab b { display: block; color: var(--ink); font-size: 13px; }
+.t-hero { font-family: var(--font-hero); font-weight: 900; font-size: clamp(36px, 5vw, 56px); letter-spacing: -0.035em; line-height: 1.02; }
+.t-title { font-family: var(--font-hero); font-weight: 700; font-size: 28px; letter-spacing: -0.015em; }
+.t-card { font-weight: 700; font-size: 16px; }
+.t-body { font-weight: 500; font-size: 15px; }
+.t-label { font-weight: 700; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+.scripts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+.script-card { padding: 18px; display: grid; gap: 10px; }
+.script-card .s { font-size: 30px; line-height: 1.2; color: var(--ink); }
+.script-card.rec { outline: 3px solid var(--blue); outline-offset: -3px; }
+.script-card .head { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 13px; font-weight: 700; }
+
+/* ── Statuses ────────────────────────────────────────────── */
+.status-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.status-table th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 10px 12px; border-bottom: 2px solid var(--paper-line); }
+.status-table td { padding: 12px; border-bottom: 1px solid var(--paper-line); vertical-align: middle; font-size: 13.5px; }
+.status-table tr:last-child td { border-bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.badge { display: inline-flex; align-items: center; font-weight: 700; font-size: 12.5px; padding: 4px 11px; border-radius: 999px; white-space: nowrap; }
+.old-dot { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+.old-dot i { width: 22px; height: 22px; border-radius: 6px; display: inline-block; border: 3px solid; }
+.mini-card { display: grid; grid-template-columns: 5px minmax(0, 1fr); border-radius: 10px; overflow: hidden; min-width: 170px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.mini-card div { padding: 7px 10px; font-size: 12.5px; line-height: 1.3; }
+.mini-card b { display: block; font-size: 13px; }
+.ratio { font-variant-numeric: tabular-nums; font-size: 12.5px; white-space: nowrap; }
+.ratio.ok { color: #1D5F46; font-weight: 700; }
+
+/* ── Sizes ───────────────────────────────────────────────── */
+.size { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 11.5px; font-weight: 800; border: 2px solid var(--ink); color: var(--ink); background: #FFFFFF; flex: none; }
+.size.L { background: var(--navy); border-color: var(--navy); color: #FFFFFF; }
+.size-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
+.size-row div { display: flex; gap: 10px; align-items: center; font-size: 14px; font-weight: 600; }
+
+/* ── Mock-up frames ──────────────────────────────────────── */
+.frame { border-radius: 18px; overflow: hidden; background: var(--paper); box-shadow: 0 24px 50px -24px rgba(31,31,31,0.35), 0 0 0 1px rgba(31,31,31,0.06); }
+.frame-bar { display: flex; gap: 6px; padding: 10px 14px; background: #EFE7DD; align-items: center; }
+.frame-bar i { width: 10px; height: 10px; border-radius: 50%; background: #D9CFC3; display: block; }
+.frame-bar span { margin-left: 10px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.mock-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.mock-label h3 { font-size: 18px; font-weight: 700; }
+.mock-label p { font-size: 13px; color: var(--muted); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; font: 700 14px/1 var(--font-body); padding: 13px 22px; border: 0; cursor: pointer; min-height: 44px; }
+.btn-primary { background: var(--yellow); color: var(--ink); box-shadow: 0 10px 22px -12px rgba(254, 204, 19, 0.9); }
+.btn-primary:hover { background: var(--yellow-dark); }
+.btn-strong { background: var(--ink); color: #FFFFFF; }
+.btn-ghost { background: #FFFFFF; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--paper-line); }
+.field { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+.field input { font: 500 16px var(--font-body); padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--paper-line); background: #FFFFFF; color: var(--ink); width: 100%; }
+
+/* Sign-in */
+.signin { padding: 18px 22px 26px; display: grid; gap: 18px; }
+.signin-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.signin-top img.logo-s { width: 132px; }
+.signin h4 { font-family: var(--font-hero); font-weight: 900; font-size: 46px; letter-spacing: -0.035em; line-height: 1; margin: 0; }
+.signin .script-line { font-family: var(--font-script); color: var(--blue); font-size: 30px; transform: rotate(-3deg); display: inline-block; }
+
+/* Wizard */
+.wiz { padding: 20px 22px 24px; display: grid; gap: 18px; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); align-items: start; }
+.wiz-main { display: grid; gap: 16px; min-width: 0; }
+.steps { display: flex; align-items: center; gap: 0; }
+.steps i { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--paper-line); background: #FFFFFF; flex: none; display: grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 800; color: var(--muted); }
+.steps i.done { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
+.steps i.now { border-color: var(--ink); color: var(--ink); }
+.steps b { flex: 1; height: 2px; background: var(--paper-line); }
+.steps b.done { background: var(--yellow); }
+.wiz h4 { font-family: var(--font-hero); font-weight: 900; font-size: clamp(30px, 4vw, 40px); letter-spacing: -0.03em; line-height: 1.05; margin: 0; }
+.svc { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px 14px; background: #FFFFFF; border-radius: 14px; border: 2px solid transparent; box-shadow: var(--shadow-soft); }
+.svc img { width: 54px; }
+.svc b { display: block; font-size: 15px; }
+.svc span { font-size: 13px; color: var(--ink-soft); }
+.svc .price { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.svc .tick { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--paper-line); display: grid; place-items: center; color: #FFFFFF; font-weight: 900; font-size: 14px; }
+.svc.sel { border-color: var(--blue); background: var(--sky); }
+.svc.sel .tick { background: var(--blue); border-color: var(--blue); }
+.summary { padding: 18px; display: grid; gap: 12px; }
+.summary h5 { margin: 0; font-family: var(--font-hero); font-weight: 700; font-size: 18px; }
+.summary dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; font-size: 13px; }
+.summary dt { font-weight: 700; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11.5px; padding-top: 2px; }
+.summary dd { margin: 0; text-align: right; font-weight: 600; }
+.summary .total { display: flex; justify-content: space-between; border-top: 1.5px dashed var(--paper-line); padding-top: 12px; font-weight: 700; }
+
+/* Staff calendar */
+.app-head { background: #FFFFFF; border-bottom: 1px solid var(--paper-line); }
+.app-head .stripe { margin: 0; }
+.nav { display: flex; align-items: center; gap: 14px; padding: 12px 18px; }
+.nav img { width: 120px; flex: none; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; min-width: 0; flex: 1; scrollbar-width: none; }
+.tabs span { padding: 8px 12px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+.tabs span.on { background: var(--sky); color: var(--blue); font-weight: 700; box-shadow: inset 0 0 0 1.5px rgba(42, 98, 168, 0.35); }
+.nav .btn { padding: 10px 16px; min-height: 40px; font-size: 13px; flex: none; }
+.cal { padding: 16px 18px 20px; display: grid; gap: 14px; }
+.cal-title { display: flex; align-items: center; justify-content: center; gap: 18px; padding-block: 4px 8px; }
+.cal-title h4 { font-family: var(--font-hero); font-weight: 700; font-size: clamp(20px, 2.6vw, 26px); letter-spacing: -0.015em; margin: 0; }
+.cal-title .arrow { font-size: 20px; color: var(--ink-soft); font-weight: 700; }
+.daybar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; background: #FFFFFF; border-radius: 12px; box-shadow: var(--shadow-soft); flex-wrap: wrap; }
+.daybar .open { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 13.5px; }
+.meter { width: 110px; height: 8px; border-radius: 99px; background: var(--paper-deep); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 86%; background: var(--blue); border-radius: 99px; }
+.slots { display: grid; gap: 10px; }
+.slot { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.slot .time { background: #FFFFFF; border-radius: 12px; display: grid; place-items: center; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; box-shadow: var(--shadow-soft); }
+.bk { background: #FFFFFF; border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; box-shadow: var(--shadow-soft); border-top: 3px solid transparent; min-width: 0; }
+.bk.large { border-top-color: var(--navy); }
+.bk .r1, .bk .r2 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bk .r1 b { font-size: 14.5px; }
+.bk .r1 .breed { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bk .r1 .amt { margin-left: auto; font-weight: 700; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.bk .r2 { font-size: 12.5px; color: var(--ink-soft); justify-content: space-between; }
+.bk .r2 span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bk.empty { display: grid; place-items: center; color: var(--muted); font-size: 12.5px; font-weight: 600; background: repeating-linear-gradient(-45deg, transparent 0 8px, rgba(31,31,31,0.03) 8px 16px), #FBF7F2; box-shadow: none; border: 1.5px dashed var(--paper-line); }
+
+/* Confirmation + empty state */
+.confirm { padding: 22px; display: grid; gap: 16px; justify-items: center; text-align: center; }
+.confirm .polaroid { width: 62%; max-width: 220px; transform: rotate(-3deg); }
+.confirm h4 { font-family: var(--font-hero); font-weight: 900; font-size: 40px; letter-spacing: -0.035em; line-height: 1; margin: 0; }
+.confirm .script-line { font-family: var(--font-script); color: var(--blue); font-size: 32px; transform: rotate(-3deg); }
+.confirm .facts { font-size: 14px; color: var(--ink-soft); }
+.empty-state { padding: 26px 22px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.empty-state img { width: 112px; }
+.empty-state h4 { font-family: var(--font-hero); font-weight: 900; font-size: 36px; letter-spacing: -0.03em; line-height: 1.05; margin: 0; }
+.empty-state p { color: var(--ink-soft); font-size: 14px; max-width: 34ch; }
+
+/* ── Copy voice ──────────────────────────────────────────── */
+.voice { padding: 20px; display: grid; gap: 14px; align-content: start; }
+.voice h3 { font-size: 16px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+.voice ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.voice li { padding: 10px 12px; border-radius: 10px; background: var(--paper); font-size: 14px; }
+.voice li small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.voice .hero-line { font-family: var(--font-hero); font-weight: 800; font-size: 17px; letter-spacing: -0.01em; }
+
+/* ── Motion demo ─────────────────────────────────────────── */
+.motion-stage { padding: 26px 22px; display: grid; gap: 18px; justify-items: center; text-align: center; overflow: hidden; }
+.motion-stage .word { font-family: var(--font-hero); font-weight: 900; font-size: clamp(34px, 5vw, 48px); letter-spacing: -0.035em; line-height: 1; position: relative; display: inline-block; }
+.motion-stage svg.draw { position: absolute; left: -4%; width: 108%; bottom: -16px; height: 22px; overflow: visible; }
+.motion-stage svg.draw path { stroke: var(--yellow); stroke-width: 9; stroke-linecap: round; fill: none; stroke-dasharray: 320; stroke-dashoffset: 0; }
+.motion-row { display: flex; gap: 26px; align-items: flex-end; justify-content: center; flex-wrap: wrap; }
+.motion-row .polaroid { width: 150px; transform: rotate(-3deg); }
+.motion-row .mascot { width: 92px; }
+.playing svg.draw path { animation: draw 420ms cubic-bezier(.3,.7,.4,1) both; }
+.playing .polaroid { animation: settle 520ms cubic-bezier(.2,.9,.3,1.25) both; }
+.playing .mascot { animation: bounce 600ms 260ms cubic-bezier(.3,.6,.3,1) both; }
+@keyframes draw { from { stroke-dashoffset: 320; } to { stroke-dashoffset: 0; } }
+@keyframes settle { from { transform: translateY(-26px) rotate(-9deg); } 70% { transform: translateY(2px) rotate(-2deg); } to { transform: translateY(0) rotate(-3deg); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-16px); } 70% { transform: translateY(0); } 85% { transform: translateY(-4px); } }
+.motion-specs { display: grid; gap: 8px; font-size: 13.5px; color: var(--ink-soft); text-align: left; width: 100%; max-width: 520px; }
+.motion-specs div { display: flex; justify-content: space-between; gap: 14px; border-bottom: 1px dashed var(--paper-line); padding-bottom: 6px; }
+.motion-specs b { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .playing svg.draw path, .playing .polaroid, .playing .mascot { animation: none; }
+}
+
+/* ── Changes & risks ─────────────────────────────────────── */
+.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.list li { padding: 12px 14px; background: var(--card); border-radius: 12px; box-shadow: var(--shadow-soft); font-size: 14px; display: grid; gap: 2px; }
+.list li b { font-size: 14px; }
+.list li span { color: var(--ink-soft); font-size: 13.5px; }
+.phase { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; align-items: start; }
+.phase .n { width: 40px; height: 40px; border-radius: 12px; background: var(--yellow); display: grid; place-items: center; font-weight: 800; }
+
+footer { padding-block: 28px 40px; }
+footer p { font-size: 13px; color: var(--muted); margin-top: 14px; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 980px) {
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .scripts { grid-template-columns: minmax(0, 1fr); }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero-art { min-height: 260px; max-width: 420px; }
+  .decisions { grid-template-columns: minmax(0, 1fr); }
+  .g2, .g3 { grid-template-columns: minmax(0, 1fr); }
+  .wiz { grid-template-columns: minmax(0, 1fr); }
+  .mascots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .spec { grid-template-columns: minmax(0, 1fr); }
+  .slot { grid-template-columns: 54px minmax(0, 1fr); }
+  .slot .bk:nth-child(3) { grid-column: 2; }
+  .nav .btn span.long { display: none; }
+}
+@media (max-width: 560px) {
+  .sw-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 460px) {
+  .g4 { grid-template-columns: minmax(0, 1fr); }
+  .logo { width: 180px; }
+  .signin h4 { font-size: 40px; }
+}
+</style>
+
+<div class="band-top wrap">
+  <div class="stripe" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+</div>
+
+<header class="wrap hero">
+  <div>
+    <img class="logo" src="img/lockup-black.svg" alt="Smarter Dog Grooming Salon">
+    <p class="eyebrow" style="margin-top:22px">Visual language proposal · 22 November 2026 · Web app</p>
+    <h1>The flyer,<br><span class="swash-hi">brought indoors.</span></h1>
+    <span class="script">for your approval</span>
+    <p class="lede">The printed flyer, the staff dashboard and the booking wizard combined into one look for the staff dashboard and the customer portal. Every colour below is a real value, ready to become a token. Nothing in the app changes until you approve this board.</p>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    <div class="polaroid p1"><img src="img/dog-1.webp" alt=""></div>
+    <div class="polaroid p2 blue-tape"><img src="img/dog-3.webp" alt=""></div>
+    <img class="mascot" src="img/full-groom.webp" alt="">
+  </div>
+</header>
+
+<main>
+  <!-- Decisions -->
+  <section class="block wrap" id="decisions">
+    <div class="sec-head">
+      <span class="tag">What we agreed</span>
+      <h2><span class="swash-under">Thirteen decisions</span></h2>
+      <p>Numbered as we settled them, so you can reply with a number to change one.</p>
+    </div>
+    <ol class="decisions">
+      <li><span class="n">1</span><div><b>Equally bold</b><span>Customer portal and staff dashboard get the same personality.</span></div></li>
+      <li><span class="n">2</span><div><b>Soft paper</b><span>Cream page everywhere, white rounded cards, soft shadows, pill buttons.</span></div></li>
+      <li><span class="n">3</span><div><b>Heavy type for heroes</b><span>Poppins 900 on big moments. Staff page titles stay Poppins 700.</span></div></li>
+      <li><span class="n">4</span><div><b>Stripe, swash, mascots</b><span>In. Checkerboard stays out.</span></div></li>
+      <li><span class="n">5</span><div><b>Blue as brand partner</b><span>Yellow means press this. Blue marks active, selected and links.</span></div></li>
+      <li><span class="n">6</span><div><b>Statuses re-tuned</b><span>One hue each in the flyer's print style. Confirmed moves to periwinkle.</span></div></li>
+      <li><span class="n">7</span><div><b>Only Large stands out</b><span>S and M are neutral letter chips. L is a navy chip with a navy card edge.</span></div></li>
+      <li><span class="n">8</span><div><b>Staff bold moments</b><span>Sign-in, page titles with a swash, empty and done states. Rows stay plain.</span></div></li>
+      <li><span class="n">9</span><div><b>Polaroids and script</b><span>Taped frames for hero dog photos. One Caveat line per hero screen.</span></div></li>
+      <li><span class="n">10</span><div><b>Small moments of delight</b><span>Motion on hero moments only, off for reduced motion.</span></div></li>
+      <li><span class="n">11</span><div><b>Playful heroes, plain rest</b><span>Wit in headlines. Labels, errors and instructions stay specific.</span></div></li>
+      <li><span class="n">12</span><div><b>Web app first</b><span>Then the website, iPhone app and emails follow the same tokens.</span></div></li>
+      <li><span class="n">13</span><div><b>This board first</b><span>Approve or tweak here before any code changes.</span></div></li>
+    </ol>
+  </section>
+
+  <!-- Palette -->
+  <section class="block wrap" id="palette">
+    <div class="sec-head">
+      <span class="tag">Decisions 2 and 5</span>
+      <h2><span class="swash-under">Palette</span></h2>
+      <p>Cream, charcoal, sky and sun, straight off the flyer. Every core value already exists as a token in <span class="mono">src/index.css</span>. What changes is the job each one does.</p>
+    </div>
+    <div class="grid sw-grid" id="swatches"></div>
+  </section>
+
+  <!-- Motifs -->
+  <section class="block wrap" id="motifs">
+    <div class="sec-head">
+      <span class="tag">Decisions 4 and 9</span>
+      <h2><span class="swash-under">Flyer motifs</span></h2>
+      <p>Four pieces carry the flyer into the app. Each has one job and a place it never goes.</p>
+    </div>
+    <div class="grid g4">
+      <div class="card motif">
+        <h3>Segmented stripe</h3>
+        <div class="stripe" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+        <div class="stripe thin" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+        <p class="note">16px on hero screens, 7px across the top of every staff and customer screen. Pattern copied from the flyer: nine segments, two yellow, one navy. Never inside content.</p>
+      </div>
+      <div class="card motif">
+        <h3>Yellow swash</h3>
+        <div class="demo-word"><span class="swash-under">Choose services</span></div>
+        <div class="demo-word" style="font-size:28px"><span class="swash-hi">You're booked.</span></div>
+        <p class="note">Underline for page and step titles. Highlighter behind one or two words on hero moments. Never behind numbers staff act on, and never as a button.</p>
+      </div>
+      <div class="card motif">
+        <h3>Taped polaroid</h3>
+        <div class="polaroid" style="transform:rotate(-3deg);width:78%;margin:10px auto 4px"><img src="img/dog-1.webp" alt="Sample client dog in a polaroid frame"></div>
+        <p class="note">A dog's own photo where it is the hero: Your dogs, booking confirmed, the staff dog profile header. Tilt of 2 to 4 degrees, yellow or blue tape. Never in lists.</p>
+      </div>
+      <div class="card motif">
+        <h3>Handwriting</h3>
+        <p style="font-family:var(--font-script);font-weight:700;font-size:36px;color:var(--blue);transform:rotate(-3deg);line-height:1.1">See you soon!</p>
+        <p style="font-family:var(--font-script);font-weight:700;font-size:30px;line-height:1.1">Book your groom online</p>
+        <p class="note">One short line per hero screen, in blue or ink. Never carries information a person needs: no names, dates, prices or instructions.</p>
+      </div>
+    </div>
+
+    <div class="card motif" style="margin-top:18px">
+      <h3>Mascots, one per bookable service</h3>
+      <div class="mascots">
+        <figure><img class="mascot" src="img/full-groom.webp" alt="Mascot for Full Groom: dog with scissors"><figcaption>Full Groom<small>full-groom.webp</small></figcaption></figure>
+        <figure><img class="mascot" src="img/bath-brush.webp" alt="Mascot for Bath and Brush: dog in a bath"><figcaption>Bath &amp; Brush<small>maintenance-groom.webp</small></figcaption></figure>
+        <figure><img class="mascot" src="img/deshedding.webp" alt="Mascot for Bath and De-shed: dog with a comb"><figcaption>Bath &amp; De-shed<small>deshedding.webp</small></figcaption></figure>
+        <figure><img class="mascot" src="img/puppy.webp" alt="Mascot for Puppy Groom: puppy in a hand"><figcaption>Puppy Groom<small>puppy-intro.webp</small></figcaption></figure>
+      </div>
+      <div class="walkins">
+        <img class="mascot" src="img/nail-trim.webp" alt="Mascot for nail trims">
+        <img class="mascot" src="img/ear-cleaning.webp" alt="Mascot for ear cleaning">
+        <img class="mascot" src="img/anal-gland.webp" alt="Mascot for anal glands">
+        <p>The walk-in services (nail clip, ear clean, anal glands) are not booked, so their mascots only appear on the "pop in 08:30 to 13:00, Mon to Wed" note. The files are 250px: sharp up to about 120px on screen. A larger hero needs the original artwork.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Type -->
+  <section class="block wrap" id="type">
+    <div class="sec-head">
+      <span class="tag">Decision 3</span>
+      <h2><span class="swash-under">Type</span></h2>
+      <p>Poppins and Montserrat stay. The only new font is one heavier Poppins weight (about 8KB). Handwriting uses Caveat, which the app already ships. Barlow Condensed could then be dropped, which saves about 37KB.</p>
+    </div>
+    <div class="card" style="padding:6px 22px">
+      <div class="spec"><div class="lab"><b>Hero</b>Poppins 900 · 44 to 64px · tracking −3.5%<br>Sign-in, step titles, confirmations, empty states</div><div class="t-hero">Come scruffy.</div></div>
+      <div class="spec"><div class="lab"><b>Page title</b>Poppins 700 · 28px · with swash<br>Every staff page, as today</div><div class="t-title"><span class="swash-under">Monday 23 November</span></div></div>
+      <div class="spec"><div class="lab"><b>Card title</b>Montserrat 700 · 16px</div><div class="t-card">Bella <span style="font-weight:500;color:var(--muted);font-size:14px">Cockapoo</span></div></div>
+      <div class="spec"><div class="lab"><b>Body</b>Montserrat 500 · 15px</div><div class="t-body">Sarah Jones · Full Groom · drop off 09:30, collect from 12:00.</div></div>
+      <div class="spec"><div class="lab"><b>Label</b>Montserrat 700 · 12px · uppercase</div><div class="t-label">Reminders for Mon 23 Nov</div></div>
+    </div>
+
+    <div class="scripts">
+      <div class="card script-card">
+        <div class="head"><span>A · Covered By Your Grace</span></div>
+        <div class="s" style="font-family:'Covered By Your Grace',cursive;font-size:32px">Book your groom online</div>
+        <div class="s" style="font-family:'Covered By Your Grace',cursive;color:var(--blue);font-size:30px;transform:rotate(-2deg)">See you soon!</div>
+        <p class="note">Felt-tip marker, like a note on the salon whiteboard. Chunky enough to read at small sizes, and it suits the polaroids. One new font file.</p>
+      </div>
+      <div class="card script-card rec">
+        <div class="head"><span>B · Caveat</span><span class="pill-new">Chosen</span></div>
+        <div class="s" style="font-family:'Caveat',cursive;font-weight:700;font-size:32px">Book your groom online</div>
+        <div class="s" style="font-family:'Caveat',cursive;font-weight:700;color:var(--blue);font-size:30px;transform:rotate(-2deg)">See you soon!</div>
+        <p class="note">Quick pen handwriting. Already shipped, so no extra download. The catch: it is one of the most used handwriting fonts on the web.</p>
+      </div>
+      <div class="card script-card">
+        <div class="head"><span>C · Nothing You Could Do</span></div>
+        <div class="s" style="font-family:'Nothing You Could Do',cursive;font-size:24px;line-height:1.5">Book your groom online</div>
+        <div class="s" style="font-family:'Nothing You Could Do',cursive;color:var(--blue);font-size:24px;line-height:1.5;transform:rotate(-2deg)">See you soon!</div>
+        <p class="note">Joined-up pen, drawn from real handwriting. The most personal of the four and the hardest to read, so only for very short lines.</p>
+      </div>
+      <div class="card script-card">
+        <div class="head"><span>D · Reenie Beanie</span></div>
+        <div class="s" style="font-family:'Reenie Beanie',cursive;font-size:38px;line-height:1.05">Book your groom online</div>
+        <div class="s" style="font-family:'Reenie Beanie',cursive;font-size:36px;line-height:1.05;transform:rotate(-2deg)">See you soon!</div>
+        <p class="note">Fast biro scrawl. Very human, but the strokes are thin, so it needs to be big and in ink rather than blue.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Statuses -->
+  <section class="block wrap" id="statuses">
+    <div class="sec-head">
+      <span class="tag">Decision 6</span>
+      <h2><span class="swash-under">Booking statuses</span></h2>
+      <p>One hue per status, flatter and warmer so they sit on cream like the mascot circles. The word is always shown. Every text pairing is checked live below against the 4.5:1 minimum. Unknown keeps today's tone, so bad data still gets noticed.</p>
+    </div>
+    <div class="card scroll-x" style="padding:6px 10px">
+      <table class="status-table">
+        <thead><tr><th>Status</th><th>Today</th><th>Proposed pill</th><th>On a card</th><th>Contrast</th><th>Why</th></tr></thead>
+        <tbody id="status-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Sizes -->
+  <section class="block wrap" id="sizes">
+    <div class="sec-head">
+      <span class="tag">Decision 7</span>
+      <h2><span class="swash-under">Dog sizes</span></h2>
+      <p>Small and Medium cost the same seat in the capacity engine, so they share one neutral look. Large changes what a slot can hold, so it is the only size with colour.</p>
+    </div>
+    <div class="grid g2">
+      <div class="card motif">
+        <h3>Chips</h3>
+        <div class="size-row">
+          <div><span class="size">S</span>Small</div>
+          <div><span class="size">M</span>Medium</div>
+          <div><span class="size L">L</span>Large</div>
+        </div>
+        <p class="note">Today: yellow S, teal M, coral L. Those three clashed with Ready, Arrived and Unconfirmed. White on navy is 8.3:1.</p>
+      </div>
+      <div class="card motif">
+        <h3>On calendar cards</h3>
+        <div class="grid g2" style="gap:10px">
+          <div class="bk"><div class="r1"><span class="size">M</span><b>Bella</b><span class="breed">Cockapoo</span></div><div class="r2"><span>Sarah Jones · Full Groom</span></div></div>
+          <div class="bk large"><div class="r1"><span class="size L">L</span><b>Max</b><span class="breed">Labrador</span></div><div class="r2"><span>Dave Smith · Bath &amp; Brush</span></div></div>
+        </div>
+        <p class="note">The navy top edge replaces today's size-coloured edge, and only Large gets it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screens -->
+  <section class="block wrap" id="screens">
+    <div class="sec-head">
+      <span class="tag">Decisions 1, 8 and 11</span>
+      <h2><span class="swash-under">Key screens</span></h2>
+      <p>Mock-ups with sample data from the app's offline dataset. Bold where it is a moment, plain where staff work.</p>
+    </div>
+
+    <div class="grid stack" style="gap:34px">
+      <!-- Calendar -->
+      <div>
+        <div class="mock-label"><h3>Staff · Bookings calendar</h3><p>Frame and title carry the brand. Every row stays plain.</p></div>
+        <div class="frame">
+          <div class="frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>/staff</span></div>
+          <div class="app-head">
+            <div class="stripe thin" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+            <div class="nav">
+              <img src="img/lockup-black.svg" alt="Smarter Dog">
+              <div class="tabs"><span>Today</span><span class="on">Bookings</span><span>Dogs</span><span>Customers</span><span>Inbox</span><span>Reports</span></div>
+              <button class="btn btn-primary" type="button" aria-label="New booking">+ <span class="long">New booking</span></button>
+            </div>
+          </div>
+          <div class="cal">
+            <div class="cal-title"><span class="arrow" aria-hidden="true">‹</span><h4><span class="swash-under">Monday, 23 November 2026</span></h4><span class="arrow" aria-hidden="true">›</span></div>
+            <div class="daybar">
+              <div class="open"><span class="badge" style="background:#D5EFE5;color:#0F3F2E">Open</span><span class="meter" aria-hidden="true"><i></i></span>12 of 14</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" type="button" style="padding:9px 14px;min-height:38px;font-size:13px">Message day</button><button class="btn btn-ghost" type="button" style="padding:9px 14px;min-height:38px;font-size:13px">Day settings</button></div>
+            </div>
+            <div class="slots" id="cal-slots"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wizard -->
+      <div>
+        <div class="mock-label"><h3>Customer · Booking wizard, step 2</h3><p>Hero title and mascots. Selected uses brand blue; Continue stays yellow.</p></div>
+        <div class="frame">
+          <div class="frame-bar" aria-hidden="true"><i></i><i></i><i></i><span>smarterdog.co.uk/book</span></div>
+          <div class="stripe thin" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+          <div class="wiz">
+            <div class="wiz-main">
+              <span class="eyebrow">Step 2 of 5</span>
+              <h4><span class="swash-under">Choose services</span></h4>
+              <div class="steps" aria-hidden="true"><i class="done">✓</i><b class="done"></b><i class="now">2</i><b></b><i>3</i><b></b><i>4</i><b></b><i>5</i></div>
+              <p style="color:var(--ink-soft);font-size:14px">Choose a service for each pup. Prices are starting prices; the final cost depends on coat condition and any extras.</p>
+              <div style="display:grid;gap:10px">
+                <div class="svc sel"><img class="mascot" src="img/full-groom.webp" alt=""><div><b>Full Groom</b><span>Bath, dry and full clip to breed standard</span><div class="price">From £46</div></div><span class="tick" aria-hidden="true">✓</span></div>
+                <div class="svc"><img class="mascot" src="img/bath-brush.webp" alt=""><div><b>Bath &amp; Brush</b><span>Bath, blow-dry and a thorough brush-out</span><div class="price">From £42</div></div><span class="tick" aria-hidden="true"></span></div>
+                <div class="svc"><img class="mascot" src="img/deshedding.webp" alt=""><div><b>Bath &amp; De-shed</b><span>Bath, blow-dry and de-shedding treatment</span><div class="price">From £42</div></div><span class="tick" aria-hidden="true"></span></div>
+                <div class="svc"><img class="mascot" src="img/puppy.webp" alt=""><div><b>Puppy Groom</b><span>A gentle first groom for pups under 6 months</span><div class="price">From £38</div></div><span class="tick" aria-hidden="true"></span></div>
+              </div>
+              <div style="display:flex;gap:10px"><button class="btn btn-ghost" type="button">Back</button><button class="btn btn-primary" type="button" style="flex:1">Continue →</button></div>
+            </div>
+            <aside class="card summary">
+              <h5><span class="swash-under">Your booking so far</span></h5>
+              <div style="font-weight:700">Luna <span style="font-weight:500;color:var(--muted)">· Full Groom</span></div>
+              <dl><dt>Date</dt><dd>Not chosen yet</dd><dt>Drop-off</dt><dd>Not chosen yet</dd></dl>
+              <div class="total"><span>Estimated total</span><span>From £46</span></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      <!-- Three moments -->
+      <div class="grid g3">
+        <div>
+          <div class="mock-label"><h3>Staff · Sign-in</h3><p>The full flyer treatment.</p></div>
+          <div class="frame">
+            <div class="stripe" aria-hidden="true" style="height:12px"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+            <div class="signin">
+              <div class="signin-top"><img class="logo-s" src="img/lockup-black.svg" alt="Smarter Dog"><img class="mascot" src="img/bath-brush.webp" alt="" style="width:64px"></div>
+              <div><h4><span class="swash-hi">Morning!</span></h4><span class="script-line">Kettle's on.</span></div>
+              <label class="field" for="m-email">Email<input id="m-email" type="email" value="staff@example.co.uk" readonly></label>
+              <label class="field" for="m-pass">Password<input id="m-pass" type="password" value="password123" readonly></label>
+              <button class="btn btn-primary" type="button">Sign in</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="mock-label"><h3>Customer · Booked</h3><p>Polaroid, script and swash together.</p></div>
+          <div class="frame">
+            <div class="stripe thin" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+            <div class="confirm">
+              <div class="polaroid"><img src="img/dog-1.webp" alt="Luna's photo"></div>
+              <h4><span class="swash-hi">You're booked.</span></h4>
+              <span class="script-line">See you soon!</span>
+              <p class="facts"><b style="color:var(--ink)">Luna · Full Groom</b><br>Tuesday 1 December · drop off 09:30<br>183 Kings Road, Ashton-under-Lyne</p>
+              <button class="btn btn-strong" type="button">Add to calendar</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="mock-label"><h3>Staff · Day done</h3><p>Only for a truly finished or empty day.</p></div>
+          <div class="frame">
+            <div class="stripe thin" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+            <div class="empty-state">
+              <img class="mascot" src="img/puppy.webp" alt="">
+              <h4>All groomed.</h4>
+              <p>Every dog has gone home. £603 taken today across 12 dogs.</p>
+              <button class="btn btn-ghost" type="button">See tomorrow</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Copy voice -->
+  <section class="block wrap" id="voice">
+    <div class="sec-head">
+      <span class="tag">Decision 11</span>
+      <h2><span class="swash-under">Copy voice</span></h2>
+      <p>The flyer's wit belongs to hero lines. Anything with a consequence stays plain, as the current rules say.</p>
+    </div>
+    <div class="grid g2">
+      <div class="card voice">
+        <h3>Hero lines get the flyer voice</h3>
+        <ul>
+          <li><small>Customer sign-in</small><span class="hero-line">Come scruffy. Leave gorgeous.</span></li>
+          <li><small>Booking confirmed</small><span class="hero-line">You're booked.</span></li>
+          <li><small>Staff day finished</small><span class="hero-line">All groomed.</span></li>
+          <li><small>Inbox clear</small><span class="hero-line">Nobody's waiting.</span></li>
+          <li><small>Customer has no dogs yet</small><span class="hero-line">Who's coming in?</span></li>
+        </ul>
+      </div>
+      <div class="card voice">
+        <h3>Working copy stays plain</h3>
+        <ul>
+          <li><small>Save failed</small>Couldn't save Bella's booking. Check the calendar before trying again.</li>
+          <li><small>Slot gone</small>Someone booked 10:00 while you were choosing. Pick another time.</li>
+          <li><small>Button</small>Continue</li>
+          <li><small>Cancellation</small>Cancel Max's groom on Monday 23 November?</li>
+          <li><small>Label</small>Drop-off</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Motion -->
+  <section class="block wrap" id="motion">
+    <div class="sec-head">
+      <span class="tag">Decision 10</span>
+      <h2><span class="swash-under">Motion</span></h2>
+      <p>Three small moves, used together only on hero moments. Calendars, lists and loading states never move. Anyone with reduce motion switched on sees the finished frame.</p>
+    </div>
+    <div class="card motion-stage" id="motion-stage">
+      <div class="motion-row">
+        <div class="polaroid"><img src="img/dog-3.webp" alt="Sample client dog"></div>
+        <div style="display:grid;gap:22px;justify-items:center">
+          <span class="word">You're booked.<svg class="draw" viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16 C 70 7, 160 5, 296 10"/></svg></span>
+          <img class="mascot" src="img/full-groom.webp" alt="">
+        </div>
+      </div>
+      <button class="btn btn-strong" type="button" id="replay">Play the moment</button>
+      <p class="note" id="motion-note" hidden>Your device asks for reduced motion, so the moment shows its finished frame.</p>
+      <div class="motion-specs">
+        <div><span>Swash draws in</span><b>420ms</b></div>
+        <div><span>Polaroid drops and settles</span><b>520ms, slight overshoot</b></div>
+        <div><span>Mascot bounces once</span><b>600ms, starts at 260ms</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Changes -->
+  <section class="block wrap" id="changes">
+    <div class="sec-head">
+      <span class="tag">If you approve</span>
+      <h2><span class="swash-under">What changes, and what to watch</span></h2>
+    </div>
+    <div class="grid g2">
+      <div style="display:grid;gap:14px;align-content:start">
+        <h3 style="font-size:17px">Build order</h3>
+        <div class="phase"><span class="n">1</span><div><b>Rules and tokens</b><p class="note">Rewrite the design-system rules this board contradicts, then add the tokens: statuses, sizes, the stripe, swash, script and heavy weight. No screen changes yet.</p></div></div>
+        <div class="phase"><span class="n">2</span><div><b>Customer portal</b><p class="note">Stripe, hero titles, mascots in the service picker, polaroids, the booked moment.</p></div></div>
+        <div class="phase"><span class="n">3</span><div><b>Staff dashboard</b><p class="note">Stripe header, blue active tab, title swash, new status and size colours, sign-in, empty states.</p></div></div>
+        <div class="phase"><span class="n">4</span><div><b>Website, iPhone app, emails</b><p class="note">Same tokens, each in its own codebase. Nothing shared at code level.</p></div></div>
+      </div>
+      <div style="display:grid;gap:14px;align-content:start">
+        <h3 style="font-size:17px">Watch for</h3>
+        <ul class="list">
+          <li><b>Staff relearning status colours</b><span>The colours are frozen today for a reason. Tell the team before it ships.</span></li>
+          <li><b>Blue selected next to periwinkle Confirmed</b><span>Check on the salon's own screen at low brightness, not just a laptop.</span></li>
+          <li><b>Flyer blue fails as text</b><span>2.8:1 on paper. It stays decoration only; text uses the darker brand blue (5.4:1).</span></li>
+          <li><b>Rules to rewrite first</b><span>"No extra illustration", "status and size colours frozen" and the Caveat note all change.</span></li>
+          <li><b>The website goes live with the booking app</b><span>Its turn carries the same release risk as any change to main.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="stripe" aria-hidden="true"><span></span><span class="w2"></span><span class="y"></span><span></span><span class="n"></span><span class="w2"></span><span></span><span></span><span class="y"></span></div>
+  <p>To change anything, reply with the decision number or the section name. Handwriting is Caveat, chosen on 22 November. Sample names and photos come from the app's offline dataset and the public website.</p>
+</footer>
+
+<script>
+(function () {
+  function lum(hex) {
+    var c = [1, 3, 5].map(function (i) { return parseInt(hex.slice(i, i + 2), 16) / 255; })
+      .map(function (v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function ratio(a, b) {
+    var x = lum(a), y = lum(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
+
+  /* Palette */
+  var swatches = [
+    { name: "Paper", hex: "#F7EFE6", fg: "#1F1F1F", role: "Every page background, staff calendar included.", kept: true },
+    { name: "Card", hex: "#FFFFFF", fg: "#1F1F1F", role: "Anything that holds information.", kept: true },
+    { name: "Ink", hex: "#1F1F1F", fg: "#F7EFE6", role: "Text, strong buttons, focus ring.", kept: true },
+    { name: "Muted", hex: "#57677C", fg: "#FFFFFF", role: "Secondary text on paper or white.", kept: true },
+    { name: "Action yellow", hex: "#FECC13", fg: "#1F1F1F", role: "Lead buttons only. Means press this.", kept: true },
+    { name: "Brand blue", hex: "#2A62A8", fg: "#FFFFFF", role: "Links, active tab, selected ring and tick.", kept: false },
+    { name: "Sky tint", hex: "#EAF4FF", fg: "#2A62A8", role: "Fill behind a selected item or active tab.", kept: false },
+    { name: "Navy", hex: "#1F4E8C", fg: "#FFFFFF", role: "Stripe accent and Large dogs. Nothing else.", kept: false },
+    { name: "Flyer blue", hex: "#5595DC", fg: "#1F1F1F", role: "Stripe and mascot circles. Never text.", kept: false }
+  ];
+  var sw = document.getElementById("swatches");
+  swatches.forEach(function (s) {
+    var onPaper = ratio(s.hex, "#F7EFE6"), onInk = ratio(s.fg, s.hex);
+    var el = document.createElement("div");
+    el.className = "card swatch";
+    el.innerHTML =
+      '<div class="chip" style="background:' + s.hex + ';color:' + s.fg + ';' + (s.hex === "#FFFFFF" || s.hex === "#F7EFE6" ? "box-shadow:inset 0 -1px 0 #E4D9CB" : "") + '">' + onInk.toFixed(1) + ':1 label</div>' +
+      '<div class="meta"><b>' + s.name + '</b><code>' + s.hex + '</code><span class="role">' + s.role + '</span>' +
+      '<span class="' + (s.kept ? "pill-kept" : "pill-new") + '">' + (s.kept ? "Same job as today" : "New job") + '</span></div>';
+    sw.appendChild(el);
+  });
+
+  /* Statuses */
+  var statuses = [
+    { label: "Expected", old: ["#E8ECF0", "#2C353F", "#97A6B5"], tint: "#F1E9DC", ink: "#3B3226", meta: "#5E5242", edge: "#B8A68A", why: "Resting state. Warm cream so it recedes into the paper." },
+    { label: "Unconfirmed", old: ["#FFD9BF", "#5A2100", "#C2500A"], tint: "#FFDDC9", ink: "#5C2408", meta: "#7A3410", edge: "#E0662B", inverted: true, why: "Needs chasing, so the pill inverts and reads as a job." },
+    { label: "Confirmed", old: ["#DBEAFE", "#12315E", "#3B82F6"], tint: "#E4E4FB", ink: "#26266A", meta: "#3D3D8F", edge: "#7C80DC", why: "Periwinkle, off brand blue, so it never reads as selected." },
+    { label: "Reconfirmed", old: ["#DBEAFE", "#12315E", "#3B82F6"], tint: "#E4E4FB", ink: "#26266A", meta: "#3D3D8F", edge: "#7C80DC", why: "Same tone as Confirmed, as today. The word tells them apart." },
+    { label: "Arrived", old: ["#D3EAE4", "#123C33", "#2E8B76"], tint: "#D5EFE5", ink: "#0F3F2E", meta: "#1C5E46", edge: "#2E9D78", why: "In the salon. Fresher green, clear of the Large navy." },
+    { label: "Ready", old: ["#F7E6BE", "#4A3403", "#B8860B"], tint: "#FCEAB0", ink: "#4A3500", meta: "#6B4D00", edge: "#D49A00", why: "Ring the owner. Sunny gold, deliberately softer than button yellow." },
+    { label: "No-show", old: ["#F2D9D9", "#4A1414", "#B33A3A"], tint: "#F7D9D2", ink: "#5C1A10", meta: "#80281A", edge: "#C4442D", why: "Brick red, warmer than today's to suit the cream." },
+    { label: "Cancelled", old: ["#F2D9D9", "#4A1414", "#B33A3A"], tint: "#F7D9D2", ink: "#5C1A10", meta: "#80281A", edge: "#C4442D", why: "Same tone as No-show, as today." },
+    { label: "Collected", old: ["#F1F5F9", "#40506B", "#94A3B8"], tint: "#ECEDEF", ink: "#34383E", meta: "#575C63", edge: "#8E939A", why: "Gone home. Cool grey, so a finished day goes quiet." }
+  ];
+  var rows = document.getElementById("status-rows");
+  statuses.forEach(function (s) {
+    var r1 = ratio(s.ink, s.tint), r2 = ratio(s.meta, s.tint);
+    var pill = s.inverted
+      ? '<span class="badge" style="background:' + s.ink + ';color:' + s.tint + '">' + s.label + '</span>'
+      : '<span class="badge" style="background:' + s.tint + ';color:' + s.ink + '">' + s.label + '</span>';
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td><b>' + s.label + '</b></td>' +
+      '<td><span class="old-dot"><i style="background:' + s.old[0] + ';border-color:' + s.old[2] + '"></i><span class="mono">' + s.old[2] + '</span></span></td>' +
+      '<td>' + pill + '</td>' +
+      '<td><div class="mini-card" style="background:' + s.tint + '"><span style="background:' + s.edge + '"></span><div style="color:' + s.ink + '"><b>Bella · 09:30</b><span style="color:' + s.meta + '">Cockapoo · Full Groom</span></div></div></td>' +
+      '<td><span class="ratio ' + (Math.min(r1, r2) >= 4.5 ? "ok" : "") + '">Text ' + r1.toFixed(1) + ':1<br>Detail ' + r2.toFixed(1) + ':1</span></td>' +
+      '<td style="color:var(--ink-soft);max-width:300px">' + s.why + '</td>';
+    rows.appendChild(tr);
+  });
+
+  /* Calendar rows */
+  function tone(label) { for (var i = 0; i < statuses.length; i++) if (statuses[i].label === label) return statuses[i]; }
+  function booking(b) {
+    if (!b) return '<div class="bk empty">Closed</div>';
+    if (b.seat) return '<div class="bk empty">Large dog takes this seat</div>';
+    var t = tone(b.status);
+    var pill = t.inverted
+      ? '<span class="badge" style="background:' + t.ink + ';color:' + t.tint + ';font-size:11.5px;padding:3px 9px">' + t.label + '</span>'
+      : '<span class="badge" style="background:' + t.tint + ';color:' + t.ink + ';font-size:11.5px;padding:3px 9px">' + t.label + '</span>';
+    return '<div class="bk' + (b.size === "L" ? " large" : "") + '">' +
+      '<div class="r1"><span class="size' + (b.size === "L" ? " L" : "") + '">' + b.size + '</span><b>' + b.dog + '</b><span class="breed">' + b.breed + '</span><span class="amt">£' + b.price + '</span></div>' +
+      '<div class="r2"><span>' + b.owner + ' · ' + b.service + '</span>' + pill + '</div></div>';
+  }
+  var day = [
+    ["08:30", { dog: "Bella", breed: "Cockapoo", size: "M", owner: "Sarah Jones", service: "Full Groom", price: 52, status: "Collected" }, { dog: "Daisy", breed: "Pomeranian", size: "S", owner: "Lisa Brown", service: "Full Groom", price: 42, status: "Collected" }],
+    ["09:00", { dog: "Luna", breed: "Shih Tzu", size: "S", owner: "Emma Wilson", service: "Full Groom", price: 46, status: "Ready" }, { dog: "Charlie", breed: "Cocker Spaniel", size: "M", owner: "Tom Baker", service: "Bath & De-shed", price: 48, status: "Arrived" }],
+    ["09:30", { dog: "Milo", breed: "Cavapoo", size: "S", owner: "Jenny Taylor", service: "Puppy Groom", price: 38, status: "Reconfirmed" }, null],
+    ["10:00", { dog: "Nala", breed: "Maltese", size: "S", owner: "Priya Raman", service: "Full Groom", price: 46, status: "Unconfirmed" }, { dog: "Rex", breed: "Poodle", size: "M", owner: "Mark Johnson", service: "Full Groom", price: 57, status: "Confirmed" }],
+    ["12:00", { dog: "Max", breed: "Labrador", size: "L", owner: "Dave Smith", service: "Bath & Brush", price: 55, status: "Expected" }, { seat: true }]
+  ];
+  var slots = document.getElementById("cal-slots");
+  day.forEach(function (d) {
+    var el = document.createElement("div");
+    el.className = "slot";
+    el.innerHTML = '<div class="time">' + d[0] + '</div>' + booking(d[1]) + booking(d[2]);
+    slots.appendChild(el);
+  });
+
+  /* Motion */
+  var stage = document.getElementById("motion-stage");
+  var btn = document.getElementById("replay");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { document.getElementById("motion-note").hidden = false; }
+  btn.addEventListener("click", function () {
+    if (reduce) return;
+    stage.classList.remove("playing");
+    void stage.offsetWidth;
+    stage.classList.add("playing");
+  });
+})();
+</script>
+
+</body></html>

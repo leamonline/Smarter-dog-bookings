@@ -24,11 +24,11 @@ import { fileURLToPath } from "node:url";
 export const CEILINGS = {
   rawFormControls: { input: 61, textarea: 17, select: 19 },
   rawButtons: { raw: 440, legacy: 0 },
-  hardCodedColours: { literals: 88 },
-  offScale: { shadow: 35, radius: 3, card16: 0, tile12: 0 },
-  smallText: { underFloor: 27, namedSizes: 0 },
+  hardCodedColours: { literals: 85 },
+  offScale: { shadow: 33, radius: 3, card16: 0, tile12: 0 },
+  smallText: { underFloor: 26, namedSizes: 0 },
   handRolledDialogs: { overlays: 0 },
-  menusAndToggles: { menuItems: 4, toggles: 31 },
+  menusAndToggles: { menuItems: 4, toggles: 29 },
 } as const;
 
 export type RatchetId = keyof typeof CEILINGS;

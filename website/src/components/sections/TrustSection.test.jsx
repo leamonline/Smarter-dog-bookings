@@ -15,12 +15,12 @@ describe('TrustSection', () => {
     expect(screen.getByText('Google rating')).toBeInTheDocument();
   });
 
-  it('uses white background and pink transition', () => {
+  it('uses white background and a brand-blue transition', () => {
     const { container } = render(<TrustSection />);
     const section = container.querySelector('section');
     const path = container.querySelector('svg[viewBox="0 0 1440 100"] path');
 
     expect(section.style.backgroundColor).toBe('white');
-    expect(path).toHaveAttribute('fill', colors.pink);
+    expect(path).toHaveAttribute('fill', colors.blueBand);
   });
 });

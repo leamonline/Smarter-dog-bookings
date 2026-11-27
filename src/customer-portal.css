@@ -36,6 +36,11 @@
   border-bottom: 1px solid #EEF1F6;
 }
 
+/* The flyer stripe along the top of the nav (decision 4). */
+.portal-topnav > .brand-stripe {
+  margin: 8px 12px 0;
+}
+
 .portal-topnav-inner {
   max-width: 1080px;
   margin: 0 auto;
@@ -119,13 +124,14 @@
 .portal-header-text { min-width: 0; }
 
 .portal-welcome {
-  font-family: var(--font-display);
-  font-size: clamp(26px, 5.4vw, 34px);
-  font-weight: 700;
+  /* Hero line (flyer visual language, decision 3): Poppins Black. */
+  font-family: var(--font-hero);
+  font-size: clamp(30px, 7vw, 40px);
+  font-weight: 900;
   color: var(--color-ink);
   margin: 0;
-  line-height: 1.1;
-  letter-spacing: -0.5px;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
 }
 
 .portal-welcome-name {
@@ -145,14 +151,18 @@
   color: var(--color-brand-yellow);
 }
 
+/* The salon's slogan as the dashboard's one handwritten line (decision 9):
+   Caveat 700 in brand blue, tilted like a note. It is a slogan, never
+   information a customer needs. */
 .portal-tagline {
-  margin: 10px 0 0;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--color-ink-muted);
-  letter-spacing: 0.1px;
+  margin: 12px 0 0;
+  font-family: var(--font-handwriting);
+  font-weight: 700;
+  font-size: 23px;
+  line-height: 1.15;
+  color: var(--color-brand-cyan);
+  transform: rotate(-2deg);
+  transform-origin: left center;
 }
 
 /* Dynamic status line beneath the greeting. Coloured by tone:

@@ -88,11 +88,12 @@ build; the script matches by prefix so it doesn't matter.
 
 - **Montserrat** (`--font-sans`, body/UI) and **Poppins** (`--font-display`,
   headings) are the real fonts. ⚠️ The display font was **Quicksand** before
-  2026-10-26 and is now **Poppins**; a new **Barlow Condensed** (`--font-hero`)
-  was also added. Files live in `public/app/fonts/` (montserrat-*, poppins-*,
-  barlow-condensed-*). `conventions.md` already reflects this.
-- **Caveat** (`--font-handwriting`) isn't used by any synced component directly
-  but is a real brand token, wired via
+  2026-10-26 and is now **Poppins**. `--font-hero` was Barlow Condensed until
+  22 November 2026; it is now **Poppins Black**, Poppins 900 registered under its
+  own family name so it never re-weights existing 800/900 headings. Files live in
+  `public/app/fonts/` (montserrat-*, poppins-*). `conventions.md` reflects this.
+- **Caveat** (`--font-handwriting`) is the handwritten accent of the flyer
+  visual language. It is wired via
   `cfg.extraFonts: ["node_modules/@fontsource/caveat/700.css"]`.
 - **DM Sans, Sora**: confirmed NOT part of this kit's font vocabulary —
   one-off arbitrary-value classes used elsewhere in the app. Stripped by the

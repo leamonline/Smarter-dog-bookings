@@ -37,7 +37,7 @@ struct SignInView: View {
     }
 
     var body: some View {
-        PaperScreen {
+        PaperScreen(heroStripe: stage == .phone) {
             header
             stageContent
             if let errorText {
@@ -78,7 +78,11 @@ struct SignInView: View {
 
     private var phoneHero: some View {
         VStack(alignment: .leading, spacing: AppSpace.s2) {
-            DogWordmark()
+            HStack(alignment: .center) {
+                DogWordmark()
+                Spacer(minLength: AppSpace.s1)
+                MascotCircle(assetName: "MascotBathBrush", size: AppSpace.s8)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 Text("Come scruffy.")
                 ViewThatFits(in: .horizontal) {
@@ -92,14 +96,14 @@ struct SignInView: View {
                     }
                 }
             }
-            .appHeading(.largeTitle)
+            .appHero()
             .foregroundStyle(AppColor.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
 
+            HandwrittenLine(text: "Book your groom online")
             instructionText
-            DashRibbon()
         }
     }
 
@@ -109,8 +113,6 @@ struct SignInView: View {
                 .accessibilityAddTraits(.isHeader)
             WordmarkAccent()
             instructionText
-            DashRibbon()
-                .padding(.top, AppSpace.s1)
         }
     }
 
@@ -466,11 +468,17 @@ struct SignInView: View {
     }
 }
 
+/// Cream page with the flyer stripe across the top: 7pt on working screens,
+/// 12pt on a hero screen. The checkerboard edge is gone (style board decision 4).
 struct PaperScreen<Content: View>: View {
+    var heroStripe = false
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         VStack(spacing: 0) {
+            BrandStripe(height: heroStripe ? 12 : 7)
+                .padding(.horizontal, AppSpace.s2)
+                .padding(.top, AppSpace.s1)
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpace.s3) {
                     content()
@@ -482,7 +490,6 @@ struct PaperScreen<Content: View>: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
-            CheckerboardEdge()
         }
         .background(AppColor.surface.ignoresSafeArea())
     }

@@ -24,7 +24,7 @@ const ListingCard = ({ listing, accentColor, tintColor }) => (
         <h3 className="heading-font text-xl font-semibold mb-2" style={{ color: colors.plum }}>
             {listing.name}
         </h3>
-        <p className="body-font text-base mb-4 flex-grow leading-relaxed" style={{ color: colors.teal }}>
+        <p className="body-font text-base mb-4 flex-grow leading-relaxed" style={{ color: colors.inkMuted }}>
             {listing.description}
         </p>
 
@@ -51,7 +51,7 @@ const ListingCard = ({ listing, accentColor, tintColor }) => (
                     <a
                         href={`tel:${listing.phone.replace(/\s/g, '')}`}
                         className="underline decoration-dotted underline-offset-2 hover:decoration-solid"
-                        style={{ color: colors.teal }}
+                        style={{ color: colors.inkMuted }}
                     >
                         {listing.phone}
                     </a>
@@ -65,7 +65,7 @@ const ListingCard = ({ listing, accentColor, tintColor }) => (
                 <span
                     key={tag}
                     className="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                    style={{ backgroundColor: tintColor, color: colors.teal }}
+                    style={{ backgroundColor: tintColor, color: colors.inkMuted }}
                 >
                     {tag}
                 </span>
@@ -114,7 +114,7 @@ const CategorySection = ({ category, index, totalCategories }) => {
                                 {category.title}
                             </h2>
                         </div>
-                        <p className="body-font text-lg mb-10" style={{ color: colors.teal }}>
+                        <p className="body-font text-lg mb-10" style={{ color: colors.inkMuted }}>
                             {category.subtitle}
                         </p>
                     </FadeIn>
@@ -164,19 +164,19 @@ const CommunityPage = () => {
                     {/* Background Dog */}
                     <div className="absolute top-10 right-0 md:right-20 z-0 opacity-10 pointer-events-none" aria-hidden="true">
                         <DogSilhouette
-                            color={colors.teal}
+                            color={colors.inkMuted}
                             className="w-64 h-auto rotate-12"
                         />
                     </div>
 
                     <div className="relative z-10">
-                        <p className="handwriting text-2xl md:text-3xl mb-4" style={{ color: colors.pink }}>
+                        <p className="handwriting text-2xl md:text-3xl mb-4" style={{ color: colors.cyanText }}>
                             for dog lovers, by dog lovers
                         </p>
                         <h1 className="heading-font text-5xl md:text-6xl font-bold mb-6" style={{ color: colors.plum }}>
                             Our Local Community
                         </h1>
-                        <p className="body-font text-xl max-w-2xl mx-auto" style={{ color: colors.teal }}>
+                        <p className="body-font text-xl max-w-2xl mx-auto" style={{ color: colors.inkMuted }}>
                             Our favourite walks, trusted vets, and reliable pet care — all within a paw's reach of Ashton-under-Lyne.
                         </p>
 
@@ -226,19 +226,19 @@ const CommunityPage = () => {
                 <section className="py-20 px-6 text-center" style={{ backgroundColor: colors.offWhite }}>
                     <FadeIn>
                         <div className="max-w-2xl mx-auto">
-                            <p className="handwriting text-2xl mb-4" style={{ color: colors.pink }}>
+                            <p className="handwriting text-2xl mb-4" style={{ color: colors.cyanText }}>
                                 part of the community
                             </p>
                             <h2 className="heading-font text-3xl md:text-4xl font-bold mb-6" style={{ color: colors.plum }}>
                                 Know a great local business?
                             </h2>
-                            <p className="body-font text-lg mb-8" style={{ color: colors.teal }}>
+                            <p className="body-font text-lg mb-8" style={{ color: colors.inkMuted }}>
                                 We're always looking for trusted recommendations to share with our customers. If you know a wonderful local pet service, let us know and we'll add them to the list.
                             </p>
                             <a
                                 href="mailto:bookings@smarterdog.co.uk?subject=Community%20connection%20suggestion%21"
                                 className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-lg active-squish"
-                                style={{ backgroundColor: colors.green, color: colors.plum }}
+                                style={{ backgroundColor: colors.yellow, color: colors.plum }}
                             >
                                 Get in touch
                             </a>

@@ -27,4 +27,12 @@ describe("EmptyState", () => {
     const { container } = render(<EmptyState mark="paw" title="x" />);
     expect(container.querySelector(".sd-dog-mark")).toBeNull();
   });
+
+  it("can show a mascot and a hero title for a true empty, hidden from assistive technology", () => {
+    const { container } = render(<EmptyState mark="mascot" title="No dogs just yet" />);
+    const mascot = container.querySelector('[data-service-mascot="puppy-groom"]');
+    expect(mascot).not.toBeNull();
+    expect(mascot).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("No dogs just yet").className).toContain("font-hero");
+  });
 });

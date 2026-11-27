@@ -50,7 +50,7 @@ function CashUpDayCard({ day, meta }) {
   const { dogs, humans, rows, dayTotal, dueTotal, statusBreakdown } = day;
   return (
     <div className="rounded-tile border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-2 border-b border-slate-100">
+      <div className="flex items-center justify-between gap-3 bg-sd-cloud-tint px-4 py-2 border-b border-slate-100">
         <h3 className="text-sm font-extrabold text-slate-800 m-0">{meta.full}</h3>
         <span className="text-caption font-semibold text-ink-muted">
           {rows.length} dog{rows.length === 1 ? "" : "s"}

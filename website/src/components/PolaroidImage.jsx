@@ -18,6 +18,7 @@ const buildResponsiveSrcSet = (src, widths, format) => {
 const PolaroidImage = ({
     src,
     caption,
+    alt, // describes the photo when there is no visible caption; defaults to the caption
     rotation = 0,
     tapeColor = colors.cyan,
     tapePosition = 'top', // top, top-left, top-right, left, right
@@ -241,7 +242,7 @@ const PolaroidImage = ({
                                 src={src}
                                 srcSet={jpegSrcSet || undefined}
                                 sizes={hasResponsiveVariants ? imageSizes : undefined}
-                                alt={caption || "Dog being groomed at Smarter Dog Grooming Salon"}
+                                alt={alt || caption || "Dog being groomed at Smarter Dog Grooming Salon"}
                                 className="w-full h-full object-cover transition-all duration-700 ease-out"
                                 style={imageStyles}
                                 loading={loading}
@@ -255,7 +256,7 @@ const PolaroidImage = ({
                         <img
                             key="fallback"
                             src={src}
-                            alt={caption || "Dog being groomed at Smarter Dog Grooming Salon"}
+                            alt={alt || caption || "Dog being groomed at Smarter Dog Grooming Salon"}
                             className="w-full h-full object-cover transition-all duration-700 ease-out"
                             style={imageStyles}
                             loading={loading}

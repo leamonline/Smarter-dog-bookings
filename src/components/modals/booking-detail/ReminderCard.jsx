@@ -37,7 +37,7 @@ function formatWhen(iso) {
 // `status(ctx)` returns the human-readable line that screen readers get too.
 const STATE_CONFIG = {
   none: {
-    card: "bg-slate-50 border-slate-200",
+    card: "bg-sd-cloud-tint border-slate-200",
     chip: "bg-slate-100 text-slate-500",
     eyebrow: "text-slate-500",
     statusTone: "text-slate-600",

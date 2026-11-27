@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createInternalInvoker } from "../_shared/internalInvoker.ts";
 import { isAuthorizedWebhook } from "../_shared/webhook-auth.ts";
 import { sendEmail } from "../_shared/email.ts";
 import { failedSendMayHaveGone, unknownOutcomeLogMessage } from "../_shared/sendOutcome.ts";
@@ -23,28 +24,11 @@ const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 const SEND_INTERNAL_SECRET = Deno.env.get("SEND_INTERNAL_SECRET") ?? "";
 // SENDGRID_API_KEY / SENDGRID_FROM_EMAIL are read inside ../_shared/email.ts.
 
-// ── Internal-call helper (mirrors notify-booking-reminder) ──────────────────
-async function invokeInternal(
-  fn: string,
-  payload: unknown,
-): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": SEND_INTERNAL_SECRET,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  let body: Record<string, unknown> = {};
-  try {
-    body = await res.json();
-  } catch {
-    /* non-JSON */
-  }
-  return { ok: res.ok, status: res.status, body };
-}
+const invokeInternal = createInternalInvoker({
+  supabaseUrl: SUPABASE_URL,
+  serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
+  internalSecret: SEND_INTERNAL_SECRET,
+});
 
 // ── Main handler ───────────────────────────────────────────────────────────
 

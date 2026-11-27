@@ -120,7 +120,7 @@ export function BookingActions({
         <ConfirmDialog
           title="Cancel this booking?"
           message={<>
-            <span>The booking stays on file. Customer-requested late cancellations are recorded; salon cancellations do not count.</span>
+            <span>The booking stays on file. If the customer asked to cancel and it is the day of the appointment, it is recorded as a no-show. Salon cancellations never count.</span>
             <label className="block mt-3">Who requested the cancellation?
               <select value={cancelCause} onChange={(e) => setCancelCause(e.target.value)}>
                 <option value="">Choose…</option><option value="customer">Customer</option><option value="salon">Salon</option>

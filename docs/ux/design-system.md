@@ -1,7 +1,7 @@
 # Current design-system rules
 
 Status: Active
-Last verified: 2026-11-22
+Last verified: 2026-11-23
 Scope: Shared staff controls, customer action semantics and exported-kit guidance
 
 ## Source of truth
@@ -20,18 +20,23 @@ Use charcoal ink, warm paper, sky blue and sun yellow, taken from the salon's
 printed flyer. On 22 November 2026 the owner approved the
 [flyer visual language](../plans/active/2026-11-22-flyer-visual-language.md),
 which brings the flyer's character into both the staff dashboard and the
-customer portal at the same level of boldness. It rolls out in steps; where a
+customer portal at the same level of boldness. The marketing website uses the
+same values in its own palette file (`website/src/constants/colors.js`) since
+step 4. It rolls out in steps; where a
 rule below names a step, today's rendering holds until that step ships, and the
 plan holds the exact values.
 
 Staff navigation stays light; a charcoal-header description in an old export is
 not authority to repaint it. Keep staff and portal CSS separate. Every page sits
-on warm paper with white rounded cards (the staff calendar moves to paper in
-step 3).
+on warm paper with white rounded cards (`--color-surface-page`, the staff
+calendar included since step 3).
 
 Montserrat is body/UI and Poppins is headings; staff page titles stay Poppins
 700. Hero lines (sign-in, step titles, confirmations, true empty and done
-states) move to Poppins 900 in step 2, replacing Barlow Condensed. Caveat 700 is
+states) use Poppins 900 through `font-hero` with `font-black`: on the customer
+portal since step 2, on staff screens from step 3. It is registered as its own
+family, `Poppins Black`, so headings already set to 800 or 900 keep the 700 face
+they were designed with. Barlow Condensed is gone. Caveat 700 is
 the handwritten accent: at most one short line per hero screen, in blue or ink,
 never carrying a name, date, price or instruction. The Quicksand descriptions
 are historical.
@@ -58,15 +63,18 @@ polaroid settling, one mascot bounce) and is removed under
   booking confirmation, and means only "press this". Charcoal is strong
   secondary. Success and WhatsApp keep their existing green meanings.
 - Brand blue (`--color-brand-cyan`) is the brand partner: links, the active tab,
-  and the ring and tick on a selected item, over the sky tint. Selection moves
-  from charcoal to blue in step 2 (portal) and step 3 (staff); a tick or check
-  stays, so colour is never the only signal. The brighter flyer blue
+  and the ring and tick on a selected item, over the sky tint: the portal since
+  step 2, staff screens since step 3 (`--color-border-accent`, the toolbar's
+  active tab, `ToggleChip`'s default pressed tone). A tick, `aria-pressed` or
+  `aria-current` stays, so colour is never the only signal. The brighter flyer blue
   (`--color-brand-cyan-light`) is decoration only and never text.
-- Safety colours are frozen. Status and dog-size colours change once, in step 3,
-  to the approved values in the plan: one hue per status, Confirmed in periwinkle
-  so it never reads as selected, and only Large dogs coloured (navy). Outside that
-  change they are frozen too. The status word and the size letter are always
-  shown.
+- Safety colours are frozen. Status and dog-size colours changed once, in step 3,
+  to the approved values in the plan: one hue per status
+  (`src/constants/statusPalette.ts`), Confirmed in periwinkle so it never reads
+  as selected, and only Large dogs coloured, navy (`SizeDot`, `SIZE_THEME`, the
+  calendar card's top edge). They are frozen again from here. The status word
+  and the size letter are always shown. Reports charts tell sizes apart with an
+  ordered blue scale instead.
 - Use `Button` and `IconButton`. `PageHeaderAction` delegates to `Button`, defaults
   to `strong`, and accepts `variant="primary"` for a screen's lead. Buttons are
   pills; inputs and segmented-control frames use 10px `radius-control`.

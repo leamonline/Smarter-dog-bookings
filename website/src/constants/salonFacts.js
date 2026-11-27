@@ -18,6 +18,20 @@ export const SALON_FACTS_FALLBACK = {
     closures: [],
 };
 
+export function formatTime12h(hhmm) {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  if (Number.isNaN(h)) return '';
+  const period = h < 12 ? 'am' : 'pm';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
+}
+
+// Facts the site quotes in more than one place (the hero, the stats strip and
+// the reviews). Not in the booking database: the Google rating is the salon's
+// public Google Business rating, checked by hand; nothing fetches it.
+export const GOOGLE_RATING = '4.9';
+export const FOUNDED_YEAR = 1982;
+
 // Normalises to the international format wa.me requires. Handles both a
 // UK national number as typed into the Settings form (e.g. "07873 329440")
 // and an already-international one (e.g. "+447873329440") -- the owner's

@@ -1,5 +1,5 @@
 import { NEED_PAGES } from '../content/needPages';
-import { SALON_FACTS_FALLBACK, whatsAppUrl } from '../constants/salonFacts';
+import { SALON_FACTS_FALLBACK, whatsAppUrl, formatTime12h } from '../constants/salonFacts';
 import { HOME_DESCRIPTION, HOME_TITLE, formatDocumentTitle } from './documentTitle';
 
 export const SITE_URL = 'https://smarterdog.co.uk';
@@ -209,14 +209,6 @@ export const NOT_FOUND_SEO = {
 };
 
 const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-function formatTime12h(hhmm) {
-  const [h, m] = String(hhmm || '').split(':').map(Number);
-  if (Number.isNaN(h)) return '';
-  const period = h < 12 ? 'am' : 'pm';
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${String(m || 0).padStart(2, '0')}${period}`;
-}
 
 function joinDaysProse(days) {
   if (days.length === 0) return '';

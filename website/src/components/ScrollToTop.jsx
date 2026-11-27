@@ -34,7 +34,7 @@ const ScrollToTop = () => {
             className={`fixed bottom-24 md:bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-xl active-squish ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
                 }`}
             style={{
-                backgroundColor: colors.teal,
+                backgroundColor: colors.plum,
                 color: 'white'
             }}
             aria-label="Scroll to top"

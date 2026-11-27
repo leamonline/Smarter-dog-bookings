@@ -21,6 +21,6 @@ describe('TestimonialsSection', () => {
   it('renders transition svg to CTA section', () => {
     const { container } = render(<TestimonialsSection />);
     const path = container.querySelector('svg[viewBox="0 0 1440 100"] path');
-    expect(path).toHaveAttribute('fill', colors.pink);
+    expect(path).toHaveAttribute('fill', colors.blueBand);
   });
 });

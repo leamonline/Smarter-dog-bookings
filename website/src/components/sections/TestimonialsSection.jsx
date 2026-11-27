@@ -18,7 +18,7 @@ const TestimonialsSection = () => {
                             >
                                 Dogs who wouldn't go anywhere else
                             </h3>
-                            <p className="text-lg max-w-xl mx-auto" style={{ color: colors.teal }}>
+                            <p className="text-lg max-w-xl mx-auto" style={{ color: colors.inkMuted }}>
                                 Real words from long-time regulars, nervous pups and first-time visitors.
                             </p>
                         </FadeIn>
@@ -33,11 +33,11 @@ const TestimonialsSection = () => {
                 </div>
             </section >
 
-            {/* Transition to CTA (pink) */}
+            {/* Transition to the brand-blue band */}
             < div style={{ backgroundColor: colors.offWhite, lineHeight: 0, position: 'relative', marginTop: '-1px' }
             }>
                 <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" style={{ width: '100%', height: '80px' }}>
-                    <path d="M0 0L1440 100L1440 100L0 100Z" fill={colors.pink} />
+                    <path d="M0 0L1440 100L1440 100L0 100Z" fill={colors.blueBand} />
                 </svg>
             </div >
         </>
