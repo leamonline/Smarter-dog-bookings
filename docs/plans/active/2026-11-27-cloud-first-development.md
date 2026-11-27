@@ -125,3 +125,25 @@ Confirm native workflow configuration when App Store Connect access is available
 - **Evidence** — #1315 is merged, #1314 closed, and the merge SHA has a successful Vercel Production deployment record. The Preview guard passed 12 focused tests and both bundles omitted injected synthetic bindings in a disposable combined build.
 - **Cloud result** — The managed task selected `d9c39e1` after detecting a stale initial checkout. Both skill files were present at the verified revision. Cloud typecheck passed. The headless browser failed to reach loopback and there was no authenticated HTTP preview portal. The task hit the included usage limit before completing the hand-off.
 - **Next** — Recover the bounded Inbox edits and finish verification on the topic branch. Keep Vercel app interaction limited to builds with verified isolation.
+
+### Recovery and handover evidence
+
+The [managed Cloud pilot](https://chatgpt.com/local/6b09e5dd-e058-83eb-86fb-43f492f5d0dd)
+resumed after the included usage limit reset and recovered all five edits at
+`d9c39e1`. A clean synthetic build passed in 22 seconds and a loopback-only
+desktop Inbox axe run passed in seven seconds with zero violations. The
+environment reported a two-CPU quota, 8 GiB memory limit, 60 GiB free disk,
+680 MB installed dependencies and 360 MB npm cache. No install was required.
+The initial checkout was stale and neither skill was in the starting catalogue.
+Both files were available at the corrected SHA. A fresh local Codex session
+discovered root instructions and both skills from that exact tree.
+
+[PR #1320](https://github.com/leamonline/Smarter-dog-bookings/pull/1320) carries
+the pilot handover at `8cfbd179589b0522596b810db2fab26608b7b470`. The focused
+suite passed 239 tests. A separate clean Chromium run passed Inbox axe and
+keyboard checks at desktop, tablet and mobile sizes. The two narrow axe cases
+were intentionally skipped by the existing ratchet. Manual screen-reader
+acceptance remains due on [#1193](https://github.com/leamonline/Smarter-dog-bookings/issues/1193).
+
+The owner merged Preview isolation PR #1318 at `72d60f0`. The documentation
+and pilot PRs target main. No Preview app was opened during this pilot.

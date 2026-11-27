@@ -31,13 +31,14 @@ across all environments.
    when building the marketing site. Reuse dependencies only while the
    corresponding lockfile matches. Use the repository's Playwright binary
    and its matching browsers. Use Deno 2 for Edge work, as in CI.
-3. Inspect configuration by name and scope. Confirm restricted network access,
-   no production/VPN identity, and no hosted Supabase, payment or communications
-   bindings for the task. Keep secrets out of terminal output and artifacts.
+3. Inspect network mode, identities and bindings by name and scope. Keep hosted
+   Supabase, payment and communications credentials out of development tasks.
    Use a clean synthetic shell with explicit empty Supabase URL and key
-   bindings. Use `npm run dev`; confirm the sample-data UI before interaction.
-   For an authenticated Cloud HTTP preview, use a configured port or keep
-   the server on loopback and test headlessly.
+   bindings. If egress is unrestricted, keep app verification on loopback and
+   block browser requests outside the test origin. Use Actions for tests that
+   need an isolated backend. Use `npm run dev` and confirm sample-data mode.
+   Use an existing configured HTTP portal only after proving isolation.
+   Keep secret values out of terminal output and artifacts.
 4. Keep database and browser caches bounded. If Docker, image pulls, browser
    libraries or resources are unavailable, run the corresponding Actions
    workflow. A task workspace can expire. Push authorised work to a topic
