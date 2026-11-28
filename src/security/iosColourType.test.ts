@@ -285,6 +285,7 @@ describe("sign-in screens use the catalogue", () => {
     // deliberate home of hex on the iPhone; the screens themselves carry none.
     "ios/SmarterDog/StaffRootView.swift",
     "ios/SmarterDog/StaffTodayView.swift",
+    "ios/SmarterDog/StaffCollectionNoticeSheet.swift",
     "ios/SmarterDog/CancelSheet.swift",
   ];
 

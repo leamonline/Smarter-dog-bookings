@@ -1025,5 +1025,745 @@
   "ink": "#5C4600",
   "meta": "#5C4600",
   "edge": "#835D00"
+ },
+ "actions": [
+  {
+   "id": "booked-plain",
+   "booking": {
+    "id": "a1",
+    "slot": "09:00",
+    "status": "Booked",
+    "service": "full-groom"
+   },
+   "actions": [
+    {
+     "id": "reconfirm",
+     "label": "Reconfirmed",
+     "kind": "default"
+    },
+    {
+     "id": "checkIn",
+     "label": "Check in",
+     "kind": "primary"
+    },
+    {
+     "id": "didntShow",
+     "label": "Didn't show",
+     "kind": "quiet"
+    }
+   ]
+  },
+  {
+   "id": "booked-unconfirmed",
+   "booking": {
+    "id": "a2",
+    "slot": "09:00",
+    "status": "Booked",
+    "service": "full-groom",
+    "reminderState": "sent",
+    "confirmationChannel": "whatsapp"
+   },
+   "actions": [
+    {
+     "id": "reconfirm",
+     "label": "Reconfirmed",
+     "kind": "default"
+    },
+    {
+     "id": "checkIn",
+     "label": "Check in",
+     "kind": "primary"
+    },
+    {
+     "id": "confirm",
+     "label": "Confirm booking",
+     "kind": "default"
+    },
+    {
+     "id": "didntShow",
+     "label": "Didn't show",
+     "kind": "quiet"
+    }
+   ]
+  },
+  {
+   "id": "booked-reminder-failed",
+   "booking": {
+    "id": "a3",
+    "slot": "09:00",
+    "status": "Booked",
+    "service": "full-groom",
+    "reminderFailed": true
+   },
+   "actions": [
+    {
+     "id": "reconfirm",
+     "label": "Reconfirmed",
+     "kind": "default"
+    },
+    {
+     "id": "checkIn",
+     "label": "Check in",
+     "kind": "primary"
+    },
+    {
+     "id": "confirm",
+     "label": "Confirm booking",
+     "kind": "default"
+    },
+    {
+     "id": "didntShow",
+     "label": "Didn't show",
+     "kind": "quiet"
+    }
+   ]
+  },
+  {
+   "id": "booked-staff-confirmed",
+   "booking": {
+    "id": "a4",
+    "slot": "09:00",
+    "status": "Booked",
+    "service": "full-groom",
+    "reminderState": "confirmed",
+    "reminderConfirmedBy": "staff"
+   },
+   "actions": [
+    {
+     "id": "reconfirm",
+     "label": "Reconfirmed",
+     "kind": "default"
+    },
+    {
+     "id": "checkIn",
+     "label": "Check in",
+     "kind": "primary"
+    },
+    {
+     "id": "unconfirm",
+     "label": "Unconfirm booking",
+     "kind": "quiet"
+    },
+    {
+     "id": "didntShow",
+     "label": "Didn't show",
+     "kind": "quiet"
+    }
+   ]
+  },
+  {
+   "id": "reconfirmed-staff",
+   "booking": {
+    "id": "a5",
+    "slot": "09:00",
+    "status": "Reconfirmed",
+    "service": "full-groom",
+    "reminderState": "confirmed",
+    "reminderConfirmedBy": "staff"
+   },
+   "actions": [
+    {
+     "id": "checkIn",
+     "label": "Check in",
+     "kind": "primary"
+    },
+    {
+     "id": "unconfirm",
+     "label": "Unconfirm booking",
+     "kind": "quiet"
+    },
+    {
+     "id": "didntShow",
+     "label": "Didn't show",
+     "kind": "quiet"
+    }
+   ]
+  },
+  {
+   "id": "reconfirmed-customer",
+   "booking": {
+    "id": "a6",
+    "slot": "09:00",
+    "status": "Reconfirmed",
+    "service": "full-groom",
+    "reminderState": "confirmed",
+    "reminderConfirmedBy": "customer"
+   },
+   "actions": [
+    {
+     "id": "checkIn",
+     "label": "Check in",
+     "kind": "primary"
+    },
+    {
+     "id": "didntShow",
+     "label": "Didn't show",
+     "kind": "quiet"
+    }
+   ]
+  },
+  {
+   "id": "arrived",
+   "booking": {
+    "id": "a7",
+    "slot": "09:00",
+    "status": "Arrived",
+    "service": "full-groom"
+   },
+   "actions": [
+    {
+     "id": "ready",
+     "label": "Mark ready",
+     "kind": "primary"
+    }
+   ]
+  },
+  {
+   "id": "ready",
+   "booking": {
+    "id": "a8",
+    "slot": "09:00",
+    "status": "Ready for collection",
+    "service": "full-groom"
+   },
+   "actions": []
+  },
+  {
+   "id": "no-show-single",
+   "booking": {
+    "id": "a9",
+    "slot": "09:00",
+    "status": "No-show",
+    "service": "full-groom"
+   },
+   "actions": [
+    {
+     "id": "undoNoShow",
+     "label": "They turned up",
+     "kind": "primary"
+    }
+   ]
+  },
+  {
+   "id": "no-show-grouped",
+   "booking": {
+    "id": "a10",
+    "slot": "09:00",
+    "status": "No-show",
+    "service": "full-groom",
+    "groupId": "grp-1"
+   },
+   "actions": []
+  },
+  {
+   "id": "legacy-no-show-single",
+   "booking": {
+    "id": "a11",
+    "slot": "09:00",
+    "status": "Cancelled",
+    "cancelReason": "No-show",
+    "service": "full-groom"
+   },
+   "actions": [
+    {
+     "id": "undoNoShow",
+     "label": "They turned up",
+     "kind": "primary"
+    }
+   ]
+  },
+  {
+   "id": "legacy-no-show-grouped",
+   "booking": {
+    "id": "a12",
+    "slot": "09:00",
+    "status": "Cancelled",
+    "cancelReason": "No-show",
+    "service": "full-groom",
+    "groupId": "grp-2"
+   },
+   "actions": []
+  }
+ ],
+ "reversals": [
+  {
+   "action": "checkIn",
+   "previousStatus": "Booked",
+   "expected": "Booked"
+  },
+  {
+   "action": "checkIn",
+   "previousStatus": "Reconfirmed",
+   "expected": "Reconfirmed"
+  },
+  {
+   "action": "checkIn",
+   "previousStatus": "Arrived",
+   "expected": null
+  },
+  {
+   "action": "checkIn",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "checkIn",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "checkIn",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "checkIn",
+   "previousStatus": "Cancelled",
+   "expected": null
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "Booked",
+   "expected": "Booked"
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "Reconfirmed",
+   "expected": null
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "Arrived",
+   "expected": null
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "reconfirm",
+   "previousStatus": "Cancelled",
+   "expected": null
+  },
+  {
+   "action": "ready",
+   "previousStatus": "Booked",
+   "expected": null
+  },
+  {
+   "action": "ready",
+   "previousStatus": "Reconfirmed",
+   "expected": null
+  },
+  {
+   "action": "ready",
+   "previousStatus": "Arrived",
+   "expected": "Arrived"
+  },
+  {
+   "action": "ready",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "ready",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "ready",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "ready",
+   "previousStatus": "Cancelled",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "Booked",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "Reconfirmed",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "Arrived",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "confirm",
+   "previousStatus": "Cancelled",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "Booked",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "Reconfirmed",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "Arrived",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "unconfirm",
+   "previousStatus": "Cancelled",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "Booked",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "Reconfirmed",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "Arrived",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "didntShow",
+   "previousStatus": "Cancelled",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "Booked",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "Reconfirmed",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "Arrived",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "Ready for collection",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "Completed",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "No-show",
+   "expected": null
+  },
+  {
+   "action": "undoNoShow",
+   "previousStatus": "Cancelled",
+   "expected": null
+  }
+ ],
+ "collection": {
+  "routes": [
+   {
+    "id": "wa-ok",
+    "contact": {
+     "phone": "07700 900123",
+     "whatsapp": true
+    },
+    "whatsappUnreachable": false,
+    "channel": "whatsapp",
+    "because": null,
+    "reason": null
+   },
+   {
+    "id": "wa-unreachable",
+    "contact": {
+     "phone": "07700 900123",
+     "whatsapp": true
+    },
+    "whatsappUnreachable": true,
+    "channel": "sms",
+    "because": "whatsapp_unreachable",
+    "reason": null
+   },
+   {
+    "id": "wa-unreachable-sms-stop",
+    "contact": {
+     "phone": "07700 900123",
+     "whatsapp": true,
+     "sms_opted_out": true
+    },
+    "whatsappUnreachable": true,
+    "channel": null,
+    "because": null,
+    "reason": "Not on WhatsApp, and opted out of SMS"
+   },
+   {
+    "id": "wa-opted-out",
+    "contact": {
+     "phone": "07700 900123",
+     "whatsapp": true,
+     "whatsapp_opted_out": true
+    },
+    "whatsappUnreachable": false,
+    "channel": "sms",
+    "because": "whatsapp_opted_out",
+    "reason": null
+   },
+   {
+    "id": "both-opted-out",
+    "contact": {
+     "phone": "07700 900123",
+     "whatsapp": true,
+     "whatsapp_opted_out": true,
+     "sms_opted_out": true
+    },
+    "whatsappUnreachable": false,
+    "channel": null,
+    "because": null,
+    "reason": "Opted out of WhatsApp and SMS"
+   },
+   {
+    "id": "sms-preferred",
+    "contact": {
+     "phone": "+447700900123",
+     "whatsapp": false
+    },
+    "whatsappUnreachable": false,
+    "channel": "sms",
+    "because": "sms_preferred",
+    "reason": null
+   },
+   {
+    "id": "sms-preferred-opted-out",
+    "contact": {
+     "phone": "07700 900123",
+     "whatsapp": false,
+     "sms_opted_out": true
+    },
+    "whatsappUnreachable": false,
+    "channel": null,
+    "because": null,
+    "reason": "Prefers SMS, and opted out of SMS"
+   },
+   {
+    "id": "no-phone",
+    "contact": {
+     "phone": null,
+     "whatsapp": true
+    },
+    "whatsappUnreachable": false,
+    "channel": null,
+    "because": null,
+    "reason": "No mobile number on file"
+   },
+   {
+    "id": "landline",
+    "contact": {
+     "phone": "01632 960123",
+     "whatsapp": false
+    },
+    "whatsappUnreachable": false,
+    "channel": null,
+    "because": null,
+    "reason": "No mobile number on file"
+   }
+  ],
+  "readiness": [
+   {
+    "id": "single-ready",
+    "currentBookingId": "1",
+    "rows": [
+     {
+      "id": "1",
+      "status": "Ready for collection",
+      "dogName": "Bella"
+     }
+    ],
+    "readyDogNames": [
+     "Bella"
+    ],
+    "waitingDogNames": []
+   },
+   {
+    "id": "sibling-still-arrived",
+    "currentBookingId": "1",
+    "rows": [
+     {
+      "id": "1",
+      "status": "Ready for collection",
+      "dogName": "Bella"
+     },
+     {
+      "id": "2",
+      "status": "Arrived",
+      "dogName": "Max"
+     }
+    ],
+    "readyDogNames": [
+     "Bella"
+    ],
+    "waitingDogNames": [
+     "Max"
+    ]
+   },
+   {
+    "id": "two-ready-one-cancelled-one-done",
+    "currentBookingId": "2",
+    "rows": [
+     {
+      "id": "1",
+      "status": "Ready for collection",
+      "dogName": "Bella"
+     },
+     {
+      "id": "2",
+      "status": "Arrived",
+      "dogName": "Max"
+     },
+     {
+      "id": "3",
+      "status": "Completed",
+      "dogName": "Biscuit"
+     },
+     {
+      "id": "4",
+      "status": "No-show",
+      "dogName": "Rolo"
+     }
+    ],
+    "readyDogNames": [
+     "Bella",
+     "Max"
+    ],
+    "waitingDogNames": []
+   }
+  ],
+  "releases": [
+   {
+    "before": "Booked",
+    "after": "No-show",
+    "releases": true
+   },
+   {
+    "before": "Arrived",
+    "after": "Cancelled",
+    "releases": true
+   },
+   {
+    "before": "Arrived",
+    "after": "Ready for collection",
+    "releases": false
+   },
+   {
+    "before": "Booked",
+    "after": "Arrived",
+    "releases": false
+   },
+   {
+    "before": "Ready for collection",
+    "after": "Completed",
+    "releases": false
+   }
+  ],
+  "texts": [
+   {
+    "dogNames": [
+     "bella"
+    ],
+    "minutes": "15",
+    "whatsappPreview": "Hi! 🐾 We've finished pampering Bella and they're ready to head home in 15 mins. See you soon 🎓🐶❤️ X",
+    "smsText": "Hi! We've finished pampering Bella and they're ready to head home in 15 mins. See you soon! X - Smarter Dog Grooming"
+   },
+   {
+    "dogNames": [
+     "bella",
+     "max"
+    ],
+    "minutes": "20",
+    "whatsappPreview": "Hi! 🐾 We've finished pampering Bella and Max and they're ready to head home in 20 mins. See you soon 🎓🐶❤️ X",
+    "smsText": "Hi! We've finished pampering Bella and Max and they're ready to head home in 20 mins. See you soon! X - Smarter Dog Grooming"
+   },
+   {
+    "dogNames": [
+     "bella",
+     "max",
+     "daisy"
+    ],
+    "minutes": "",
+    "whatsappPreview": "Hi! 🐾 We've finished pampering Bella, Max and Daisy and they're ready to head home in __ mins. See you soon 🎓🐶❤️ X",
+    "smsText": "Hi! We've finished pampering Bella, Max and Daisy and they're ready to head home in __ mins. See you soon! X - Smarter Dog Grooming"
+   }
+  ]
  }
 }

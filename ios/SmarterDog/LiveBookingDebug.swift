@@ -9,7 +9,7 @@ import Supabase
 ///   so a mistake in the configuration cannot point it at production.
 /// - The test customer's email and password come from environment variables set locally in the
 ///   Xcode scheme (`STAGING_TEST_EMAIL`, `STAGING_TEST_PASSWORD`), never from the repository.
-/// - Booking and cancelling are switched on here and nowhere else. "My bookings" lists the test
+/// - Real booking and cancellation are switched on here only. "My bookings" lists the test
 ///   customer's upcoming visits with a Cancel button (`UpcomingGroomsSection`).
 struct LiveBookingDebugView: View {
     private enum Phase {
@@ -46,7 +46,7 @@ struct LiveBookingDebugView: View {
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
                                 NavigationLink("My bookings") {
-                                    LiveBookingsDebugList(home: home, cancelClient: client)
+                                    DebugBookingsList(home: home, cancelClient: client)
                                 }
                             }
                         }
@@ -91,12 +91,12 @@ struct LiveBookingDebugView: View {
         }
     }
 }
-/// The test customer's upcoming visits on staging, each with Cancel when the server would accept it.
-private struct LiveBookingsDebugList: View {
+/// The same upcoming visit and cancellation screens for staging and offline Debug runs.
+struct DebugBookingsList: View {
     @State private var model: HomeModel
     let cancelClient: SalonCancelClient
 
-    init(home: SupabaseHomeClient, cancelClient: SalonCancelClient) {
+    init(home: any SalonHomeClient, cancelClient: SalonCancelClient) {
         _model = State(initialValue: HomeModel(client: home))
         self.cancelClient = cancelClient
     }

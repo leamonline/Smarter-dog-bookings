@@ -31,6 +31,7 @@ struct StaffBookingRow: Decodable, Equatable, Sendable {
     var ready_at: String?
     var completed_at: String?
     var reminder_confirmed_at: String?
+    var reminder_confirmed_source: String? = nil
     var confirmation_channel: String?
     var notes: String?
     var dog_name_snapshot: String?
@@ -41,7 +42,7 @@ struct StaffBookingRow: Decodable, Equatable, Sendable {
 
     /// The columns to select, so the client and the tests agree.
     static let select = "id,booking_date,slot,service,status,cancel_reason,dog_id,checked_in_at,ready_at,completed_at,"
-        + "reminder_confirmed_at,confirmation_channel,notes,dog_name_snapshot,breed_snapshot,owner_name_snapshot,group_id,"
+        + "reminder_confirmed_at,reminder_confirmed_source,confirmation_channel,notes,dog_name_snapshot,breed_snapshot,owner_name_snapshot,group_id,"
         + "notification_log(trigger_type,status,sent_at,created_at,human_id)"
 }
 
@@ -122,10 +123,12 @@ enum StaffDaySelector {
                 readyAt: row.ready_at,
                 completedAt: row.completed_at,
                 reminderState: reminderState(row),
+                reminderConfirmedBy: nonEmpty(row.reminder_confirmed_source),
                 reminderFailed: hasLiveFailedReminder(row),
                 confirmationChannel: row.confirmation_channel,
                 dogName: nonEmpty(dog?.name) ?? nonEmpty(row.dog_name_snapshot) ?? "",
                 breed: nonEmpty(dog?.breed) ?? nonEmpty(row.breed_snapshot) ?? "",
+                ownerId: nonEmpty(dog?.human_id),
                 ownerName: nonEmpty(ownerFullName) ?? nonEmpty(row.owner_name_snapshot) ?? "",
                 ownerPhone: nonEmpty(owner?.phone) ?? "",
                 safetyFacts: facts,

@@ -14,6 +14,9 @@
 		5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000005 /* SupabaseStaffDayClient.swift */; };
 		5DA100000000000000000016 /* StaffRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000006 /* StaffRootView.swift */; };
 		5DA100000000000000000017 /* StaffTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000007 /* StaffTodayView.swift */; };
+		5DA100000000000000000018 /* StaffDayActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000008 /* StaffDayActions.swift */; };
+		5DA100000000000000000019 /* StaffCollectionNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000009 /* StaffCollectionNotice.swift */; };
+		5DA10000000000000000001A /* StaffCollectionNoticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA10000000000000000000A /* StaffCollectionNoticeSheet.swift */; };
 		A10000000000000000000001 /* SmarterDogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* SmarterDogApp.swift */; };
 		A10000000000000000000002 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* SignInView.swift */; };
 		A10000000000000000000004 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* SupabaseConfig.swift */; };
@@ -58,6 +61,7 @@
 		C1A000000000000000000011 /* BookingCancel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000001 /* BookingCancel.swift */; };
 		C1A000000000000000000012 /* CancelFlowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000002 /* CancelFlowModel.swift */; };
 		C1A000000000000000000013 /* CancelSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000003 /* CancelSheet.swift */; };
+		C1A000000000000000000014 /* SampleCancellationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000004 /* SampleCancellationClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -68,6 +72,9 @@
 		5DA100000000000000000005 /* SupabaseStaffDayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseStaffDayClient.swift; sourceTree = "<group>"; };
 		5DA100000000000000000006 /* StaffRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffRootView.swift; sourceTree = "<group>"; };
 		5DA100000000000000000007 /* StaffTodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffTodayView.swift; sourceTree = "<group>"; };
+		5DA100000000000000000008 /* StaffDayActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffDayActions.swift; sourceTree = "<group>"; };
+		5DA100000000000000000009 /* StaffCollectionNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffCollectionNotice.swift; sourceTree = "<group>"; };
+		5DA10000000000000000000A /* StaffCollectionNoticeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffCollectionNoticeSheet.swift; sourceTree = "<group>"; };
 		A10000000000000000000011 /* SmarterDogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmarterDogApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
@@ -116,6 +123,7 @@
 		C1A000000000000000000001 /* BookingCancel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCancel.swift; sourceTree = "<group>"; };
 		C1A000000000000000000002 /* CancelFlowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelFlowModel.swift; sourceTree = "<group>"; };
 		C1A000000000000000000003 /* CancelSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelSheet.swift; sourceTree = "<group>"; };
+		C1A000000000000000000004 /* SampleCancellationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleCancellationClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,6 +187,7 @@
 				A1000000000000000000008F /* BookingConfirm.swift */,
 				C1A000000000000000000001 /* BookingCancel.swift */,
 				C1A000000000000000000003 /* CancelSheet.swift */,
+				C1A000000000000000000004 /* SampleCancellationClient.swift */,
 				C1A000000000000000000002 /* CancelFlowModel.swift */,
 				A10000000000000000000100 /* LiveBookingDebug.swift */,
 				A10000000000000000000102 /* BookedView.swift */,
@@ -192,6 +201,9 @@
 				5DA100000000000000000005 /* SupabaseStaffDayClient.swift */,
 				5DA100000000000000000006 /* StaffRootView.swift */,
 				5DA100000000000000000007 /* StaffTodayView.swift */,
+				5DA100000000000000000008 /* StaffDayActions.swift */,
+				5DA100000000000000000009 /* StaffCollectionNotice.swift */,
+				5DA10000000000000000000A /* StaffCollectionNoticeSheet.swift */,
 				A100000000000000000000A2 /* DogsView.swift */,
 				A100000000000000000000A1 /* SupabaseDogsClient.swift */,
 				A10000000000000000000067 /* Info.plist */,
@@ -325,6 +337,7 @@
 				A1000000000000000000009F /* BookingConfirm.swift in Sources */,
 				C1A000000000000000000011 /* BookingCancel.swift in Sources */,
 				C1A000000000000000000013 /* CancelSheet.swift in Sources */,
+				C1A000000000000000000014 /* SampleCancellationClient.swift in Sources */,
 				C1A000000000000000000012 /* CancelFlowModel.swift in Sources */,
 				A10000000000000000000101 /* LiveBookingDebug.swift in Sources */,
 				A10000000000000000000103 /* BookedView.swift in Sources */,
@@ -338,6 +351,9 @@
 				5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */,
 				5DA100000000000000000016 /* StaffRootView.swift in Sources */,
 				5DA100000000000000000017 /* StaffTodayView.swift in Sources */,
+				5DA100000000000000000018 /* StaffDayActions.swift in Sources */,
+				5DA100000000000000000019 /* StaffCollectionNotice.swift in Sources */,
+				5DA10000000000000000001A /* StaffCollectionNoticeSheet.swift in Sources */,
 				A100000000000000000000B2 /* DogsView.swift in Sources */,
 				A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */,
 				A10000000000000000000004 /* SupabaseConfig.swift in Sources */,

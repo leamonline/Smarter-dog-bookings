@@ -1,13 +1,15 @@
 import SwiftUI
+import UIKit
 
-/// Staff Today: the day's dogs in appointment order, read only. Each row says the
-/// dog's status in words, its safety warnings and how long it has been where it is,
-/// exactly as the staff website's Today stack does (`StaffDayStack`). Tap a row for
-/// the details. Changes are made on the website for now.
+/// Staff Today: the day's dogs in appointment order, with legal salon-floor status
+/// moves, one-tap Undo, opt-in Ready-for-collection messaging and live Realtime
+/// updates. Mirrors the staff website's Today stack (`StaffDayStack` + `StaffDayActions`).
 struct StaffTodayView: View {
     @State private var model: StaffTodayModel
-    @State private var selected: StaffDayRow?
+    @State private var selectedID: String?
+    @State private var presentedPrompt: StaffCollectionPrompt?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// `clock` is the real time in the app. Debug sample mode pins it so the made-up
     /// day reads like a working morning whenever it is opened.
@@ -34,9 +36,45 @@ struct StaffTodayView: View {
                 .frame(maxWidth: .infinity)
             }
             .refreshable { await model.load() }
+            .sheet(
+                isPresented: Binding(
+                    get: { selectedID != nil },
+                    set: { if !$0 { selectedID = nil } }
+                ),
+                onDismiss: { presentQueuedCollectionPromptIfReady() }
+            ) {
+                if let id = selectedID, let row = model.row(id: id) {
+                    StaffRowDetail(row: row, model: model) {
+                        selectedID = nil
+                    }
+                }
+            }
         }
         .background(AppColor.surface.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let banner = model.banner {
+                StaffBannerView(
+                    banner: banner,
+                    onUndo: { undo in Task { await model.performUndo(undo) } },
+                    onRetry: { retry in Task { await model.retry(retry) } },
+                    onDismiss: { model.dismissBanner() }
+                )
+                .padding(.horizontal, AppSpace.s2)
+                .padding(.bottom, AppSpace.s1)
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: model.banner?.id)
+        .sheet(item: $presentedPrompt, onDismiss: {
+            if model.collectionPrompt?.id == presentedPrompt?.id {
+                model.collectionPrompt = nil
+            }
+        }) { prompt in
+            StaffCollectionNoticeSheet(prompt: prompt, client: model.client)
+        }
         .task { await model.load() }
+        // ST-10: a colleague's change on another till appears without manual refresh.
+        .task { await model.listenForRealtimeUpdates() }
         // Coming back to the app: the salon may have moved on.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.load() } }
@@ -48,8 +86,35 @@ struct StaffTodayView: View {
                 model.tick()
             }
         }
-        .sheet(item: $selected) { row in
-            StaffRowDetail(row: row)
+        // Present the collection prompt immediately when no detail sheet is up;
+        // otherwise `onDismiss` of the detail sheet presents it without conflict.
+        .onChange(of: model.collectionPrompt) { _, next in
+            guard let next else {
+                presentedPrompt = nil
+                return
+            }
+            if selectedID == nil {
+                presentedPrompt = next
+            }
+        }
+        // Announce outcomes to VoiceOver and trigger subtle native haptics.
+        .onChange(of: model.lastFeedback) { _, event in
+            guard let event else { return }
+            UIAccessibility.post(notification: .announcement, argument: event.announcement)
+        }
+        .sensoryFeedback(trigger: model.lastFeedback) { _, event in
+            guard let event else { return nil }
+            switch event.kind {
+            case .success: return .success
+            case .warning: return .warning
+            case .error: return .error
+            }
+        }
+    }
+
+    private func presentQueuedCollectionPromptIfReady() {
+        if selectedID == nil, let queued = model.collectionPrompt, presentedPrompt?.id != queued.id {
+            presentedPrompt = queued
         }
     }
 
@@ -160,16 +225,33 @@ struct StaffTodayView: View {
     }
 
     private func rowButton(_ row: StaffDayRow) -> some View {
-        Button {
-            selected = row
+        let actions = model.canWrite ? StaffDayActions.legalActions(for: row) : []
+        return Button {
+            selectedID = row.id
         } label: {
-            StaffDayRowView(row: row)
+            StaffDayRowView(row: row, busy: model.isBusy(row.id))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            ForEach(actions) { action in
+                Button(role: action.id == .didntShow ? .destructive : nil) {
+                    Task { await model.perform(action.id, on: row) }
+                } label: {
+                    Text(action.label)
+                }
+            }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(StaffDaySelector.accessibilityLabel(row))
-        .accessibilityHint("Shows the details")
+        .accessibilityHint(actions.isEmpty ? "Shows the details" : "Shows details and actions")
         .accessibilityAddTraits(.isButton)
+        .accessibilityActions {
+            ForEach(actions) { action in
+                Button(action.label) {
+                    Task { await model.perform(action.id, on: row) }
+                }
+            }
+        }
     }
 
     /// A confirmed empty day only. A failed read never lands here.
@@ -196,12 +278,79 @@ struct StaffTodayView: View {
     }
 }
 
+// MARK: - Outcome / Undo banner
+
+private struct StaffBannerView: View {
+    let banner: StaffBanner
+    let onUndo: (StaffUndoAction) -> Void
+    let onRetry: (StaffRetryAction) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: AppSpace.s1) {
+            Text(banner.message)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(foreground)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let undo = banner.undo {
+                Button("Undo") { onUndo(undo) }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppColor.accentBlueDeep)
+                    .frame(minWidth: 44, minHeight: 44)
+            } else if let retry = banner.retry {
+                Button("Retry") { onRetry(retry) }
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(AppColor.destructive)
+                    .frame(minWidth: 44, minHeight: 44)
+            }
+
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(foreground)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Dismiss message")
+        }
+        .padding(.leading, AppSpace.s2)
+        .padding(.trailing, AppSpace.half)
+        .padding(.vertical, AppSpace.half)
+        .background(background, in: RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous)
+                .strokeBorder(AppColor.separator, lineWidth: 1)
+        )
+        .appCardShadow()
+    }
+
+    private var foreground: Color {
+        switch banner.tone {
+        case .success: AppColor.success
+        case .info: AppColor.textPrimary
+        case .error: AppColor.destructive
+        }
+    }
+
+    private var background: Color {
+        switch banner.tone {
+        case .success: AppColor.successSoft
+        case .info: AppColor.surfaceRaised
+        case .error: AppColor.destructiveSoft
+        }
+    }
+}
+
 // MARK: - A row
 
 /// One dog: the strip from the website's stack. Line 1 is time, name and status;
 /// line 2 the safety note, breed · service · surname and the timing.
 struct StaffDayRowView: View {
     let row: StaffDayRow
+    var busy: Bool = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -211,18 +360,38 @@ struct StaffDayRowView: View {
                 .fill(Color(hex: tone.edge))
                 .frame(width: row.readyOverdue ? 6 : 4)
             VStack(alignment: .leading, spacing: AppSpace.half) {
-                HStack(alignment: .firstTextBaseline, spacing: AppSpace.s1) {
-                    if let time = StaffDaySelector.timeText(row.time) {
-                        Text(time)
-                            .font(.headline.monospacedDigit())
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: AppSpace.half) {
+                        HStack(alignment: .center, spacing: AppSpace.s1) {
+                            if let time = StaffDaySelector.timeText(row.time) {
+                                Text(time)
+                                    .font(.headline.monospacedDigit())
+                                    .foregroundStyle(Color(hex: tone.ink))
+                                    .fixedSize()
+                            }
+                            Spacer(minLength: AppSpace.s1)
+                            statusAccessory(tone)
+                        }
+                        Text(StaffDaySelector.dogName(row.booking))
+                            .font(.headline)
                             .foregroundStyle(Color(hex: tone.ink))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    Text(StaffDaySelector.dogName(row.booking))
-                        .font(.headline)
-                        .foregroundStyle(Color(hex: tone.ink))
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
-                    Spacer(minLength: AppSpace.s1)
-                    StaffStatusPill(tone: tone)
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: AppSpace.s1) {
+                        if let time = StaffDaySelector.timeText(row.time) {
+                            Text(time)
+                                .font(.headline.monospacedDigit())
+                                .foregroundStyle(Color(hex: tone.ink))
+                                .fixedSize()
+                        }
+                        Text(StaffDaySelector.dogName(row.booking))
+                            .font(.headline)
+                            .foregroundStyle(Color(hex: tone.ink))
+                            .lineLimit(1)
+                        Spacer(minLength: AppSpace.s1)
+                        statusAccessory(tone)
+                    }
                 }
                 secondLine(tone)
             }
@@ -234,6 +403,16 @@ struct StaffDayRowView: View {
         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous).strokeBorder(AppColor.separator, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: AppRadius.card, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func statusAccessory(_ tone: StaffStatusTone) -> some View {
+        if busy {
+            ProgressView()
+                .tint(Color(hex: tone.ink))
+        } else {
+            StaffStatusPill(tone: tone)
+        }
     }
 
     @ViewBuilder
@@ -256,6 +435,7 @@ struct StaffDayRowView: View {
                 .font(.footnote)
                 .foregroundStyle(Color(hex: tone.meta))
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                 .truncationMode(.tail)
             if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
             if let timing = row.timing {
@@ -268,7 +448,8 @@ struct StaffDayRowView: View {
                 }
                 .font(.footnote.weight(row.urgent ? .bold : .regular))
                 .foregroundStyle(Color(hex: tone.meta))
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                 .layoutPriority(1)
             }
         }
@@ -291,12 +472,21 @@ struct StaffStatusPill: View {
     }
 }
 
-// MARK: - The details
+// MARK: - The details and legal moves
 
-/// Everything about one dog's visit, read only.
+/// One dog's visit details and its legal Phase S2 status moves.
 struct StaffRowDetail: View {
     let row: StaffDayRow
-    @Environment(\.dismiss) private var dismiss
+    var model: StaffTodayModel
+    let onClose: () -> Void
+
+    private var actions: [StaffBookingAction] {
+        model.canWrite ? StaffDayActions.legalActions(for: row) : []
+    }
+
+    private var isBusy: Bool {
+        model.isBusy(row.id)
+    }
 
     var body: some View {
         NavigationStack {
@@ -339,6 +529,8 @@ struct StaffRowDetail: View {
                         .cardSurface()
                     }
 
+                    actionsSection
+
                     if !row.booking.ownerName.isEmpty {
                         VStack(alignment: .leading, spacing: AppSpace.half) {
                             SectionLabel(text: "Owner")
@@ -351,7 +543,8 @@ struct StaffRowDetail: View {
                                         .font(.body.weight(.semibold))
                                         .foregroundStyle(AppColor.textPrimary)
                                         .frame(maxWidth: .infinity, minHeight: 44)
-                                        .background(AppColor.actionYellow, in: Capsule())
+                                        .background(AppColor.surfaceRaised, in: Capsule())
+                                        .overlay(Capsule().strokeBorder(AppColor.separator, lineWidth: 1))
                                 }
                                 .padding(.top, AppSpace.half)
                                 .accessibilityLabel("Call \(row.booking.ownerName)")
@@ -380,10 +573,12 @@ struct StaffRowDetail: View {
                     }
 
                     VStack(alignment: .leading, spacing: AppSpace.half) {
-                        Text("To check in, mark ready or take payment, use the website for now.")
-                            .font(.subheadline)
-                            .foregroundStyle(AppColor.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if row.stage == .ready {
+                            Text("Check-out and payment are on the website for now.")
+                                .font(.subheadline)
+                                .foregroundStyle(AppColor.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         TextLink(title: "Open Today on the website", destination: StaffLinks.today)
                     }
                 }
@@ -395,11 +590,73 @@ struct StaffRowDetail: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") { onClose() }
                 }
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    @ViewBuilder
+    private var actionsSection: some View {
+        if !actions.isEmpty {
+            VStack(alignment: .leading, spacing: AppSpace.s1) {
+                SectionLabel(text: "Next step")
+                ForEach(actions) { action in
+                    actionButton(action)
+                }
+            }
+        } else if row.stage == .noShow && row.booking.groupId != nil {
+            Text("This dog is part of a grouped booking. Restore it from the calendar on the website.")
+                .font(.subheadline)
+                .foregroundStyle(AppColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func actionButton(_ action: StaffBookingAction) -> some View {
+        switch action.emphasis {
+        case .primary:
+            PrimaryButton(title: action.label, busy: isBusy, busyTitle: "Saving…") {
+                run(action.id)
+            }
+        case .secondary:
+            Button {
+                run(action.id)
+            } label: {
+                Text(action.label)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(AppColor.textPrimary)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(AppColor.surfaceRaised, in: Capsule())
+                    .overlay(Capsule().strokeBorder(AppColor.separator, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(isBusy)
+            .opacity(isBusy ? 0.6 : 1)
+        case .quiet:
+            Button {
+                run(action.id)
+            } label: {
+                Text(action.label)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(action.id == .didntShow ? AppColor.destructive : AppColor.accentBlueDeep)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .disabled(isBusy)
+            .opacity(isBusy ? 0.6 : 1)
+        }
+    }
+
+    private func run(_ kind: StaffBookingActionKind) {
+        Task {
+            let saved = await model.perform(kind, on: row)
+            if saved {
+                onClose()
+            }
+        }
     }
 }
 

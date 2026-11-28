@@ -31,11 +31,15 @@ struct StaffBooking: Equatable, Sendable {
     var completedAt: String?
     /// "confirmed", "sent" or "none", derived like the website's transform.
     var reminderState: String
+    /// Who recorded the confirmation: "staff", "customer", or nil.
+    var reminderConfirmedBy: String? = nil
     /// A live failed reminder: the owner was never told (website `applyReminderFailures`).
     var reminderFailed: Bool = false
     var confirmationChannel: String?
     var dogName: String
     var breed: String
+    /// The owner's human id, when linked through the dog row (used for multi-dog collection holds).
+    var ownerId: String? = nil
     /// The owner's full name, or "" when it cannot be found.
     var ownerName: String
     /// The owner's phone as stored, or "" when there is none.
@@ -284,6 +288,15 @@ enum StaffDayStack {
     /// Booked with a reminder sent, no answer, and confirmation not switched off.
     static func needsConfirmation(_ booking: StaffBooking) -> Bool {
         booking.status == booked && booking.reminderState == "sent" && booking.confirmationChannel != "none"
+    }
+
+    /// Mirrors `entry.isUnconfirmed` after `applyReminderFailures` on the website:
+    /// either a sent reminder waiting on a reply, or a live failed reminder that
+    /// has not been superseded by a recorded confirmation.
+    static func isUnconfirmed(_ booking: StaffBooking) -> Bool {
+        guard booking.status == booked else { return false }
+        if needsConfirmation(booking) { return true }
+        return booking.reminderFailed && booking.reminderState != "confirmed"
     }
 
     static func tone(for booking: StaffBooking) -> StaffStatusTone {

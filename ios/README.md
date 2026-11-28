@@ -88,6 +88,23 @@ If a TestFlight build must point somewhere else, set `SUPABASE_URL` and `SUPABAS
 
 The same config file also holds the public security-check key the website uses (Cloudflare Turnstile). That key is not a secret. Do not add the Turnstile **secret** key anywhere in the app.
 
+### Trying cancellation offline (Debug only)
+
+Run the shared SmarterDog scheme with `-sampleCancellation` as the only enabled launch argument.
+It opens My bookings with in-memory rows and no sign-in. Quit and relaunch to reset the rows.
+
+1. Open **Cancel** for Biscuit or Moose. Both names and the shared cancellation notice appear.
+   **Keep my booking** leaves both rows visible. Choose a reason and confirm to cancel the pair.
+   Tap **Done** and check that both rows disappear while the other visits remain.
+2. Cancel Pip. This visit simulates a saved cancellation whose response and first status read were
+   lost. Check that the reason is locked and the outcome is uncertain, then tap **Check again**.
+   The next read confirms the cancellation. Tap **Done** and check that Pip disappears.
+3. Check that the remaining reconfirmed visit has no Cancel button. Repeat with an accessibility
+   Dynamic Type size and check that the question, reasons and actions remain available by scrolling.
+
+This mode exercises the customer interface with synthetic data. Use the separate staging procedure
+to verify the RPC, row-level security and the same-day No-show trigger.
+
 ### Trying live booking on staging (Debug only)
 
 The booking screens normally show made-up data (`-sampleBooking`). To run the real flow against the **staging** project, signed in as the throwaway test customer, launch a Debug build with `-liveBooking`. It creates real bookings on staging and refuses to run against any other project, so a mistake in the configuration cannot point it at production. It does not exist in Release builds.
@@ -96,7 +113,7 @@ The booking screens normally show made-up data (`-sampleBooking`). To run the re
 2. In Xcode choose Product, Scheme, Edit Scheme, Run, Arguments. Under **Arguments Passed On Launch** add `-liveBooking`. Under **Environment Variables** add `STAGING_TEST_EMAIL` and `STAGING_TEST_PASSWORD`. Those values stay in your local scheme and are never committed.
 3. The test customer is `ios-staging-test@example.com`. Set its password yourself in the staging dashboard (Authentication, Users) so it is not shared in chat.
 4. Run. A red banner reads "LIVE BOOKING · STAGING". Work through the flow to the summary and tap **Confirm booking**. A real booking is made on staging and the booked screen appears. If the customer is tagged as deposit-required, the booked screen says a deposit is due; the app takes no payment.
-5. To cancel, tap **My bookings** at the top right. Each upcoming visit that can be cancelled online (every dog in it still "Booked", and before drop-off) has a **Cancel** button. Pick a reason and tap **Confirm cancellation**. A cancel made on the appointment's own day is saved as a No-show for staff (ADR 015); the app shows no warning about that, by the owner's decision. Cancel is not shown anywhere outside this mode.
+5. To cancel, tap **My bookings** at the top right. Each upcoming visit that can be cancelled online (every dog in it still "Booked", and before drop-off) has a **Cancel** button. Pick a reason and tap **Confirm cancellation**. A cancel made on the appointment's own day is saved as a No-show for staff (ADR 015); the app shows no warning about that, by the owner's decision. Real cancellation is only available in this mode.
 
 To look at the booked screen without any network or sign-in, launch a Debug build with `-sampleBooked`. It shows the "You're booked." moment with made-up details, including a deposit line. Turn on Reduce Motion in Settings, Accessibility to check it appears without movement.
 
@@ -169,7 +186,7 @@ One archive is enough to prove the pipeline. Apple includes a number of Xcode Cl
 
 ## Staff: Today and More
 
-Staff sign in as before and land on **Today**: the day's dogs in appointment order, the same list as Today on the staff website. It only reads. To check a dog in, mark it ready or take payment, use the website for now. **More** opens the staff website's calendar, messages, customers, dogs, reports and settings in the browser, and has Sign out.
+Staff sign in as before and land on **Today**: the day's dogs in appointment order, the same list as Today on the staff website. Tapping a dog (or long-pressing a row) shows its legal next steps: **Check in**, **Reconfirmed**, **Mark ready**, **Confirm booking** / **Unconfirm booking**, **Didn't show** and **They turned up** (for non-grouped no-shows), each with one-tap **Undo** where reversible. Marking a dog ready never messages the owner by itself; it opens an opt-in prompt (or holds the notice automatically while another dog for the same owner is still being groomed). Changes from another till refresh automatically via Realtime. Check-out and taking payment stay on the website until Phase S3. **More** opens the staff website's calendar, messages, customers, dogs, reports and settings in the browser, and has Sign out.
 
 Each row shows the time, the dog, its status in words (Expected, Unconfirmed, Confirmed, Reconfirmed, Arrived, Ready, No-show) in the website's status colours, the most important safety warning with "+N" for the rest, breed · service · owner's surname, and how long the dog has been where it is ("in 30 min", "1 hr late", "No arrival", "waiting 50 min"). Collected dogs and cancellations leave the list; the header counts them.
 
