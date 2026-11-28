@@ -1,4 +1,4 @@
-# Cloud development
+# Local and cloud development
 
 Use the Mac for coordination, review and owner approvals. Start with the
 [task intake and recovery procedure](../project-management.md#authorised-development-and-session-recovery).
@@ -11,7 +11,8 @@ across all environments.
 
 | Activity | Where to run it |
 |---|---|
-| Edit, focused Vitest, typecheck, builds and quick browser checks | Existing **Smarter-dog-bookings** Codex Cloud environment. |
+| Small edits, focused tests, typecheck and manual Safari or VoiceOver checks | Mac when the checkout and dependencies are ready and the check can run safely with synthetic data. |
+| Longer implementation, parallel work, cold dependency setup or sustained builds | Existing **Smarter-dog-bookings** Codex Cloud environment. Use one isolated workspace and one writer per path. |
 | Required web, browser and Edge gates | [GitHub Actions CI](../../.github/workflows/ci.yml). PR browser smoke covers Chromium and WebKit. |
 | Migration replay, pgTAP, race checks and generated types | [Disposable database workflow](../../.github/workflows/db-tests.yml). Use its existing local stack and loopback guards. |
 | Synthetic customer sign-in and booking journeys | [Customer journeys on a disposable stack](../customer-journey-tests.md). |
@@ -37,6 +38,7 @@ across all environments.
    bindings. If egress is unrestricted, keep app verification on loopback and
    block browser requests outside the test origin. Use Actions for tests that
    need an isolated backend. Use `npm run dev` and confirm sample-data mode.
+   `npm run dev:live` connects to the configured hosted project.
    Use an existing configured HTTP portal only after proving isolation.
    Keep secret values out of terminal output and artifacts.
 4. Keep database and browser caches bounded. If Docker, image pulls, browser
@@ -49,6 +51,9 @@ across all environments.
 
 Run focused checks first and record the command, exit result, tested SHA,
 environment and omissions. Use the existing workflows to verify larger suites.
+Reuse successful evidence when the exact revision, check scope, environment and
+inputs still match. Rerun checks affected by a revision or configuration change.
+Record manual assistive technology observations separately from automated results.
 For an authorised branch, `gh workflow run db-tests.yml --ref <branch>` or
 `gh workflow run customer-journeys.yml --ref <branch>` runs the relevant
 disposable job when path triggers do not apply. Verify the run's ref and SHA.
@@ -86,7 +91,11 @@ Use one Cloud workspace per active change and check plan allowance before a
 large run. Prefer existing standard Actions runners for long or repeated
 checks and the existing Xcode Cloud allowance for native builds. On a cold
 workspace, record dependency setup and test times before deciding whether a
-persistent cache is needed. If the reusable Cloud environment fails, retain a
-checkpoint and hand off through the topic branch. Continue with existing
-Actions and the Mac's lightweight checkout where needed. Codespaces, hosted
+persistent cache is needed. In the Inbox pilot the warmed Mac typecheck took
+about five seconds and Cloud typecheck took 76 seconds. Use elapsed time and
+available capacity to choose the environment for the next task. Start from the
+issue and checkpoint, read only governing and affected files, and use focused
+verification before spending capacity on wider checks. If the reusable Cloud
+environment fails, retain a checkpoint and hand off through the topic branch.
+Continue with existing Actions and the Mac's lightweight checkout where needed. Codespaces, hosted
 Supabase branches, SSH hosts and paid capacity require a separate decision.
