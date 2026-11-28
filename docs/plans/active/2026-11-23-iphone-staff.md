@@ -403,6 +403,23 @@ are implemented on staff Today (`StaffDayActions.swift`, `StaffCollectionNotice.
 - **Sample mode:** `-sampleStaffToday` runs status moves and Undo in memory with
   zero network calls, and keeps collection messaging disabled with truthful copy.
 
+## Checkpoint
+
+The S2 review follow-up for [#1328](https://github.com/leamonline/Smarter-dog-bookings/pull/1328)
+checks sibling readiness after the committed write, consumes the queued prompt
+once and refreshes contact routing before a send. The native screen locks
+accepted and ambiguous sends across sheets while the Today model is alive.
+
+The existing template Edge Functions have no durable, shared collection
+claim. A send may be accepted without an Inbox row, so cross-device and
+post-restart recovery need an approved server contract before S2 can pass the
+duplicate-send gate. Cover two simultaneous requests, definite refusal,
+provider acceptance followed by a lost reply or log failure, and recovery
+without a second provider call. Keep S3 behind S2 and reconcile payment
+writes and Undo with [#1194](https://github.com/leamonline/Smarter-dog-bookings/issues/1194)
+before releasing checkout. Staging staff read-back, physical VoiceOver and
+internal TestFlight evidence are pending.
+
 ## Open questions
 
 1. **Is a native staff app worth it, given staff already use the website on

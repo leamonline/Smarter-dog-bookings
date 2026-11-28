@@ -147,6 +147,20 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
             .execute()
             .value
 
+        let humanIDs = trustedIDs + (owner.map { [$0.id] } ?? [])
+        // Match the website's 120-day lookback. The database mirrors Meta's
+        // final status onto notification_log, including existing history.
+        let since = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-120 * 86_400))
+        let history: [StaffCollectionDeliveryRow] = humanIDs.isEmpty ? [] : try await supabase
+            .from("notification_log")
+            .select(StaffCollectionDeliveryRow.select)
+            .in("human_id", values: humanIDs)
+            .gte("created_at", value: since)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        let unreachable = StaffCollectionNotice.unreachableRecipients(in: history)
+
         var recipients: [StaffCollectionRecipient] = []
         if let owner {
             recipients.append(StaffCollectionRecipient(
@@ -155,7 +169,7 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
                 relationship: "Owner",
                 isOwner: true,
                 contact: owner,
-                route: StaffCollectionNotice.route(for: owner)
+                route: StaffCollectionNotice.route(for: owner, whatsappUnreachable: unreachable.contains(owner.id))
             ))
         }
         for contact in trustedContacts {
@@ -165,44 +179,51 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
                 relationship: relationshipByID[contact.id] ?? "Trusted contact",
                 isOwner: false,
                 contact: contact,
-                route: StaffCollectionNotice.route(for: contact)
+                route: StaffCollectionNotice.route(for: contact, whatsappUnreachable: unreachable.contains(contact.id))
             ))
         }
         return recipients
     }
 
     /// Calls `whatsapp-send` or `sms-send` in template mode using the signed-in staff JWT.
-    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async throws {
-        let reply: FunctionReply
-        switch request {
-        case .whatsapp(let to, let templateName, let language, let params, let humanId):
-            let body = WhatsAppTemplateBody(
-                mode: "template",
-                to: to,
-                template_name: templateName,
-                language: language,
-                params: params,
-                human_id: humanId
-            )
-            reply = try await supabase.functions.invoke(
-                "whatsapp-send",
-                options: FunctionInvokeOptions(body: body)
-            )
-        case .sms(let to, let text, let templateName, let humanId):
-            let body = SmsTemplateBody(
-                mode: "template",
-                to: to,
-                text: text,
-                template_name: templateName,
-                human_id: humanId
-            )
-            reply = try await supabase.functions.invoke(
-                "sms-send",
-                options: FunctionInvokeOptions(body: body)
-            )
-        }
-        if let error = reply.error, !error.isEmpty {
-            throw StaffDayClientError.server(reply.detail ?? error)
+    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async -> StaffCollectionSendOutcome {
+        do {
+            let reply: StaffCollectionFunctionReply
+            switch request {
+            case .whatsapp(let to, let templateName, let language, let params, let humanId):
+                let body = WhatsAppTemplateBody(
+                    mode: "template",
+                    to: to,
+                    template_name: templateName,
+                    language: language,
+                    params: params,
+                    human_id: humanId
+                )
+                reply = try await supabase.functions.invoke(
+                    "whatsapp-send",
+                    options: FunctionInvokeOptions(body: body)
+                )
+            case .sms(let to, let text, let templateName, let humanId):
+                let body = SmsTemplateBody(
+                    mode: "template",
+                    to: to,
+                    text: text,
+                    template_name: templateName,
+                    human_id: humanId
+                )
+                reply = try await supabase.functions.invoke(
+                    "sms-send",
+                    options: FunctionInvokeOptions(body: body)
+                )
+            }
+            return reply.result(status: 200)
+        } catch FunctionsError.httpError(let status, let data) {
+            guard let reply = try? JSONDecoder().decode(StaffCollectionFunctionReply.self, from: data) else {
+                return .unknown
+            }
+            return reply.result(status: status)
+        } catch {
+            return .unknown
         }
     }
 
@@ -250,9 +271,4 @@ private struct SmsTemplateBody: Encodable {
     let text: String
     let template_name: String
     let human_id: String
-}
-
-private struct FunctionReply: Decodable {
-    let error: String?
-    let detail: String?
 }

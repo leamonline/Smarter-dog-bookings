@@ -113,7 +113,7 @@ private final class StubWriteClient: StaffDayClient, @unchecked Sendable {
     private var _nextOutcome: Result<StaffBookingWriteOutcome, Error>?
     private var _recipientsResult: Result<[StaffCollectionRecipient], Error> = .success([])
     private var _sentRequests: [StaffCollectionSendRequest] = []
-    private var _sendError: Error?
+    private var _sendOutcome: StaffCollectionSendOutcome = .accepted(recorded: true)
     private var _loadCount = 0
     private var _realtimeContinuation: AsyncStream<Void>.Continuation?
     private var _holdUpdate = false
@@ -130,7 +130,7 @@ private final class StubWriteClient: StaffDayClient, @unchecked Sendable {
     func setDayRead(_ read: StaffDayRead) { lock.withLock { _dayRead = read } }
     func setNextOutcome(_ result: Result<StaffBookingWriteOutcome, Error>?) { lock.withLock { _nextOutcome = result } }
     func setRecipients(_ result: Result<[StaffCollectionRecipient], Error>) { lock.withLock { _recipientsResult = result } }
-    func setSendError(_ error: Error?) { lock.withLock { _sendError = error } }
+    func setSendOutcome(_ outcome: StaffCollectionSendOutcome) { lock.withLock { _sendOutcome = outcome } }
     func holdUpdates(_ hold: Bool) { lock.withLock { _holdUpdate = hold } }
 
     func releaseUpdate() {
@@ -214,12 +214,11 @@ private final class StubWriteClient: StaffDayClient, @unchecked Sendable {
         try lock.withLock { _recipientsResult }.get()
     }
 
-    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async throws {
-        let error = lock.withLock { () -> Error? in
+    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async -> StaffCollectionSendOutcome {
+        lock.withLock {
             _sentRequests.append(request)
-            return _sendError
+            return _sendOutcome
         }
-        if let error { throw error }
     }
 
     func observeBookings() -> AsyncStream<Void> {
@@ -331,6 +330,84 @@ final class StaffTodayActionsModelTests: XCTestCase {
         XCTAssertTrue(saved)
         XCTAssertEqual(client.sentRequests, [], "Mark ready must never send a message by itself (ST-8)")
         XCTAssertEqual(model.collectionPrompt?.readyDogNames, ["Bella"])
+    }
+
+    func testMarkReadyReadsColleaguesWriteAndOnlyConsumesPromptOnce() async throws {
+        let bella = row("b1", dogId: "d1", status: "Arrived", slot: "09:00")
+        let max = row("b2", dogId: "d2", status: "Arrived", slot: "09:30")
+        let client = StubWriteClient(dayRead: sampleRead(bookings: [bella, max]))
+        let now = tuesday10am
+        let model = StaffTodayModel(client: client, clock: { now })
+        await model.load()
+
+        // A colleague marks Max ready while Today still shows his old status.
+        var readyMax = max
+        readyMax.status = StaffDayStack.ready
+        client.setDayRead(sampleRead(bookings: [bella, readyMax]))
+        let displayedBella = try XCTUnwrap(model.row(id: "b1"))
+        _ = await model.perform(.ready, on: displayedBella)
+
+        XCTAssertEqual(model.takeCollectionPrompt()?.readyDogNames, ["Bella", "Max"])
+        XCTAssertNil(model.takeCollectionPrompt())
+    }
+
+    func testCollectionUncertaintySurvivesSheetReopenAndPreventsAnotherSend() async {
+        let client = StubWriteClient(dayRead: sampleRead(bookings: []))
+        let contact = StaffCollectionContact(id: "h1", name: "Sam", surname: nil, phone: "07700 900123", whatsapp: true, whatsapp_opted_out: false, sms_opted_out: false)
+        let recipient = StaffCollectionRecipient(id: "h1", displayName: "Sam", relationship: "Owner", isOwner: true, contact: contact, route: StaffCollectionNotice.route(for: contact))
+        client.setRecipients(.success([recipient]))
+        let attempts = StaffCollectionAttempts()
+        let prompt = StaffCollectionPrompt(bookingId: "b1", date: "2026-11-24", ownerId: "h1", readyDogNames: ["Bella"])
+        let first = StaffCollectionNoticeModel(prompt: prompt, client: client, attempts: attempts)
+        client.setSendOutcome(.notSent("The provider refused the message."))
+        await first.send(to: recipient)
+        XCTAssertNil(first.attempt(for: recipient.id))
+        client.setSendOutcome(.unknown)
+        await first.send(to: recipient)
+        XCTAssertEqual(first.attempt(for: recipient.id), .unknown)
+        XCTAssertTrue(first.sentRecipientIDs.isEmpty)
+
+        let anotherPrompt = StaffCollectionPrompt(bookingId: "b2", date: prompt.date, ownerId: prompt.ownerId, readyDogNames: ["Bella", "Max"])
+        let reopened = StaffCollectionNoticeModel(prompt: anotherPrompt, client: client, attempts: attempts)
+        XCTAssertEqual(reopened.attempt(for: recipient.id), .unknown)
+        await reopened.send(to: recipient)
+        XCTAssertEqual(client.sentRequests.count, 2)
+
+        let nextDay = StaffCollectionPrompt(bookingId: "b3", date: "2026-11-25", ownerId: "h1", readyDogNames: ["Bella"])
+        let next = StaffCollectionNoticeModel(prompt: nextDay, client: client, attempts: attempts)
+        let rerouted = StaffCollectionRecipient(id: "h1", displayName: "Sam", relationship: "Owner", isOwner: true, contact: contact, route: .sms(because: .whatsappUnreachable))
+        client.setRecipients(.success([rerouted]))
+        await next.send(to: recipient)
+        XCTAssertEqual(client.sentRequests.count, 2, "Route changes require a fresh explicit send tap")
+        XCTAssertEqual(next.contactsState, .loaded([rerouted]))
+    }
+
+    func testReachabilityCountsDistinctWhatsAppFailuresAndBreaksOnSuccess() async {
+        func delivery(_ id: String, recipient: String, booking: String, status: String = "failed") -> StaffCollectionDeliveryRow {
+            StaffCollectionDeliveryRow(booking_id: booking, human_id: recipient, trigger_type: "reminder",
+                                       channel: "whatsapp", status: status, error_message: "Meta 131026",
+                                       provider_message_id: id)
+        }
+        let owner = [delivery("m3", recipient: "owner", booking: "b4"),
+                     delivery("m3", recipient: "owner", booking: "b3"),
+                     delivery("m2", recipient: "owner", booking: "b2"),
+                     delivery("m1", recipient: "owner", booking: "b1")]
+        let trusted = [delivery("m6", recipient: "trusted", booking: "b3", status: "sent"),
+                       delivery("m5", recipient: "trusted", booking: "b2"),
+                       delivery("m4", recipient: "trusted", booking: "b1")]
+        XCTAssertTrue(StaffCollectionNotice.unreachableRecipients(in: Array(owner.prefix(3))).isEmpty)
+        XCTAssertEqual(StaffCollectionNotice.unreachableRecipients(in: owner + trusted), ["owner"])
+    }
+
+    func testCollectionReplyOnlyUnlocksDefiniteRefusal() async throws {
+        func result(_ body: String, status: Int) throws -> StaffCollectionSendOutcome {
+            try JSONDecoder().decode(StaffCollectionFunctionReply.self, from: Data(body.utf8)).result(status: status)
+        }
+        XCTAssertEqual(try result(#"{"ok":false,"outcome":"unknown"}"#, status: 502), .unknown)
+        XCTAssertEqual(try result(#"{"error":"internal error"}"#, status: 500), .unknown)
+        XCTAssertEqual(try result("{}", status: 200), .unknown)
+        XCTAssertEqual(try result(#"{"ok":true,"recorded":false}"#, status: 200), .accepted(recorded: false))
+        XCTAssertEqual(try result(#"{"ok":false,"outcome":"not_sent","error":"Refused."}"#, status: 502), .notSent("Refused."))
     }
 
     func testMarkReadyHoldsNoticeWhenSiblingIsStillInSalonAndReleasesWhenSiblingNoShows() async throws {
