@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — £10 deposits from the iPhone app
+
+- A customer who has been asked for a deposit can pay the £10 in the iPhone app by Apple Pay or card, through Square. The app is not using an App Store purchase. The switch is off until `IOS_DEPOSITS_ENABLED` is set to true, and no Square secret is stored in the repository.
+- Cancel with the salon's usual notice (24 hours, unless that number has been changed) and the £10 is refunded. Cancel after that, or not show up, and the salon keeps it. Move the appointment and the same £10 stays on the new booking. Staff can waive a deposit that has not been paid, or refund one that has, including one the rules had kept.
+- Needs migration `20261122143000` applied before the switch is turned on. Do not turn the switch on until the Square sandbox secrets are set. See [docs/ios-deposits.md](docs/ios-deposits.md).
 ## Unreleased — CI: browser tests run in the Playwright image
 
 - The two browser-test jobs (`pr-production-smoke` on pull requests, `e2e` on `main`) now run inside Microsoft's official Playwright image instead of installing Playwright's system libraries from Ubuntu's package mirror on every run. On 24 November that mirror slowed to about 65 kB/s for an hour and a half, and the install step took 33 minutes instead of under one. A small `playwright-version` job reads the locked Playwright version so the image always matches it, including after a Dependabot upgrade. The browser cache steps are gone, as the image carries the browsers. If the version job fails, the browser jobs fail too rather than being skipped (`src/security/playwrightContainerCi.test.ts`).

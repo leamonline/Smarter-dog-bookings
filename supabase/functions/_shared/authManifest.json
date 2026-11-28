@@ -164,6 +164,29 @@
       "failsClosedOnEmptySecret": true,
       "emptySecretRationale": "No secret participates in the caller check. Abuse is bounded by rate limiting rather than rejected by authentication, so these functions are held to the additional data-exposure rule above."
     },
+    "square-signature": {
+      "description": "Square webhook. HMAC-SHA256 of the configured notification URL concatenated with the raw body, keyed with SQUARE_WEBHOOK_SIGNATURE_KEY, compared with x-square-hmacsha256-signature.",
+      "requiredPrimitives": [
+        "isValidSquareSignature"
+      ],
+      "unauthorizedStatuses": [
+        403
+      ],
+      "failsClosedOnEmptySecret": true,
+      "emptySecretRationale": "An unset signature key or notification URL answers 500 before the body is trusted, and isValidSquareSignature is false for any empty input."
+    },
+    "customer-jwt": {
+      "description": "The customer's own Supabase session JWT, verified against GoTrue via auth.getUser(). The handler then checks the booking belongs to that user. is_staff() is not involved.",
+      "requiredPrimitives": [
+        "auth.getUser"
+      ],
+      "unauthorizedStatuses": [
+        401,
+        403
+      ],
+      "failsClosedOnEmptySecret": true,
+      "emptySecretRationale": "No shared secret. A missing Authorization header or a token GoTrue rejects is 401, before a service-role client is built."
+    },
     "twilio-signature": {
       "description": "Twilio-originated request authenticated by X-Twilio-Signature: a base64 HMAC-SHA1, keyed with the Twilio Auth Token, over the configured callback URL and every form parameter sorted by key. An API key secret cannot verify it.",
       "requiredPrimitives": [
@@ -610,6 +633,62 @@
       "unauthorizedResponse": "403 invalid signature (nothing is written); 500 not configured when TWILIO_AUTH_TOKEN or TWILIO_STATUS_CALLBACK_URL is unset",
       "emptySecretBehaviour": "closed — an unset auth token or callback URL answers 500 before the body is read, and isValidTwilioSignature is false for any empty input",
       "notes": "Dark-launched: sendSms only asks Twilio for callbacks when TWILIO_STATUS_CALLBACK_URL is set, so deploying this without that secret is inert. It validates against the configured URL, not the request host."
+    },
+    "square-deposit-charge": {
+      "authFamily": "customer-jwt",
+      "authSource": "handler.ts",
+      "caller": "the iPhone app, after the customer has signed in",
+      "role": "customer",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": "SQUARE_DEPOSIT_ALLOWED_ORIGINS",
+      "replayDefence": "one pending or completed payment per booking, and the Square idempotency key is stored before the charge is sent",
+      "unauthorizedResponse": "401 missing or invalid token, 403 when the feature flag is off or the Origin is not allowed, 404 when the booking is not theirs",
+      "emptySecretBehaviour": "n/a — no shared secret; Square credentials being unset answers 503 and does not charge",
+      "notes": "IOS_DEPOSITS_ENABLED must be the string true or the function refuses before building a client. A missing Origin is allowed because the iOS app does not send one. The nonce is a Square card or Apple Pay nonce, never a card number, and it is not stored. Not an App Store purchase."
+    },
+    "square-deposit-refund": {
+      "authFamily": "webhook-bearer",
+      "authSource": "handler.ts",
+      "caller": "Postgres trigger via pg_net when a deposit becomes refund_due",
+      "role": "service",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": null,
+      "replayDefence": "the refund idempotency key is stored on the row and Square will not refund the same key twice",
+      "unauthorizedResponse": "401 unauthorized, or 500 when WEBHOOK_SECRET is unset",
+      "emptySecretBehaviour": "closed — returns 500 before evaluating the header when WEBHOOK_SECRET is unset",
+      "notes": "Does not consult IOS_DEPOSITS_ENABLED. A deposit that was taken while the flag was on must still be refundable after the flag is switched off."
+    },
+    "square-deposit-staff": {
+      "authFamily": "staff-jwt",
+      "authSource": "handler.ts",
+      "caller": "staff, from the iPhone app or a later staff screen",
+      "role": "staff",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": "SQUARE_DEPOSIT_STAFF_ALLOWED_ORIGINS",
+      "replayDefence": "staff_refund_booking_deposit returns the existing row and the same Square idempotency key when the refund was already requested",
+      "unauthorizedResponse": "401 missing or invalid token, 403 not staff or origin not allowed",
+      "emptySecretBehaviour": "n/a — no shared secret",
+      "notes": "Waive is refused while IOS_DEPOSITS_ENABLED is not true, so the switch cannot cancel the existing bank-transfer hold. Refund of money Square has already taken still runs when the flag is off. A missing Origin is allowed because the iOS app does not send one."
+    },
+    "square-deposit-webhook": {
+      "authFamily": "square-signature",
+      "authSource": "handler.ts",
+      "caller": "Square payment and refund webhooks",
+      "role": "external",
+      "gatewayVerifyJwt": false,
+      "configToml": "declared-false",
+      "serviceRole": true,
+      "originPolicy": null,
+      "replayDefence": "settle functions are idempotent once a payment has left pending, and a refund that is already refunded is left as it is",
+      "unauthorizedResponse": "403 invalid signature; 500 when the signature key or notification URL is unset",
+      "emptySecretBehaviour": "closed — an unset SQUARE_WEBHOOK_SIGNATURE_KEY or SQUARE_WEBHOOK_NOTIFICATION_URL answers 500 before the body is trusted",
+      "notes": "The signature is HMAC-SHA256 over the exact notification URL plus the raw body. Events for a payment this database does not know are acknowledged and ignored. Reconciliation runs even when IOS_DEPOSITS_ENABLED is off."
     }
   }
 }

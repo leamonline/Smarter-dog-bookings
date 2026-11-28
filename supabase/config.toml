@@ -113,6 +113,14 @@ verify_jwt = false
 verify_jwt = false
 [functions.staff-invite]
 verify_jwt = false
+[functions.square-deposit-charge]
+verify_jwt = false
+[functions.square-deposit-refund]
+verify_jwt = false
+[functions.square-deposit-staff]
+verify_jwt = false
+[functions.square-deposit-webhook]
+verify_jwt = false
 [functions.apns-send]
 verify_jwt = false
 [functions.register-device-token]
