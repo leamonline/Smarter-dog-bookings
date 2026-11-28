@@ -447,11 +447,12 @@ select results_eq(
      order by id $$,
   $$ select id,
             case when snapshot ? 'staff_revision'
+                  and id in (select unnest(cancelled_booking_ids) from _success_receipt)
               then snapshot || jsonb_build_object('staff_revision', (snapshot->>'staff_revision')::integer + 1)
               else snapshot
             end
      from _before_success order by id $$,
-  'cancellation advances the write revision and preserves all other non-cancellation fields'
+  'cancellation advances only affected revisions and preserves all other non-cancellation fields'
 );
 
 set local role postgres;
