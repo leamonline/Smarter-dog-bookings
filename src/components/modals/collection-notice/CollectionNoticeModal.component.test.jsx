@@ -296,8 +296,9 @@ describe("CollectionNoticeModal", () => {
 
   it("locks the recipient when there is no confirmed send response", async () => {
     invoke.mockResolvedValue({ data: null, error: new Error("response lost") });
-    await openCompose();
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    renderModal();
+    fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Send" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("couldn’t confirm");
     expect(screen.getByRole("button", { name: "Check Inbox" })).toBeDisabled();
