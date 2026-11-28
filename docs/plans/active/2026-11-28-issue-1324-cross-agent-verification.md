@@ -4,104 +4,124 @@
 - Issue: [#1324](https://github.com/leamonline/Smarter-dog-bookings/issues/1324)
 - Base: `main@70d188181a369868760e6d6e47e46d5c30f83b37`
 - Last verified: 28 November 2026
-- Owners: Cross-agent runtime verification, Codex/Claude/Antigravity compatibility and owner decision prep
+- Owners: Cross-agent runtime verification, Codex/Claude/Antigravity compatibility and Stage 1 credential isolation
 - Dependencies: Completed foundation in [#1322](https://github.com/leamonline/Smarter-dog-bookings/issues/1322) / [completed plan](../completed/2026-11-28-cross-agent-compatibility.md)
 - Related requirements: Synthetic verification, explicit target controls and approval boundaries in [AGENTS.md](../../../AGENTS.md)
 - Related ADRs: [ADR 006](../../architecture/decisions/006-manual-target-verified-database-rollout.md)
 
 ## Goal
 
-Complete runtime verification of migration and mutation protections across Codex Desktop/CLI, Claude Code and Antigravity, establish credential-level isolation enforcing the 4-tier target architecture, and prepare/execute a low-risk cross-agent handover and independent review drill once prerequisites are met.
-
-## Why
-
-[PR #1323](https://github.com/leamonline/Smarter-dog-bookings/pull/1323) landed shared hook guard logic (`scripts/guard-supabase-migration.mjs` + `scripts/guard-supabase-hook.sh`), Antigravity `.agents/hooks.json`, Claude Code `.claude/settings.json` (`onFailure: "block"`) and `.mcp.json` (`read_only=true`). Runtime proof, credential-level isolation across developer tools, and cross-agent handover evidence remained incomplete.
+Complete runtime verification of migration and mutation protections across Codex Desktop/CLI, Claude Code and Antigravity, establish credential-level isolation enforcing the 4-tier target architecture, and run a multi-agent documentation reconciliation handover drill once prerequisites are satisfied.
 
 ## Verified baseline & post-merge reconciliation (28 November 2026)
 
-- **PR #1325:** Head `facca61aebfb2eced7626534c5858ad796fdbfef` merged into `main` as `9ee7158bf8e4fbe3662e6b95c65fa1a70f84f469` (`2026-11-28T02:05:38Z`); completed plans are archived in `docs/plans/completed/`.
-- **PR #1321 SHA reconciliation (verified directly from GitHub API & git):**
-  - Previously typed authorisation string (`09572431ec58d4869e7a65493bd5b865646d673b75`) is **42 characters** long (containing an extra `d6` at indices 35–36).
-  - Actual GitHub PR #1321 `head.sha`, `commits[-1]`, and `git rev-parse 70d188181a369868760e6d6e47e46d5c30f83b37^2` is **`09572431ec58d4869e7a65493bd5b86564673b75`** (**40 characters**).
-  - PR #1321 merged into `main` as `70d188181a369868760e6d6e47e46d5c30f83b37` at `2026-11-28T02:06:05Z` (`merged_by: leamonline`); diff vs `9ee7158bf8e4fbe3662e6b95c65fa1a70f84f469` updated only `docs/plans/completed/2026-11-27-cloud-first-development.md` and `docs/runbooks/cloud-development.md`.
-- **Post-merge `main` checks (`70d188181a369868760e6d6e47e46d5c30f83b37`):** `CI` (`46096392572`, including `build`, `agent-tests`, `release-tool-tests`, `playwright-version`, `coverage`, `e2e`), `Migrations Applied Check` (`46096392387`), `iPhone auth` (`46096392375`), `Vercel`, and `SmarterDog | Default` (Xcode Cloud) all passed (`success`).
+- **PR #1325:** Head `facca61aebfb2eced7626534c5858ad796fdbfef` merged into `main` as `9ee7158bf8e4fbe3662e6b95c65fa1a70f84f469` (`2026-11-28T02:05:38Z`); completed plans archived in `docs/plans/completed/`.
+- **PR #1321 SHA reconciliation (verified via GitHub API & git):**
+  - Previously typed string (`09572431ec58d4869e7a65493bd5b865646d673b75`) was **42 characters** (extra `d6` at indices 35–36).
+  - Actual GitHub PR #1321 `head.sha`, `commits[-1].sha`, and `git rev-parse 70d188181a369868760e6d6e47e46d5c30f83b37^2` is **`09572431ec58d4869e7a65493bd5b86564673b75`** (**40 characters**).
+  - Merged into `main` as `70d188181a369868760e6d6e47e46d5c30f83b37` (`2026-11-28T02:06:05Z`, `merged_by: leamonline`); diff vs `9ee7158bf8e4fbe3662e6b95c65fa1a70f84f469` updated only `docs/plans/completed/2026-11-27-cloud-first-development.md` and `docs/runbooks/cloud-development.md`.
+- **Post-merge `main` checks (`70d188181a369868760e6d6e47e46d5c30f83b37`):** `CI` (`46096392572`: `build`, `agent-tests`, `release-tool-tests`, `playwright-version`, `coverage`, `e2e`), `Migrations Applied Check` (`46096392387`), `iPhone auth` (`46096392375`), `Vercel`, and `SmarterDog | Default` all passed (`success`).
 - **PR #1320:** Untouched (`OPEN`, `codex/1193-inbox-controls`, head `132610a2b20bced4cf4b199bd1ad3053c776bf2d`).
 
-## Evidence status by category (implemented vs runtime vs unverified vs blocked)
+## Evidence status across Stages 1–5
 
-### Stage 1 — Credential isolation audit, storage design & exact approval-gated plan
+### Stage 1 — Credential isolation implementation & owner token checkpoint
 
-#### 1. Enforcement-layer matrix (URL params and hooks are NOT credential isolation)
+#### Implemented & synthetically verified (machine-local `/Users/leam/.gemini/config/`)
 
-| Layer | Examples | Where enforced | Can an agent / alternative tool bypass it? |
-| --- | --- | --- | --- |
-| **Client configuration & hooks** | `.agents/hooks.json`, `.claude/settings.json` (`onFailure: "block"`), `scripts/guard-supabase-hook.sh` | Local agent runtime | **Yes** — via `--bare`, local file edits, direct CLI/API calls, or Antigravity host fail-open on unhandled crash/timeout. |
-| **Endpoint / MCP gateway parameters** | `?project_ref=...&read_only=true&features=...` (`.mcp.json`) | Hosted MCP server (`mcp.supabase.com/mcp`) | **Partial** — blocks write tools and runs SQL as a read-only Postgres user only on calls using that URL; ineffective if caller hits `api.supabase.com/v1` or another endpoint using a broad OAuth/PAT. |
-| **Supabase account / organisation role** | Separate org/project memberships (`Owner`, `Administrator`, `Developer`, `Read-Only` [Team/Enterprise], `No-Access`) | Supabase IAM (server-side) | **No** — cross-project requests return HTTP `403` regardless of client/URL (`verify-supabase-credential-isolation.yml`, run `40757712758`). |
-| **Credential scope (Scoped PAT `sbp_fc...`)** | Project-pinned token + per-capability toggles starting from `No access` | Supabase Auth / MCP / Management API (server-side) | **No** across PAT-authenticated interfaces (bounded by owning account's role). Direct Postgres passwords (`--db-url` / `psql`) bypass PAT scopes if present locally. |
+1. **Backups preserved before any edit:**
+   - `/Users/leam/.gemini/config/backups/2026-11-28-pre-stage1/config.json` (`chmod 600`)
+   - `/Users/leam/.gemini/config/backups/2026-11-28-pre-stage1/mcp_config.json` (`chmod 600`)
+2. **User-local Keychain-backed MCP bridge (`/Users/leam/.gemini/config/bin/supabase-mcp-keychain-bridge.mjs`):**
+   - Stdio-to-Streamable-HTTP bridge reading the Bearer token exclusively in memory via `/usr/bin/security find-generic-password -a <user> -s <service> -w` (no token on CLI `argv`, dotfiles, git, logs, or issue comments).
+   - Restricts HTTPS destination strictly to `mcp.supabase.com` (HTTP permitted only on loopback `127.0.0.1`/`localhost` when `SUPABASE_MCP_TEST_ALLOW_HTTP=1` for synthetic tests), forwards `Mcp-Session-Id`, handles `202`/`204`, `application/json`, and `text/event-stream`, and redacts `Bearer ...` and `sbp_...` patterns from diagnostics.
+   - **Synthetic test evidence:** Passed isolated loopback HTTP + mock-`security` test suite (`ALL_SYNTHETIC_BRIDGE_TESTS_PASSED` covering missing Keychain fail-closed exit, unexpected host refusal, Bearer header transmission, `Mcp-Session-Id` propagation, JSON + SSE responses, `202` notifications, and redacted `403` error reporting).
+3. **Non-mutating isolation verifier (`/Users/leam/.gemini/config/bin/verify-supabase-isolation.mjs`):**
+   - Syntax-checked and verified failing closed cleanly with zero secret output before Keychain entries exist (`EXIT=1`).
+4. **Separate MCP connections configured (`/Users/leam/.gemini/config/mcp_config.json`, `chmod 600`):**
+   - `supabase-staging`: `--service smarterdog-supabase-staging-pat --url https://mcp.supabase.com/mcp?project_ref=btjnxvgkpdbfrrqxvkfj`
+   - `supabase-prod-readonly`: `--service smarterdog-supabase-prod-readonly-pat --url https://mcp.supabase.com/mcp?project_ref=nlzhllhkigmsvrzduefz&read_only=true&features=docs%2Cdatabase%2Cdebugging`
+   - Unrelated plugins and settings in `/Users/leam/.gemini/config/config.json` remain untouched; `"supabase"` plugin remains enabled **only until** the two replacement connections are verified with real credentials.
 
-#### 2. Verified Supabase Scoped PAT permission options & interface coverage
+#### macOS Login Keychain ACL review (which local processes can retrieve credentials)
 
-From official Supabase documentation (`supabase.com/docs`):
+- Creating items with `security add-generic-password -U -a "$USER" -s "<service>" -w` (specifying `-w` last with **no inline value**) prompts interactively with hidden input so tokens never enter `~/.zsh_history` or `ps aux` `argv`.
+- By default, `security add-generic-password` places `/usr/bin/security` in that Keychain item's trusted-application ACL. While the user's macOS Login Keychain is unlocked in an interactive desktop session, **any local process running as user `$USER` that executes `/usr/bin/security find-generic-password -w`** (including Antigravity, Claude Code, Codex, or local shell tools) can read the item silently without a per-call GUI prompt. (Passing `-T ""` forces macOS Keychain prompts on every MCP startup until `/usr/bin/security` is allowed.)
+- Therefore:
+  1. Keychain protects credentials encrypted at rest under FileVault + login password and keeps plaintext tokens off disk, out of configs, and out of transcripts/logs;
+  2. Server-side **Supabase Scoped PAT restrictions** (`btjnxvgkpdbfrrqxvkfj` vs read-only `nlzhllhkigmsvrzduefz`, with `API Key Secrets` / `Secrets` disabled) remain the enforceable boundary against cross-project access or production writes.
+  3. Because direct Postgres connection strings (`--db-url` / `psql`) bypass PAT scopes if stored locally, no production DB password or `service_role` secret is stored in Keychain or `.env*`.
 
-- **Token scoping rules:** Scoped PATs (`sbp_fc...`) bind to **selected project(s)** (or all projects in selected orgs) and cannot exceed the owning account's role. Token scopes **cannot be edited after creation** (must be revoked/deleted and regenerated).
-- **Available permission categories (Read vs Read-Write):** `Database`, `Edge Functions`, `Auth`, `Storage`, `Secrets` / `API Key Secrets`, `Analytics / Logs`, `Project Settings`, and `Branches`.
-  - Starting from **No access** and toggling strictly needed capabilities is recommended because broad "Read-only" presets may expose sensitive settings; omitting **API Key Secrets** / **Secrets** prevents retrieving `service_role` keys or administrative secrets.
-  - SQL queries executed through Management API / MCP run **read-only** unless **Database: Read-Write** is explicitly enabled.
-- **Alternative-interface coverage (`MCP`, `Management API`, `CLI`, `Direct Postgres`):**
-  - **Hosted MCP (`mcp.supabase.com/mcp`):** Validates Scoped PAT `sbp_fc...` scopes per tool (`403` on excluded projects/permissions; read-only SQL unless `Database: Read-Write` is set).
-  - **Management API (`api.supabase.com/v1`):** Validates Scoped PAT per endpoint (`403` with `missing_permissions` array on denied operations or non-selected projects).
-  - **Supabase CLI (Management operations):** `functions deploy`, `secrets set`, project commands enforce the same `sbp_fc...` PAT permissions. **Important bypass vector:** direct Postgres connections (`--db-url`, Session Pooler, `psql`) authenticate via Postgres role password independently of PAT scopes — so local checkouts must **never** store production DB passwords or `service_role` secrets (already verified absent: no `.env.local` or `supabase/.temp/`).
+#### Consolidated owner checkpoint (one-time Supabase Dashboard + macOS Keychain actions)
 
-#### 3. Secure credential storage & plugin-disruption check
+1. In **Supabase Dashboard → Account Settings → Access Tokens**, generate two **Scoped Access Tokens (`sbp_fc...`)** starting from preset **No access** (never paste either token into chat or files):
+   - **Token 1 (Staging development):** Project = **`btjnxvgkpdbfrrqxvkfj` only** (`nlzhllhkigmsvrzduefz` excluded). Enable **Database (`Read-Write`)**, **Edge Functions (`Read-Write` as needed)**, **Project Settings (`Read`)**, and **Analytics / Logs (`Read`)**. Keep **API Key Secrets / Secrets** unchecked unless specifically needed for staging CLI operations.
+   - **Token 2 (Production read-only inspection):** Project = **`nlzhllhkigmsvrzduefz` only** (`btjnxvgkpdbfrrqxvkfj` excluded). Enable **Database (`Read`)**, **Project Settings (`Read`)**, and **Analytics / Logs (`Read`)** only. Leave **Database (`Read-Write`)**, **API Key Secrets / Secrets**, **Edge Functions**, **Auth**, and **Storage** disabled.
+2. Run these two interactive terminal commands locally (each prompts secretly for the token and stores it in macOS Login Keychain without shell history or `argv` exposure):
+   ```bash
+   security add-generic-password -U -a "$USER" -s "smarterdog-supabase-staging-pat" -l "Smarter Dog Supabase Staging PAT" -w
+   security add-generic-password -U -a "$USER" -s "smarterdog-supabase-prod-readonly-pat" -l "Smarter Dog Supabase Prod Read-Only PAT" -w
+   ```
+3. Notify the agent when complete so we run the non-mutating `/Users/leam/.gemini/config/bin/verify-supabase-isolation.mjs` check, reload Antigravity MCP servers, confirm both connections work cleanly, and disable the unscoped `"supabase"` plugin in `/Users/leam/.gemini/config/config.json`.
 
-- **Zero plaintext tokens in files/logs/comments:** `agy-customizations/docs/mcp_servers.md` does not document `${ENV_VAR}` expansion inside HTTP `headers`, whereas `/usr/bin/security` (macOS Keychain) and Node 24 are installed locally. Scoped PATs can be stored encrypted in **macOS Login Keychain** (`security add-generic-password`) and read strictly in-memory by a local stdio-to-HTTP launcher under `~/.gemini/config/bin/` registered via Antigravity's documented **Stdio transport (`command`, `args`)** — keeping plaintext PATs out of `~/.gemini/config/mcp_config.json`, `.env*`, git, logs, and issue comments. (Alternatively, browser OAuth using dedicated per-environment/Read-Only Supabase accounts requires no local PAT file.)
-- **Disabling Antigravity `supabase` plugin — disruption check:** Inspected all 7 plugin `mcp_config.json` files (`cloudflare`, `context7`, `linear`, `postman`, `sentry`, `supabase`, `vercel-plugin`), `plugin.json` metadata, and repo references. None of the other 8 enabled plugins (`auth0`, `cloudflare`, `context7`, `linear`, `postman`, `sentry`, `swarm`, `vercel-plugin`) depend on `supabase`. Disabling `"supabase"` in `/Users/leam/.gemini/config/config.json` removes only the unscoped `supabase_mcp` endpoint and its two bundled reference skills (`supabase`, `supabase-postgres-best-practices`).
+#### Security-preserving rollback procedure
 
-#### 4. Exact proposed configuration & rollback procedure (NOT executed — awaiting explicit approval)
+If `supabase-staging` or `supabase-prod-readonly` fails verification or breaks:
+1. Disable only the broken entry (`"disabled": true` or remove the broken key in `/Users/leam/.gemini/config/mcp_config.json`) while keeping unrelated MCP entries (`mcp_config.json` / plugin configs) intact; restore `/Users/leam/.gemini/config/backups/2026-11-28-pre-stage1/config.json` only for unrelated plugin settings while keeping `"supabase"` **disabled** (`{"plugins": {"supabase": {"enabled": false}}}`).
+2. Revoke the affected `sbp_fc...` token(s) in Supabase Dashboard and delete matching Keychain item(s) (`security delete-generic-password -a "$USER" -s "<service>"`).
+3. Never automatically re-enable the unscoped `supabase` plugin, restore broad OAuth/PAT access, or clear unrelated MCP configs.
 
-1. **Owner provisions two `sbp_fc...` Scoped PATs in Supabase Dashboard → Access Tokens (from *No access*):**
-   - **Staging dev PAT:** Project = `btjnxvgkpdbfrrqxvkfj` only (`nlzhllhkigmsvrzduefz` excluded); toggle `Database` (Read-Write), `Edge Functions` (Read-Write as needed for staging), `Project Settings` (Read), `Analytics/Logs` (Read). Keep production excluded so production calls return HTTP `403`.
-   - **Production inspection PAT:** Project = `nlzhllhkigmsvrzduefz` only (`btjnxvgkpdbfrrqxvkfj` excluded); toggle `Database` (**Read** only), `Analytics/Logs` (**Read** only), `Project Settings` (**Read** only); leave **Database: Read-Write**, **API Key Secrets / Secrets**, **Edge Functions (Write)**, **Auth (Write)**, **Storage (Write)** unchecked.
-2. **Owner stores tokens in macOS Login Keychain** (never on disk in plaintext) and reviews/approves installing the user-local Keychain stdio MCP entries in `/Users/leam/.gemini/config/mcp_config.json` (`supabase-staging` + `supabase-prod-readonly`), preserving `supabase` in both server names so `scripts/guard-supabase-migration.mjs` continues matching them, plus disabling `"supabase"` plugin in `/Users/leam/.gemini/config/config.json`. (Retain Claude Code `.mcp.json` `read_only=true` and `onFailure: "block"`; keep Codex free of Supabase MCP.)
-3. **Post-change verification (synthetic/read-only):** Confirm via non-mutating requests that staging PAT returns `403` on `nlzhllhkigmsvrzduefz`, production inspection PAT returns `403` on `btjnxvgkpdbfrrqxvkfj` and `403` / read-only refusal on `api.supabase.com/v1` write or secrets endpoints, and no plaintext tokens appear on disk or logs.
-4. **Rollback procedure:**
-   - Revoke both new `sbp_fc...` PATs in Supabase Dashboard and delete their macOS Keychain items (`security delete-generic-password`).
-   - Re-enable `"supabase"` in `/Users/leam/.gemini/config/config.json`, revert `/Users/leam/.gemini/config/mcp_config.json`, remove any local helper script under `~/.gemini/config/bin/`, and reload Antigravity. GitHub `Production` / `staging` / `supabase-automation` CI environments remain untouched.
+---
 
-### Stage 2 — Codex Desktop (coordinated via issue #1324; handled independently by Codex Desktop)
+### Stage 2 — Codex runtime verification (completed by Codex Desktop; recorded on `#1324`)
 
-- Bundled runtime verified read-only: `/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex` (`codex-cli 0.171.0-alpha.13.2`, `hooks` = `stable` `true`). Global `~/.codex/config.toml` untouched.
-- Not duplicating Codex Desktop's Stage 2 execution here; waiting for Codex Desktop results on issue `#1324`.
+From Codex Desktop [comment `7232496959`](https://github.com/leamonline/Smarter-dog-bookings/issues/1324#issuecomment-7232496959) (testing `9b7b94818d93d8561a12e47e834a46637a313b91`):
+
+- **Bundled CLI (`codex-cli 0.171.0-alpha.13.2`, `hooks` `stable` `true`) & macOS App Server:** Verified using isolated `HOME`/`CODEX_HOME`, `workspace-write`, `approval_policy = "never"`, mock executables, and a synthetic stdio MCP server. Direct push, production CLI, production/unknown Management API targets, production MCP mutations, missing/unknown/wrong-type `project_id`, and malformed MCP args were all denied with zero markers written.
+- **Host failure modes & trust behaviour in Codex:** Exit `2` and valid denial JSON blocked execution; missing shared JS and malformed launcher stdin returned explicit denial; however, **exit `1`, process death, missing hook command, malformed hook stdout, and timeout allowed the shell mock to run** (Codex fails open on unhandled hook crashes/timeouts). Folder trust alone did not enable hooks; a separate MCP allow rule let a mock production read bypass `ask`.
+- **Cloud environment:** Hosted task (`danger-full-access`, `approval_policy = "never"`, no CLI on PATH, no hook review) had an empty diff and left Cloud hook dispatch unverified.
+- **Workflow evals:** Both skills discovered; 4/5 cases met all criteria (both booking-capacity runs preserved PostgreSQL authority and persisted-row tests; each missed one secondary detail: Edge parity on run 1, dormant visit policy on repeat).
+- **Local repository hook adoption still pending owner decision:** Recommended `.codex/hooks.json` (`Bash|mcp__.*` → `scripts/guard-supabase-hook.sh codex`, 10s timeout) remains uncommitted pending Stage 1 credential isolation and owner decision.
+
+---
 
 ### Stage 3 — Claude Code runtime verification status
 
-- Held until after `10pm (Europe/London)` quota reset (`429 usage_limit_reached`; no premature retries executed).
+- Held cleanly until after `10pm (Europe/London)` quota reset (`429 usage_limit_reached`; no premature retries executed).
+
+---
 
 ### Stage 4 — Antigravity live probes & isolated host-failure check
 
-- **Verified live `PreToolUse` `deny` dispatch (`0cce1d3e`, `c0226ce1`, `2899dd36`):** Host pre-tool hook denied production `apply_migration`, production `execute_sql`, and malformed JSON `Arguments` on nonexistent servers.
-- **Host failure-mode isolation check (`cb73e074`):** `Workspace: "branch"` subagents do **not** reload `.agents/hooks.json` independently of the Smarter Dog Bookings parent workspace; `agy` CLI is absent on host; `ConversationService` exposes no new-project registration without altering `~/.gemini/config/` or interactively opening a separate scratch window. Thus **live Antigravity host-binary failure behaviour** remains blocked from execution inside this Smarter Dog Bookings workspace session.
-- **Official Antigravity documentation behaviour:** Official `antigravity.google/docs/hooks.md` confirms Antigravity `PreToolUse` hooks **fail open** when a hook times out, crashes without valid JSON, emits malformed JSON, or fails to spawn. This verified fail-open host design is explicitly incorporated into Stage 1 so credential-level isolation does not rely on Antigravity hooks.
-- **Standalone scratch workspace kit staged:** Created harmless scratch project files under conversation artifact scratch (`scratch/antigravity-hook-lab/`) so an independent Antigravity 2.0 window can run the 5 failure probes (timeout, crash, missing executable, malformed JSON, missing dependencies) without ever modifying Smarter Dog Bookings safeguards.
+- **Verified live `PreToolUse` `deny` dispatch (`0cce1d3e`, `c0226ce1`, `2899dd36`):** Denied production `apply_migration`, production `execute_sql`, and malformed JSON `Arguments` on nonexistent MCP servers.
+- **Host failure-mode isolation check (`cb73e074`):** Confirmed `Workspace: "branch"` subagents do not reload `.agents/hooks.json` independently of the parent workspace, `agy` CLI is absent, and `ConversationService` provides no separate project-registration path without altering `~/.gemini/config/` or launching a separate scratch window.
+- **Documented host behaviour:** Official `antigravity.google/docs/hooks.md` confirms `PreToolUse` hooks **fail open** on crash/timeout/malformed stdout/missing executable. Standalone 5-case scratch lab files are saved in conversation scratch (`scratch/antigravity-hook-lab/`) for optional independent verification in a separate Antigravity window.
 
-### Stage 5 — Cross-agent handover candidate selection (revised; NOT started yet)
+---
 
-Per owner instruction to avoid customer communication work initially and select a genuinely low-risk documentation or isolated regression-test task:
+### Stage 5 — Cross-agent handover exercise (documentation reconciliation; NOT started yet)
 
-- **Primary recommended candidate:** **Documentation truth & superseded-plan reconciliation** — update [docs/README.md](../../README.md) (`Last verified: 2 September 2026`) and archive demonstrably superseded active plan [2026-10-19-whatsapp-business-app-echoes.md](2026-10-19-whatsapp-business-app-echoes.md) (explicitly marked `Superseded` 21 Oct 2026 by [2026-10-21-staff-reply-clears-stale-ai-drafts.md](../completed/2026-10-21-staff-reply-clears-stale-ai-drafts.md)) and/or [2026-11-22-ios-app.md](2026-11-22-ios-app.md) (`Draft. Superseded in direction`) per `AGENTS.md`, opening a small dedicated GitHub issue or tying to documentation housekeeping, verified with `npm run check:docs` + `lint` + `typecheck`.
-- **Alternative candidate (isolated regression tests):** Mirror `scripts/release/migration-security.test.mjs` coverage into Vitest (`src/security/`) for `verify-supabase-credential-isolation.yml` + add explicit `guard-supabase-hook.sh` crash/empty-output assertions in `src/security/migrationGuardHooks.test.ts` (zero production/customer-code impact).
-- **Strict prerequisite gate:** Do **not** start Stage 5 until Stages 2–4 runtime evidence and approved credential-isolation controls are satisfied.
+Per owner approval of **documentation reconciliation** (do not start until Stages 1 & 3 prerequisites close):
+
+- **Pre-verified archival / reconciliation targets:**
+  - **Valid for archival to `docs/archive/` or `docs/plans/completed/`:** [2026-10-19-whatsapp-business-app-echoes.md](2026-10-19-whatsapp-business-app-echoes.md) — issue `#1050` is `CLOSED`, status is explicitly `Superseded (21 October 2026)` by completed plan [2026-10-21-staff-reply-clears-stale-ai-drafts.md](../completed/2026-10-21-staff-reply-clears-stale-ai-drafts.md) (`#1063`, `CLOSED`), and all surviving intent/open notes are already recorded there (update relative link in the completed plan so `check:docs` stays green).
+  - **Evaluate partial archival vs status-header retention:** [2026-11-22-ios-app.md](2026-11-22-ios-app.md) — `Draft. Superseded in direction (22 November 2026)`, no issue assigned; verify before moving whether any referenced notification/privacy/release requirements need preserving in [ios/README.md](../../../ios/README.md) or [docs/ios-api-contract.md](../../ios-api-contract.md).
+  - **Do NOT archive (unresolved criteria confirmed):** [2026-09-10-smarterdog-domain-routing.md](2026-09-10-smarterdog-domain-routing.md) explicitly retains unresolved prerequisites (`staff device re-enrollment` and `ADR superseding ADR 009`), and [2026-10-15-local-production-release-design.md](2026-10-15-local-production-release-design.md) tracks unshipped local release tooling.
+  - **Docs index refresh:** Reconcile [docs/README.md](../../README.md) (`Last verified: 2 September 2026`) against current `docs/plans/active/` and `docs/runbooks/cloud-development.md`.
+- **Multi-agent handover structure to demonstrate:**
+  1. **Agent A** prepares the scoped documentation reconciliation plan + dedicated GitHub issue + checkpoint;
+  2. **Agent B** implements the reconciliation + link/registry updates on a branch and records validation evidence on the issue;
+  3. **Agent C** independently reviews from GitHub issue/PR/git state without conversation history;
+  4. Owner merges only upon explicit approval.
 
 ## Testing
 
-- `npm run check:docs && npm run check:migrations && git diff --check`
+- `node /Users/leam/.gemini/antigravity/brain/ec7b8c56-17e3-49c0-8d8b-7a33c5d6694a/scratch/test-keychain-bridge.mjs` → `ALL_SYNTHETIC_BRIDGE_TESTS_PASSED`
+- `npm run check:docs && npm run check:migrations && npm run lint && npm run typecheck`
 - `npm run test -- src/security/migrationGuardHooks.test.ts src/security/docsLinkCheck.test.ts src/security/productionApplyMigrationsWorkflow.test.ts`
-- `npm run lint && npm run typecheck`
 
 ## Checkpoint
 
-- **Revision and ownership** — Issue [#1324](https://github.com/leamonline/Smarter-dog-bookings/issues/1324), Draft PR [#1326](https://github.com/leamonline/Smarter-dog-bookings/pull/1326) (`DO NOT MERGE`), branch `feat/1324-cross-agent-verification` from `main@70d18818`. Single writer on plan; Codex Desktop owns Stage 2 execution.
-- **Verified implemented / runtime** — Reconciled PR #1321 exact 40-char head `09572431ec58d4869e7a65493bd5b86564673b75` (`70d18818`) vs previously typed 42-char string (`09572431ec58d4869e7a65493bd5b865646d673b75`); confirmed `main` post-merge CI `46096392572` `success`; completed Scoped PAT permission/interface/storage/plugin audit + rollback spec; documented Antigravity fail-open host behaviour and staged scratch lab; prepared low-risk Stage 5 doc/test candidates (not `#1186`).
-- **Unverified / Blocked** — Owner approval required before creating PATs or editing `/Users/leam/.gemini/config/`; Codex Desktop live Stage 2 awaited via `#1324`; Antigravity host-binary failure probes blocked in-session (`agy` CLI absent); Claude Code held on `429` until `10pm (Europe/London)`.
-- **Next** — Present final Stage 1 permission/storage changes for explicit approval, coordinate with Codex Desktop on `#1324`, retry Claude Code after `10pm (Europe/London)`, and confirm Stage 5 low-risk task selection before execution.
+- **Revision and ownership** — Issue [#1324](https://github.com/leamonline/Smarter-dog-bookings/issues/1324), Draft PR [#1326](https://github.com/leamonline/Smarter-dog-bookings/pull/1326) (`DO NOT MERGE`), branch `feat/1324-cross-agent-verification` from `main@70d18818`. Codex Desktop completed Stage 2 (`7232496959`).
+- **Evidence** — Stage 1 backups (`backups/2026-11-28-pre-stage1/`), Keychain stdio bridge (`supabase-mcp-keychain-bridge.mjs`), non-mutating verifier (`verify-supabase-isolation.mjs`), and `/Users/leam/.gemini/config/mcp_config.json` entries staged; synthetic bridge suite passed (`ALL_SYNTHETIC_BRIDGE_TESTS_PASSED`); `"supabase"` plugin preserved until replacement connections verify; Stage 5 archival targets audited.
+- **Blockers / Owner action** — Waiting on owner's 1-checkpoint creation of the two `sbp_fc...` Scoped PATs + interactive `security add-generic-password ... -w` storage; Claude Code Stage 3 waiting on `10pm (Europe/London)` reset; Antigravity 5-case host failure probes staged in scratch for optional separate-window run.
