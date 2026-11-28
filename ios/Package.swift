@@ -55,6 +55,7 @@ let package = Package(
                 "BookingConfirm.swift",
                 "BookingCancel.swift",
                 "CancelFlowModel.swift",
+                "SampleCancellationClient.swift",
                 "DogsModels.swift",
                 "StaffDayStack.swift",
                 "StaffStatusPalette.swift",
