@@ -123,4 +123,55 @@ struct DebugBookingsList: View {
         .task { await model.load() }
     }
 }
+
+/// Staff staging acceptance uses an explicit test identity and disables all
+/// provider calls, while letting the ordinary staff Today client write and read.
+struct LiveStaffTodayDebugView: View {
+    @State private var client: SupabaseStaffDayClient?
+    @State private var failure: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let client {
+                Text("STAFF TODAY · STAGING · synthetic bookings only")
+                    .font(.caption.weight(.heavy))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpace.half)
+                    .foregroundStyle(.white)
+                    .background(Color.red)
+                StaffTodayView(client: client)
+            } else if let failure {
+                ErrorNote(message: failure)
+                    .padding(AppSpace.s2)
+            } else {
+                ProgressView("Signing in to staging…")
+                    .task { await signIn() }
+            }
+        }
+    }
+
+    private func signIn() async {
+        guard LiveBookingGuard.isStaging(SupabaseConfig.urlString), let supabase = SalonClient.make() else {
+            failure = "This mode requires the staging project. See ios/README.md."
+            return
+        }
+        let email = "ios-staging-staff@example.com"
+        guard let password = ProcessInfo.processInfo.environment["STAGING_STAFF_PASSWORD"], !password.isEmpty else {
+            failure = "Set STAGING_STAFF_PASSWORD in your local Xcode scheme."
+            return
+        }
+        do {
+            let session = try await supabase.auth.signIn(email: email, password: password)
+            let auth = SupabaseSessionClient(supabase: supabase)
+            guard try await auth.staffProfile(userId: session.user.id.uuidString) != nil else {
+                await auth.signOut()
+                failure = "The synthetic account does not have a staging staff profile."
+                return
+            }
+            client = SupabaseStaffDayClient(supabase: supabase, supportsMessaging: false)
+        } catch {
+            failure = "Could not sign in to staging with the synthetic staff account."
+        }
+    }
+}
 #endif

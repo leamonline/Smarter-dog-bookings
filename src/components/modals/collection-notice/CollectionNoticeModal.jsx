@@ -27,7 +27,7 @@ import { useStaffContacts } from "../../../supabase/hooks/useStaffContacts";
 import { useStaffMessaging } from "../../../supabase/hooks/useStaffMessaging";
 import { useUnreachableHumans } from "../../../supabase/hooks/useDeliveryFailures";
 import { useToast } from "../../../contexts/ToastContext.jsx";
-import { parseSupabaseFunctionError } from "../../../supabase/hooks/inbox/helpers";
+import { SESSION_EXPIRED_MESSAGE } from "../../../supabase/hooks/inbox/helpers";
 import { normaliseUkMobile, formatPhoneForDisplay } from "../../../utils/phone.js";
 import { WHATSAPP_TEMPLATES, buildTemplateParams } from "../../../constants/whatsappTemplates.js";
 import { joinNames, renderSmsCollectionNotice } from "../../../lib/reminders/templates.js";
@@ -68,6 +68,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
   const [loading, setLoading] = useState(true);
   const [minutes, setMinutes] = useState("15");
   const [sendingId, setSendingId] = useState(null);
+  const [unconfirmedIds, setUnconfirmedIds] = useState(() => new Set());
   const [sentIds, setSentIds] = useState(() => new Set());
   const [contactsUnavailable, setContactsUnavailable] = useState("");
   const [contactLoadError, setContactLoadError] = useState("");
@@ -237,7 +238,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
 
   const handleSend = useCallback(
     async (recipient) => {
-      if (sendingId) return;
+      if (sendingId || unconfirmedIds.has(recipient.id) || !booking?.id) return;
       if (!minutesValid) {
         toast.show("Let us know how many minutes until collection", "error");
         return;
@@ -270,6 +271,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
             text: smsText,
             templateName: SMS_TEMPLATE_NAME,
             humanId: recipient.id,
+            bookingId: booking.id,
           });
         } else {
           const params = buildTemplateParams(READY_TEMPLATE, {
@@ -282,27 +284,35 @@ export function CollectionNoticeModal({ booking, onClose }) {
             language: READY_TEMPLATE.language,
             params,
             humanId: recipient.id,
+            bookingId: booking.id,
           });
         }
         const { data, error } = result;
-        if (error) {
-          throw new Error(
-            await parseSupabaseFunctionError(error, viaSms ? "SMS send failed" : "WhatsApp send failed"),
-          );
+        if (error?.context?.status === 401) {
+          toast.show(SESSION_EXPIRED_MESSAGE, "error");
+          return;
         }
-        if (data?.error) throw new Error(data.detail || data.error);
-        setSentIds((prev) => new Set(prev).add(recipient.id));
-        toast.show(
-          `Collection notice sent to ${displayName(recipient)}${viaSms ? " by SMS" : ""}.`,
-          "success",
-        );
-      } catch (err) {
-        toast.show(err instanceof Error ? err.message : String(err), "error");
+        const reply = error ? await error.context?.json?.().catch(() => null) : data;
+        if (!error && reply?.ok === true) {
+          setSentIds((prev) => new Set(prev).add(recipient.id));
+          toast.show(reply.recorded === false
+            ? "The provider accepted the collection notice. It may be missing from the Inbox."
+            : `Collection notice sent to ${displayName(recipient)}${viaSms && !reply.replayed ? " by SMS" : ""}.`,
+          "success");
+        } else if (reply?.outcome === "not_sent" ||
+                    (error?.context?.status === 409 && reply?.outcome == null && reply?.error)) {
+          toast.show(reply.detail || reply.error || "The collection notice was not sent.", "error");
+        } else {
+          throw new Error("Collection send outcome was not confirmed");
+        }
+      } catch {
+        setUnconfirmedIds((prev) => new Set(prev).add(recipient.id));
+        toast.show("We couldn’t confirm whether the notice was sent. Check the Inbox before sending another notice.", "error");
       } finally {
         setSendingId(null);
       }
     },
-    [sendingId, minutesValid, dogName, minutes, smsText, unreachableHumans, toast, messaging],
+    [sendingId, unconfirmedIds, booking?.id, minutesValid, dogName, minutes, smsText, unreachableHumans, toast, messaging],
   );
 
   const askBody = (
@@ -450,7 +460,8 @@ export function CollectionNoticeModal({ booking, onClose }) {
                 const viaSms = route.channel === "sms";
                 const isSent = sentIds.has(r.id);
                 const isSending = sendingId === r.id;
-                const disabled = !sendable || isSent || isSending || !minutesValid || !!sendingId;
+                const unconfirmed = unconfirmedIds.has(r.id);
+                const disabled = unconfirmed || !sendable || isSent || isSending || !minutesValid || !!sendingId;
                 return (
                   <li
                     key={r.id}
@@ -481,7 +492,7 @@ export function CollectionNoticeModal({ booking, onClose }) {
                             : "bg-brand-ink text-white hover:bg-brand-ink/90 cursor-pointer",
                       ].join(" ")}
                     >
-                      {isSent ? "Sent ✓" : isSending ? "Sending…" : viaSms ? "Send SMS" : "Send"}
+                      {isSent ? "Sent ✓" : unconfirmed ? "Check Inbox" : isSending ? "Sending…" : viaSms ? "Send SMS" : "Send"}
                     </button>
                   </li>
                 );

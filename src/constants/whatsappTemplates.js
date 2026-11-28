@@ -137,6 +137,7 @@ export const WHATSAPP_TEMPLATES = [
     // {{1}} is the dogs' names already joined ("Bella", "Bella and Max",
     // "Bella, Max and Alfie"), so the sentence never needs a singular/plural verb.
     name: "ready_for_collection_v2",
+    collectionOnly: true,
     label: "Ready for Collection",
     description: "Tell the owner or a trusted contact their dog (or dogs) can be collected",
     status: "approved",
@@ -245,7 +246,7 @@ export const WHATSAPP_TEMPLATES = [
 ];
 
 export const WHATSAPP_PICKER_TEMPLATES = WHATSAPP_TEMPLATES.filter(
-  (template) => template.status === "approved",
+  (template) => template.status === "approved" && !template.collectionOnly,
 );
 
 /** Pure helper: build the ordered params array for whatsapp-send from a template's param values. */

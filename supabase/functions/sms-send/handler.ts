@@ -47,6 +47,7 @@
 // ============================================================
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withStaffCollectionClaim } from "../_shared/staffCollectionClaim.ts";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { sendSms, normaliseUkPhone } from "../_shared/twilio.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
@@ -78,7 +79,8 @@ interface ManualMode {
 }
 
 interface TemplateMode {
-  mode: "template";
+  mode: "template" | "collection";
+  booking_id?: string;
   to: string;
   text: string; // already rendered upstream — Twilio doesn't care about template names
   conversation_id?: string;
@@ -220,6 +222,7 @@ async function handleSend(
   req: Request,
   supabase: SupabaseClient,
   body: SendBody,
+  markAccepted?: (providerId: string | null) => Promise<void>,
 ): Promise<Response> {
   if (!body.to) return json(req, { error: "to is required" }, 400);
   if (!body.text || !body.text.trim()) {
@@ -322,6 +325,7 @@ async function handleSend(
     return unknownOutcome(req);
   }
 
+  await markAccepted?.(twilioResult.sid ?? null);
   let conversationId = body.conversation_id ?? null;
   if (!conversationId) {
     conversationId = await resolveOrCreateConversation(
@@ -332,7 +336,7 @@ async function handleSend(
   }
 
   const contentForRecord =
-    body.mode === "template" && body.template_name
+    body.mode !== "manual" && body.template_name
       ? `[template:${body.template_name}] ${body.text.trim()}`
       : body.text.trim();
 
@@ -395,13 +399,28 @@ export async function handleSendRequest(req: Request): Promise<Response> {
   if (!parsed || !("mode" in parsed)) {
     return json(req, { error: "mode is required ('manual' | 'template')" }, 400);
   }
-  if (parsed.mode !== "manual" && parsed.mode !== "template") {
+  if (parsed.mode !== "manual" && parsed.mode !== "template" && parsed.mode !== "collection") {
     return json(req, { error: "unknown mode" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
+    // The signed delivery webhook already claims a positively undeliverable
+    // WhatsApp message before invoking this internal-only fallback.
+    if (parsed.mode === "template" && parsed.template_name === "ready_for_collection_sms" && !auth.internal) {
+      return json(req, { ok: false, outcome: "not_sent", error: "Open the Ready booking in Today to send a collection notice." }, 409);
+    }
+    if (parsed.mode === "collection") {
+      if (!auth.userId || parsed.template_name !== "ready_for_collection_sms" || parsed.conversation_id) {
+        return json(req, { ok: false, outcome: "not_sent", error: "Invalid staff collection notice." }, 400);
+      }
+      const body = parsed;
+      return await withStaffCollectionClaim(supabase, {
+        bookingId: body.booking_id, recipientId: body.human_id, phone: body.to, channel: "sms",
+      }, (data, status) => json(req, data, status),
+      (markAccepted) => handleSend(req, supabase, body, markAccepted));
+    }
     return await handleSend(req, supabase, parsed);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

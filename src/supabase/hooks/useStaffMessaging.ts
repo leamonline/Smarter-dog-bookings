@@ -44,9 +44,11 @@ export async function sendWhatsAppTemplate(input: {
   language: string;
   params: unknown;
   humanId: string;
+  bookingId?: string;
 }) {
   return invokeStaff("whatsapp-send", {
-      mode: "template",
+      mode: input.bookingId ? "collection" : "template",
+      ...(input.bookingId ? { booking_id: input.bookingId } : {}),
       to: input.to,
       template_name: input.templateName,
       language: input.language,
@@ -65,9 +67,11 @@ export async function sendSmsTemplate(input: {
   text: string;
   templateName: string;
   humanId: string;
+  bookingId?: string;
 }) {
   return invokeStaff("sms-send", {
-    mode: "template",
+    mode: input.bookingId ? "collection" : "template",
+    ...(input.bookingId ? { booking_id: input.bookingId } : {}),
     to: input.to,
     text: input.text,
     template_name: input.templateName,

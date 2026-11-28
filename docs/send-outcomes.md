@@ -154,3 +154,26 @@ moment a new caller can see an old `whatsapp-send` answer (`502 {"error":"Meta
 send failed"}` with no `outcome`). Callers read that as "may have gone", which
 is the safe direction: no fallback is tried and the row is marked for staff.
 There is no database migration in PR A.
+
+## Staff Today collection claims
+
+The web and iPhone Staff Today clients pass the booking ID in `collection`
+mode. The server resolves the owner, date and recipient and checks grouped
+readiness. Only one claim for that recipient can reach either provider. A
+known accepted response records the provider ID before any Inbox write.
+Repeats replay the acceptance without sending. A definite refusal permits a
+fresh explicit attempt. Pending and unknown attempts stay blocked across
+devices and restarts.
+
+For reconciliation, use the exact attempt ID and an opaque evidence
+reference. The privileged `reconcile_staff_collection_notice` RPC may
+record acceptance with the provider ID, or mark an attempt `not_sent` after
+the operator has verified that the original request has ended and the
+provider definitively did not accept it. A missing Inbox row, an elapsed
+timeout or a negative search alone does not justify release.
+
+Use Staff Today to send the collection template. The generic template picker
+does not select it, and older collection callers receive a refusal. Roll out
+the claim migration before the Edge deployment, then refresh website clients
+and install the reviewed iPhone build. The existing WhatsApp delivery-failure
+fallback continues to require its separate positive undeliverable evidence.
