@@ -18,9 +18,9 @@ select extensions.dblink_exec('collection_one', $fixture$
   delete from public.bookings where id in ('26800000-0000-4000-8000-000000000101', '26800000-0000-4000-8000-000000000102');
   delete from public.dogs where id in ('26800000-0000-4000-8000-000000000011', '26800000-0000-4000-8000-000000000012');
   delete from public.humans where id in ('26800000-0000-4000-8000-000000000001', '26800000-0000-4000-8000-000000000002');
-  insert into public.humans (id, name, phone) values
-    ('26800000-0000-4000-8000-000000000001', 'Synthetic owner', '07700900321'),
-    ('26800000-0000-4000-8000-000000000002', 'Synthetic unrelated contact', '07700900322');
+  insert into public.humans (id, name, surname, phone) values
+    ('26800000-0000-4000-8000-000000000001', 'Synthetic', 'Owner', '07700900321'),
+    ('26800000-0000-4000-8000-000000000002', 'Synthetic', 'Unrelated contact', '07700900322');
   insert into public.dogs (id, name, breed, human_id, size) values
     ('26800000-0000-4000-8000-000000000011', 'First dog', 'Poodle', '26800000-0000-4000-8000-000000000001', 'small'),
     ('26800000-0000-4000-8000-000000000012', 'Second dog', 'Poodle', '26800000-0000-4000-8000-000000000001', 'small');

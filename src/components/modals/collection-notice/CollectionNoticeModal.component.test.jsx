@@ -294,6 +294,16 @@ describe("CollectionNoticeModal", () => {
     expect(screen.getByRole("heading", { name: /is ready/i })).toBeInTheDocument();
   });
 
+  it("locks the recipient when there is no confirmed send response", async () => {
+    invoke.mockResolvedValue({ data: null, error: new Error("response lost") });
+    await openCompose();
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("couldn’t confirm");
+    expect(screen.getByRole("button", { name: "Check Inbox" })).toBeDisabled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps Ready when sending fails", async () => {
     invoke.mockResolvedValue({
       data: { outcome: "not_sent", error: "WhatsApp send failed", detail: "Message undeliverable" },

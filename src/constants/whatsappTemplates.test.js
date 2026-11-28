@@ -169,12 +169,11 @@ describe("booking_cancelled_v1", () => {
 });
 
 describe("WHATSAPP_PICKER_TEMPLATES", () => {
-  it("only exposes Meta-approved templates to the staff picker", () => {
+  it("only exposes Meta-approved templates that can be sent outside a booking", () => {
     expect(WHATSAPP_PICKER_TEMPLATES.map((t) => t.name)).toEqual([
       "appointment_reminder_v1",
       "booking_confirmed_v1",
       "booking_changed_v1",
-      "ready_for_collection_v2",
       "welcome_to_the_pack_v1__english",
       "appointment_request_reply_v1",
       "customer_enquiry_response_v1",
