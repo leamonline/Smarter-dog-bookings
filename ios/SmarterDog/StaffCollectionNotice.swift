@@ -110,7 +110,7 @@ struct StaffCollectionDeliveryRow: Decodable {
 }
 
 enum StaffCollectionSendOutcome: Equatable {
-    case accepted(recorded: Bool)
+    case accepted(recorded: Bool, replayed: Bool = false)
     case notSent(String)
     case unknown
 }
@@ -118,13 +118,14 @@ enum StaffCollectionSendOutcome: Equatable {
 struct StaffCollectionFunctionReply: Decodable {
     let ok: Bool?
     let recorded: Bool?
+    let replayed: Bool?
     let outcome: String?
     let error: String?
     let detail: String?
 
     func result(status: Int) -> StaffCollectionSendOutcome {
         if (200..<300).contains(status), ok == true {
-            return .accepted(recorded: recorded == true)
+            return .accepted(recorded: recorded == true, replayed: replayed == true)
         }
         if outcome == "not_sent" || (status == 409 && outcome == nil && error != nil) {
             return .notSent(detail ?? error ?? "The message was not sent.")
@@ -587,11 +588,11 @@ final class StaffCollectionNoticeModel {
         }
 
         switch await client.sendCollectionNotice(request) {
-        case .accepted(let recorded):
+        case .accepted(let recorded, let replayed):
             finalState = .accepted
             sentRecipientIDs.insert(recipient.id)
             let message = recorded
-                ? "Collection notice sent to \(recipient.displayName)\(viaSms ? " by SMS" : "")."
+                ? "Collection notice sent to \(recipient.displayName)\(viaSms && !replayed ? " by SMS" : "")."
                 : "The provider accepted the collection notice. It may be missing from the Inbox."
             sendFeedback = (message, false)
         case .notSent(let message):

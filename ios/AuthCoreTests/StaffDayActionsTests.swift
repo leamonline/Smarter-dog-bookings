@@ -407,6 +407,7 @@ final class StaffTodayActionsModelTests: XCTestCase {
         XCTAssertEqual(try result(#"{"error":"internal error"}"#, status: 500), .unknown)
         XCTAssertEqual(try result("{}", status: 200), .unknown)
         XCTAssertEqual(try result(#"{"ok":true,"recorded":false}"#, status: 200), .accepted(recorded: false))
+        XCTAssertEqual(try result(#"{"ok":true,"recorded":true,"replayed":true}"#, status: 200), .accepted(recorded: true, replayed: true))
         XCTAssertEqual(try result(#"{"ok":false,"outcome":"not_sent","error":"Refused."}"#, status: 502), .notSent("Refused."))
     }
 
