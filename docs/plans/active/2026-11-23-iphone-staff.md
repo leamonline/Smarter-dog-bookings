@@ -410,15 +410,18 @@ checks sibling readiness after the committed write, consumes the queued prompt
 once and refreshes contact routing before a send. The native screen locks
 accepted and ambiguous sends across sheets while the Today model is alive.
 
-The existing template Edge Functions have no durable, shared collection
-claim. A send may be accepted without an Inbox row, so cross-device and
-post-restart recovery need an approved server contract before S2 can pass the
-duplicate-send gate. Cover two simultaneous requests, definite refusal,
-provider acceptance followed by a lost reply or log failure, and recovery
-without a second provider call. Keep S3 behind S2 and reconcile payment
-writes and Undo with [#1194](https://github.com/leamonline/Smarter-dog-bookings/issues/1194)
-before releasing checkout. Staging staff read-back, physical VoiceOver and
-internal TestFlight evidence are pending.
+The [durable collection notice plan](2026-11-28-collection-notice-claims.md)
+covers the shared PostgreSQL claim for web and iPhone, the provider receipt
+written before Inbox recording, and evidence-based operator reconciliation.
+The guarded clients and migration must pass the staged release gates before
+collection messaging is ready for release. The Debug staging staff route
+keeps provider calls disabled.
+
+S3 remains behind verified S2 and the staff booking revision dependency
+tracked by [#1194](https://github.com/leamonline/Smarter-dog-bookings/issues/1194).
+Checkout and Undo must compare the observed and saved revisions respectively,
+and prove persisted payment and grouped booking parity. Staging staff
+read-back, physical VoiceOver and internal TestFlight evidence are pending.
 
 ## Open questions
 
