@@ -29,6 +29,8 @@ export function ConversationListItem({
   waitingLabel = null,
   isSelected,
   onSelect,
+  openButtonRef,
+  onOpenKeyDown,
   isChecked = false,
   onToggleSelect,
   onShowFailed,
@@ -81,9 +83,11 @@ export function ConversationListItem({
 
       <button
         type="button"
+        ref={openButtonRef}
         onClick={() => onSelect(conv.id)}
+        onKeyDown={onOpenKeyDown}
         aria-current={isSelected ? "true" : undefined}
-        className={`relative min-w-0 flex-1 cursor-pointer border-l-[3px] px-3 py-2 text-left font-[inherit] transition-colors ${
+        className={`relative min-w-0 flex-1 cursor-pointer border-l-[3px] px-3 py-2 text-left font-[inherit] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-ink ${
           isSelected
             ? "border-l-brand-yellow bg-brand-yellow/45 shadow-[inset_0_0_0_1px_rgba(31,31,31,0.18)]"
             : isClosed

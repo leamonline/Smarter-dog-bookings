@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ConversationPane } from "./ConversationPane.jsx";
 
@@ -64,30 +65,72 @@ function renderPane(overrides = {}) {
 }
 
 describe("ConversationPane", () => {
-  it("opens the third visible conversation after two ArrowDown presses", () => {
-    const { onSelectConversation } = renderPane();
-    const list = screen.getByRole("listbox", { name: "Conversations" });
+  it("moves focus among visible open buttons and activates them with Enter and Space", async () => {
+    const user = userEvent.setup();
+    const { onSelectConversation } = renderPane({
+      displayedConversations: [conversations[0], conversations[2]],
+      selectedId: "a",
+    });
+    const list = screen.getByRole("list", { name: "Conversations" });
+    const [first, last] = within(list).getAllByRole("button");
 
-    list.focus();
-    fireEvent.keyDown(list, { key: "ArrowDown" });
-    fireEvent.keyDown(list, { key: "ArrowDown" });
-    fireEvent.keyDown(list, { key: "Enter" });
-
-    expect(onSelectConversation).toHaveBeenCalledWith("c");
+    expect(first).toHaveAttribute("aria-current", "true");
+    first.focus();
+    await user.keyboard("{ArrowUp}");
+    expect(first).toHaveFocus();
+    await user.keyboard("{ArrowDown}{ArrowDown}");
+    expect(last).toHaveFocus();
+    expect(onSelectConversation).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}{ArrowUp} ");
+    expect(first).toHaveFocus();
+    expect(onSelectConversation.mock.calls).toEqual([["c"], ["a"]]);
   });
 
-  it("moves only through the conversations left visible by filtering", () => {
-    const visibleConversations = [conversations[0], conversations[2]];
-    const { onSelectConversation } = renderPane({
-      displayedConversations: visibleConversations,
+  it("keeps an externally selected conversation in view without taking focus", () => {
+    const { props, rerender } = renderPane();
+    const list = screen.getByRole("list", { name: "Conversations" });
+    const [first, second] = within(list).getAllByRole("button");
+    const scrollIntoView = vi.fn();
+    second.scrollIntoView = scrollIntoView;
+    first.focus();
+
+    rerender(<ConversationPane {...props} selectedId="b" />);
+
+    expect(second).toHaveAttribute("aria-current", "true");
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+    expect(first).toHaveFocus();
+  });
+
+  it("tabs independently to checkboxes, open buttons and the failed-send action", async () => {
+    const user = userEvent.setup();
+    const failed = { ...conversations[1], has_failed_message: true };
+    const onShowFailed = vi.fn();
+    const { onSelectConversation, props } = renderPane({
+      displayedConversations: [conversations[0], failed, conversations[2]],
+      selectedIds: new Set(["a"]),
+      onShowFailed,
     });
-    const list = screen.getByRole("listbox", { name: "Conversations" });
+    const list = screen.getByRole("list", { name: "Conversations" });
+    const [firstRow, failedRow, lastRow] = within(list).getAllByRole("listitem");
+    const [openFailed, showFailed] = within(failedRow).getAllByRole("button");
+    const failedCheckbox = within(failedRow).getByRole("checkbox");
 
-    list.focus();
-    fireEvent.keyDown(list, { key: "ArrowDown" });
-    fireEvent.keyDown(list, { key: "Enter" });
-
-    expect(onSelectConversation).toHaveBeenCalledWith("c");
-    expect(onSelectConversation).not.toHaveBeenCalledWith("b");
+    expect(within(firstRow).getByRole("checkbox")).toBeChecked();
+    within(firstRow).getByRole("button").focus();
+    await user.tab();
+    expect(failedCheckbox).toHaveFocus();
+    await user.keyboard("{ArrowDown} ");
+    expect(failedCheckbox).toHaveFocus();
+    expect(props.onToggleSelect.mock.calls).toEqual([["b"]]);
+    await user.tab();
+    expect(openFailed).toHaveFocus();
+    await user.tab();
+    expect(showFailed).toHaveFocus();
+    await user.keyboard("{ArrowUp} ");
+    expect(showFailed).toHaveFocus();
+    expect(onShowFailed.mock.calls).toEqual([[failed]]);
+    expect(onSelectConversation).not.toHaveBeenCalled();
+    await user.tab();
+    expect(within(lastRow).getByRole("checkbox")).toHaveFocus();
   });
 });
