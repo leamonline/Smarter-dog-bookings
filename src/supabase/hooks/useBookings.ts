@@ -751,7 +751,10 @@ export function useBookings(
       });
 
       const client = supabase;
-      const sendUpdate = (payload: typeof updatePayload) => {
+      const expectedRevision = updatedBooking.staffRevision;
+      const isVersioned = expectedRevision !== undefined;
+      const staffConfirmationStamp = updatedBooking._staffConfirmationStamp;
+      const sendUpdate = (payload: typeof updatePayload, confirmationOnly = false) => {
         let updateQuery = client
           .from("bookings")
           .update(payload)
@@ -759,8 +762,14 @@ export function useBookings(
         // Unconfirm only ever clears a STAFF stamp: if the customer's own
         // confirmation landed in between, this matches 0 rows and .single()
         // errors — the rollback below then restores the local row untouched.
+        if (isVersioned && !confirmationOnly) {
+          updateQuery = updateQuery.eq("staff_revision", expectedRevision);
+        }
         if (updatedBooking._unconfirmArrival) {
           updateQuery = updateQuery.eq("reminder_confirmed_source", "staff");
+          if (isVersioned && staffConfirmationStamp) {
+            updateQuery = updateQuery.eq("reminder_confirmed_at", staffConfirmationStamp);
+          }
         }
         return updateQuery;
       };
@@ -778,11 +787,17 @@ export function useBookings(
           .eq("status", BOOKING_STATUS.RECONFIRMED)
           .select("*")
           .maybeSingle()
-        : await sendUpdate(updatePayload).select("*").single();
+        : isVersioned
+          ? await sendUpdate(updatePayload).select("*").maybeSingle()
+          : await sendUpdate(updatePayload).select("*").single();
       if (restoresBooked && !response.error && !response.data) {
         const confirmationOnly = { ...updatePayload };
         delete (confirmationOnly as { status?: string }).status;
-        response = await sendUpdate(confirmationOnly).select("*").single();
+        if (!isVersioned) {
+          response = await sendUpdate(confirmationOnly, true).select("*").single();
+        } else if (staffConfirmationStamp) {
+          response = await sendUpdate(confirmationOnly, true).select("*").maybeSingle();
+        }
       }
       const { data: updated, error: err } = response;
       const data = updated as DbBookingRow | null;
@@ -791,16 +806,36 @@ export function useBookings(
 
       if (err || !data) {
         if (prevRow) {
-          setRows((prev) =>
-            (prev || []).map((r) => (r.id === prevRow.id ? prevRow : r)),
-          );
+          setRows((prev) => (prev || []).map((r) =>
+            r.id === prevRow.id && r.staff_revision === prevRow.staff_revision ? prevRow : r,
+          ));
         }
-        logBookingFailure("Failed to update booking", err, "updateBooking");
-        onErrorRef.current?.(err?.message ?? "Couldn't save the booking — please try again.");
+        if (isVersioned && !err) {
+          const latest = await client.from("bookings").select("*").eq("id", updatedBooking.id).maybeSingle();
+          const saved = latest.data;
+          if (saved) {
+            setRows((prev) => (prev || []).map((r) =>
+              r.id === saved.id && (r.staff_revision ?? -1) <= saved.staff_revision ? { ...r, ...saved } : r,
+            ));
+          }
+          const changed = saved && currentRow ? [
+            saved.status !== currentRow.status ? "status" : null,
+            saved.payment !== currentRow.payment || saved.payment_method !== currentRow.payment_method ||
+              saved.paid_amount !== currentRow.paid_amount ? "payment" : null,
+            saved.booking_date !== currentRow.booking_date || saved.slot !== currentRow.slot ? "appointment time" : null,
+          ].filter(Boolean) : [];
+          const detail = changed.length ? ` Changes include ${changed.join(", ")}.` : "";
+          onErrorRef.current?.(`This booking changed before your update could be saved.${detail} Review the latest booking before trying again.`);
+        } else {
+          logBookingFailure("Failed to update booking", err, "updateBooking");
+          onErrorRef.current?.(err?.message ?? "Couldn't save the booking — please try again.");
+        }
         return null;
       }
 
-      setRows((prev) => (prev || []).map((r) => (r.id === data.id ? data : r)));
+      setRows((prev) => (prev || []).map((r) =>
+        r.id === data.id && (r.staff_revision ?? -1) <= (data.staff_revision ?? -1) ? { ...r, ...data } : r,
+      ));
 
       const persisted = dbBookingsToArray([data], dogsById, humansById)[0];
 

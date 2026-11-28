@@ -148,7 +148,7 @@ export function useBookingActions({
 
     if (movesZone) localMoves.current.delete(bookingId);
     if (showFailureToast) {
-      toast.show(failureMessage, "error", {
+      toast.show(failureMessage, "error", booking.staffRevision !== undefined ? undefined : {
         label: "Retry",
         onClick: () => {
           void patch(booking, changes, successMessage, failureMessage, { showFailureToast });
@@ -302,6 +302,7 @@ export function useBookingActions({
       booking,
       {
         _unconfirmArrival: true,
+        _staffConfirmationStamp: booking.reminderConfirmedAt,
         reminderConfirmedAt: null,
         reminderConfirmedBy: null,
         reminderState: revertState,
@@ -347,7 +348,11 @@ export function useBookingActions({
         successAction: {
           label: "Undo",
           onClick: () => {
-            void unconfirmArrival(booking, {
+            if (!saved.row) return;
+            void unconfirmArrival({
+              ...saved.row,
+              _preConfirmReminderState: booking.reminderState ?? "none",
+            }, {
               restoreBooked: booking.status === BOOKING_STATUS.BOOKED
                 && saved.row?.status === BOOKING_STATUS.RECONFIRMED,
             });

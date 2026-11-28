@@ -445,8 +445,14 @@ select results_eq(
      from public.bookings b
      where group_id = '44000000-0000-4000-8000-000000000001'
      order by id $$,
-  $$ select id, snapshot from _before_success order by id $$,
-  'cancellation preserves every non-cancellation field including trigger-managed audit data'
+  $$ select id,
+            case when snapshot ? 'staff_revision'
+                  and id in (select unnest(cancelled_booking_ids) from _success_receipt)
+              then snapshot || jsonb_build_object('staff_revision', (snapshot->>'staff_revision')::integer + 1)
+              else snapshot
+            end
+     from _before_success order by id $$,
+  'cancellation advances only affected revisions and preserves all other non-cancellation fields'
 );
 
 set local role postgres;

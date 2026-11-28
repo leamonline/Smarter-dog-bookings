@@ -94,6 +94,7 @@ const FORWARDED_UNUSED: Record<string, string> = {
   staff_capacity_override: "operational — capacity override flag",
   staff_capacity_override_at: "operational — override timestamp",
   staff_capacity_override_by: "operational — overriding staff member",
+  staff_revision: "operational — monotonic row version; no customer content",
   updated_at: "operational — last write timestamp",
   visit_membership_state: "operational — visit grouping state",
   whatsapp_conversation_id: "links the booking to a WhatsApp thread",
