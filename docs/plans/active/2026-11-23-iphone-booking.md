@@ -387,20 +387,45 @@ Each is its own pull request, merged only after the full CI bar.
      the parameters, read from the website and the newest migration).
    - **No-shows (ADR 015):** a cancel on the appointment's own London date is saved as a No-show by a
      database trigger. The app adds no rule and shows no warning step (owner decision, 24 November).
-   - **Cancel, step 2 of 2 (screen and send): built, not yet seen on a screen.** `CancelFlowModel`
+   - **Cancel, step 2 of 2 (screen and send): built.** `CancelFlowModel`
      (Linux-tested: no send without a reason, one request per tap, a reason fixed after an unknown
      outcome so a retry matches the server's replay, "Check again" reads and never sends) and
      `CancelSheet` (the website's question and reasons, the visit's time, a note when several dogs
      go together, the outcome in the website's words, "Keep my booking"). Home works out each
      visit's `CancelTarget` from `group_id` and status. The Cancel button appears only where a cancel
-     client is given, which today is only "My bookings" inside the Debug-only `-liveBooking` mode, so
-     customer Home is unchanged. The send shares the booking send's one plain web request in
-     `SupabaseBookingClient`; `iosProjectIsolation.test.ts` now allows exactly these two RPC paths.
-     Whether the salon has switched online cancellation off is not read in the app: the server
-     refuses with `SDC01` and the sheet shows the website's words for it.
+     client is given, which is only My bookings in the Debug-only staging and offline sample
+     modes. The send shares the booking send's one plain web request in `SupabaseBookingClient`.
+     `iosProjectIsolation.test.ts` allows exactly these two RPC paths. Whether the salon has switched
+     online cancellation off is not read in the app: the server refuses with `SDC01` and the sheet
+     shows the website's words for it.
+   - **Synthetic acceptance ([#1330](https://github.com/leamonline/Smarter-dog-bookings/issues/1330)):**
+     `-sampleCancellation` exercises the same My bookings and cancel views with in-memory rows.
+     It covers keeping a booking, cancelling a grouped visit, read-only reconciliation after a
+     lost reply and refresh from the resulting rows. Swift tests assert the resulting booking
+     statuses and the remaining visits. The launch route and fixture compile only in Debug.
    - **Next:** the owner books and cancels Test Pup on staging, once for a later day and once on the
      day itself (which should show as No-show for staff), and checks the sheet in Xcode with large
      text and VoiceOver.
+
+## Checkpoint
+
+**28 November 2026.** Customer cancellation simulator acceptance belongs to
+[#1330](https://github.com/leamonline/Smarter-dog-bookings/issues/1330) on
+`codex/ios-cancellation-acceptance`, based on `main@444f95c7`. The issue links the review
+candidate and cloud checks. The Debug launch route, offline client and Swift tests exercise the
+existing My bookings list and Cancel sheet.
+
+On iPhone 17 Simulator (iOS 27.2, Xcode 27.2), **Keep my booking** kept the grouped rows;
+confirmation removed both dogs; an interrupted response exposed **Check again**, which recovered
+the saved cancellation; and the remaining reconfirmed visit offered no cancellation. The question,
+reason selection and actions remained reachable at standard and Accessibility Extra Large text
+sizes. This was a visual and interactive check of the simulator.
+
+The Swift suite passed 271 tests, the web suite passed 5,900, and the docs, lint, typecheck,
+migration-name and web-build checks passed. Debug and Release simulator builds passed, and the
+Release executable contained neither the sample argument nor the sample client. The next
+acceptance step is the owner's synthetic staging run for the RPC, row-level security and
+same-day No-show, with separate physical-device VoiceOver and distribution evidence.
 
 ## Testing
 

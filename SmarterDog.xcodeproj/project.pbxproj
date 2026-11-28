@@ -61,6 +61,7 @@
 		C1A000000000000000000011 /* BookingCancel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000001 /* BookingCancel.swift */; };
 		C1A000000000000000000012 /* CancelFlowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000002 /* CancelFlowModel.swift */; };
 		C1A000000000000000000013 /* CancelSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000003 /* CancelSheet.swift */; };
+		C1A000000000000000000014 /* SampleCancellationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A000000000000000000004 /* SampleCancellationClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -122,6 +123,7 @@
 		C1A000000000000000000001 /* BookingCancel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCancel.swift; sourceTree = "<group>"; };
 		C1A000000000000000000002 /* CancelFlowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelFlowModel.swift; sourceTree = "<group>"; };
 		C1A000000000000000000003 /* CancelSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelSheet.swift; sourceTree = "<group>"; };
+		C1A000000000000000000004 /* SampleCancellationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleCancellationClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +187,7 @@
 				A1000000000000000000008F /* BookingConfirm.swift */,
 				C1A000000000000000000001 /* BookingCancel.swift */,
 				C1A000000000000000000003 /* CancelSheet.swift */,
+				C1A000000000000000000004 /* SampleCancellationClient.swift */,
 				C1A000000000000000000002 /* CancelFlowModel.swift */,
 				A10000000000000000000100 /* LiveBookingDebug.swift */,
 				A10000000000000000000102 /* BookedView.swift */,
@@ -334,6 +337,7 @@
 				A1000000000000000000009F /* BookingConfirm.swift in Sources */,
 				C1A000000000000000000011 /* BookingCancel.swift in Sources */,
 				C1A000000000000000000013 /* CancelSheet.swift in Sources */,
+				C1A000000000000000000014 /* SampleCancellationClient.swift in Sources */,
 				C1A000000000000000000012 /* CancelFlowModel.swift in Sources */,
 				A10000000000000000000101 /* LiveBookingDebug.swift in Sources */,
 				A10000000000000000000103 /* BookedView.swift in Sources */,

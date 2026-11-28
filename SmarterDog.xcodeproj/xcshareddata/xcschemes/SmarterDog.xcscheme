@@ -59,6 +59,10 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "-sampleCancellation"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "-sampleStaffToday"
             isEnabled = "NO">
          </CommandLineArgument>
