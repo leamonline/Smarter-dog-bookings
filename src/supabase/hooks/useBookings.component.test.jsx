@@ -42,6 +42,9 @@ vi.mock("../transforms.js", async () => {
     dbBookingsToArray: (rows) =>
       rows.map((row) => ({
         id: row.id,
+        staffRevision: row.staff_revision,
+        paymentMethod: row.payment_method,
+        paidAmount: row.paid_amount,
         slot: row.slot,
         size: row.size,
         service: row.service,
