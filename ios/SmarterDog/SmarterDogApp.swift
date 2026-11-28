@@ -2,8 +2,6 @@ import SwiftUI
 
 @main
 struct SmarterDogApp: App {
-    @State private var auth = AuthService.connected()
-
     init() {
         AppFont.registerBundledFonts()
     }
@@ -22,6 +20,8 @@ struct SmarterDogApp: App {
             } else if CommandLine.arguments.contains("-sampleBooking") {
                 // Debug only: the booking screens with made-up dogs, no sign-in and no network.
                 NavigationStack { BookingFlowView(client: SampleBookingClient()) }
+            } else if CommandLine.arguments.contains("-sampleCancellation") {
+                SampleCancellationView()
             } else if CommandLine.arguments.contains("-sampleBooked") {
                 // Debug only: the booked screen with made-up data, to see the hero moment. No network.
                 BookedView(
@@ -46,16 +46,30 @@ struct SmarterDogApp: App {
                 // throwaway test customer. It refuses to run against any other project.
                 LiveBookingDebugView()
             } else {
-                RootView(auth: auth)
+                ConnectedRootView()
             }
             #else
-            RootView(auth: auth)
+            ConnectedRootView()
             #endif
         }
     }
 }
 
+private struct ConnectedRootView: View {
+    @State private var auth = AuthService.connected()
+
+    var body: some View { RootView(auth: auth) }
+}
+
 #if DEBUG
+private struct SampleCancellationView: View {
+    @State private var client = SampleCancellationClient()
+
+    var body: some View {
+        NavigationStack { DebugBookingsList(home: client, cancelClient: client) }
+    }
+}
+
 /// Made-up bookings and dogs for screenshots. Compiled into Debug builds only.
 struct SampleHomeClient: SalonHomeClient {
     func loadHome() async throws -> (bookings: [BookingRow], dogs: [DogRow]) {
