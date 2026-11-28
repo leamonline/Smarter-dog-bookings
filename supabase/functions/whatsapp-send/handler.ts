@@ -72,6 +72,7 @@
 
 import { bookingEntryInteractive } from "../_shared/bookingEntry.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { withStaffCollectionClaim } from "../_shared/staffCollectionClaim.ts";
 import { timingSafeEqualHeader } from "../_shared/webhook-auth.ts";
 import { buildAllowedOrigins, buildCorsHeaders } from "../_shared/cors.ts";
 import {
@@ -148,7 +149,8 @@ interface ManualMode {
 }
 
 interface TemplateMode {
-  mode: "template";
+  mode: "template" | "collection";
+  booking_id?: string;
   to: string;
   template_name: string;
   language?: string;
@@ -1047,6 +1049,7 @@ async function handleTemplateMode(
   supabase: SupabaseClient,
   body: TemplateMode,
   observed: string[],
+  markAccepted?: (providerId: string | null) => Promise<void>,
 ): Promise<Response> {
   if (!body.to || !body.template_name) {
     return json(req, { error: "to and template_name are required" }, 400);
@@ -1084,6 +1087,7 @@ async function handleTemplateMode(
   }
 
   const metaMessageId = metaRes.messages?.[0]?.id ?? null;
+  await markAccepted?.(metaMessageId);
 
   // Resolve (or create) the conversation row this outbound belongs to.
   // The inbox compose-new flow sends to phones we may not have a
@@ -1482,6 +1486,13 @@ export async function handleSendRequest(req: Request): Promise<Response> {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
+    if (parsed.mode === "template" && /^ready_for_collection_v[12]$/.test(parsed.template_name)) {
+      return json(req, { ok: false, outcome: "not_sent", error: "Open the Ready booking in Today to send a collection notice." }, 409);
+    }
+    if (parsed.mode === "collection" && (!auth.userId || parsed.override_opt_out || parsed.ai_initiated ||
+        parsed.template_name !== "ready_for_collection_v2" || parsed.conversation_id)) {
+      return json(req, { ok: false, outcome: "not_sent", error: "Invalid staff collection notice." }, 400);
+    }
     const aiMessagingPermission = await checkAiMessagingPermission(
       supabase,
       parsed,
@@ -1589,6 +1600,11 @@ export async function handleSendRequest(req: Request): Promise<Response> {
       return await handleDraftMode(req, supabase, parsed, auth.userId, observed);
     } else if (parsed.mode === "manual") {
       return await handleManualMode(req, supabase, parsed, auth.userId, observed);
+    } else if (parsed.mode === "collection") {
+      return await withStaffCollectionClaim(supabase, {
+        bookingId: parsed.booking_id, recipientId: parsed.human_id, phone: parsed.to, channel: "whatsapp",
+      }, (body, status) => json(req, body, status),
+      (markAccepted) => handleTemplateMode(req, supabase, parsed, observed, markAccepted));
     } else if (parsed.mode === "template") {
       return await handleTemplateMode(req, supabase, parsed, observed);
     } else if (parsed.mode === "confirm_buttons") {

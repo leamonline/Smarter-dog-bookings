@@ -10,8 +10,8 @@ struct StaffCollectionNoticeSheet: View {
 
     private let quickMinutes = ["10", "15", "20", "30"]
 
-    init(prompt: StaffCollectionPrompt, client: StaffDayClient?) {
-        _model = State(initialValue: StaffCollectionNoticeModel(prompt: prompt, client: client))
+    init(prompt: StaffCollectionPrompt, client: StaffDayClient?, attempts: StaffCollectionAttempts) {
+        _model = State(initialValue: StaffCollectionNoticeModel(prompt: prompt, client: client, attempts: attempts))
     }
 
     var body: some View {
@@ -232,9 +232,10 @@ struct StaffCollectionNoticeSheet: View {
     private func recipientRow(_ recipient: StaffCollectionRecipient) -> some View {
         let sendable = recipient.route.channel != nil
         let viaSms = recipient.route.channel == "sms"
-        let isSent = model.sentRecipientIDs.contains(recipient.id)
-        let isSending = model.sendingRecipientID == recipient.id
-        let disabled = !sendable || isSent || isSending || !model.minutesValid || model.sendingRecipientID != nil
+        let attempt = model.attempt(for: recipient.id)
+        let isSent = attempt == .accepted
+        let isSending = attempt == .sending
+        let disabled = !sendable || attempt != nil || !model.minutesValid || model.sendingRecipientID != nil
 
         return HStack(spacing: AppSpace.s1_5) {
             VStack(alignment: .leading, spacing: 2) {
@@ -258,6 +259,8 @@ struct StaffCollectionNoticeSheet: View {
                 Group {
                     if isSent {
                         Text("Sent")
+                    } else if attempt == .unknown {
+                        Text("Check Inbox")
                     } else if isSending {
                         ProgressView().tint(AppColor.onAction)
                     } else {
@@ -276,8 +279,8 @@ struct StaffCollectionNoticeSheet: View {
             .buttonStyle(.plain)
             .disabled(disabled)
             .accessibilityLabel(
-                isSent
-                    ? "Sent to \(recipient.displayName)"
+                attempt == .unknown ? "Send unconfirmed for \(recipient.displayName). Check the Inbox."
+                    : isSent ? "Sent to \(recipient.displayName)"
                     : (sendable ? "Send \(viaSms ? "SMS" : "WhatsApp") to \(recipient.displayName)" : "\(recipient.displayName) cannot be messaged")
             )
         }

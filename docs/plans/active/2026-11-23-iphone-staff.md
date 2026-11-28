@@ -403,6 +403,26 @@ are implemented on staff Today (`StaffDayActions.swift`, `StaffCollectionNotice.
 - **Sample mode:** `-sampleStaffToday` runs status moves and Undo in memory with
   zero network calls, and keeps collection messaging disabled with truthful copy.
 
+## Checkpoint
+
+The S2 review follow-up for [#1328](https://github.com/leamonline/Smarter-dog-bookings/pull/1328)
+checks sibling readiness after the committed write, consumes the queued prompt
+once and refreshes contact routing before a send. The native screen locks
+accepted and ambiguous sends across sheets while the Today model is alive.
+
+The [durable collection notice plan](2026-11-28-collection-notice-claims.md)
+covers the shared PostgreSQL claim for web and iPhone, the provider receipt
+written before Inbox recording, and evidence-based operator reconciliation.
+The guarded clients and migration must pass the staged release gates before
+collection messaging is ready for release. The Debug staging staff route
+keeps provider calls disabled.
+
+S3 remains behind verified S2 and the staff booking revision dependency
+tracked by [#1194](https://github.com/leamonline/Smarter-dog-bookings/issues/1194).
+Checkout and Undo must compare the observed and saved revisions respectively,
+and prove persisted payment and grouped booking parity. Staging staff
+read-back, physical VoiceOver and internal TestFlight evidence are pending.
+
 ## Open questions
 
 1. **Is a native staff app worth it, given staff already use the website on

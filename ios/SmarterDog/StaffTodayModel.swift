@@ -14,7 +14,7 @@ protocol StaffDayClient: Sendable {
     /// Load owner and trusted contact cards for the collection notice sheet.
     func loadCollectionRecipients(ownerId: String) async throws -> [StaffCollectionRecipient]
     /// Send one ready-for-collection template message (WhatsApp or SMS).
-    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async throws
+    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async -> StaffCollectionSendOutcome
     /// Stream of server-side `bookings` change notifications (Realtime).
     func observeBookings() -> AsyncStream<Void>
 }
@@ -43,8 +43,8 @@ extension StaffDayClient {
         throw StaffDayClientError.unsupported
     }
 
-    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async throws {
-        throw StaffDayClientError.unsupported
+    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async -> StaffCollectionSendOutcome {
+        .notSent("Collection messaging isn't available here.")
     }
 
     func observeBookings() -> AsyncStream<Void> {
@@ -128,11 +128,12 @@ final class StaffTodayModel {
     /// Most recent outcome banner (success with optional Undo, info, or error with Retry).
     private(set) var banner: StaffBanner?
     /// Non-nil when Mark ready (or a released sibling hold) asks staff whether to message.
-    var collectionPrompt: StaffCollectionPrompt?
+    private(set) var collectionPrompt: StaffCollectionPrompt?
     /// Latest feedback event for native haptics and VoiceOver announcements.
     private(set) var lastFeedback: StaffFeedbackEvent?
 
     let client: StaffDayClient?
+    let collectionAttempts = StaffCollectionAttempts()
     private let clock: @Sendable () -> Date
     /// The last successful read, so timing lines tick and persisted rows patch in place.
     @ObservationIgnored private var lastRead: (date: String, read: StaffDayRead)?
@@ -210,6 +211,11 @@ final class StaffTodayModel {
     func showNextDay() async { await show(StaffDaySelector.shift(date, days: 1)) }
     func showToday() async { await show(today) }
 
+    func takeCollectionPrompt() -> StaffCollectionPrompt? {
+        defer { collectionPrompt = nil }
+        return collectionPrompt
+    }
+
     func dismissBanner() {
         banner = nil
     }
@@ -249,10 +255,9 @@ final class StaffTodayModel {
                 lastFeedback = StaffFeedbackEvent(kind: .success, announcement: plan.successMessage)
 
                 let persistedStatus = persisted.status ?? StaffDayStack.booked
-                if plan.opensCollectionPrompt {
-                    handleCollectionPromptAfterReady(booking: before)
-                } else if StaffCollectionNotice.releasesHeldNotice(beforeStatus: before.status, afterStatus: persistedStatus) {
-                    reopenHeldCollectionPromptIfReady(releasedBy: before)
+                let releasesHold = StaffCollectionNotice.releasesHeldNotice(beforeStatus: before.status, afterStatus: persistedStatus)
+                if plan.opensCollectionPrompt || releasesHold {
+                    await checkCollectionReadiness(for: before, releasedHold: releasesHold)
                 }
                 return true
 
@@ -317,6 +322,7 @@ final class StaffTodayModel {
             return
         }
         date = newDate
+        collectionPrompt = nil
         banner = nil
         await load()
     }
@@ -344,57 +350,50 @@ final class StaffTodayModel {
         }
     }
 
-    private func handleCollectionPromptAfterReady(booking: StaffBooking) {
-        let dayBookings = currentDayBookings()
+    private func checkCollectionReadiness(for booking: StaffBooking, releasedHold: Bool) async {
+        guard let client, date == booking.date else { return }
+        let moveBanner = banner
+        let read: StaffDayRead
+        do {
+            read = try await client.loadDay(booking.date)
+        } catch {
+            guard date == booking.date, banner?.id == moveBanner?.id else { return }
+            let message = "Booking updated. We couldn't check whether the dogs are ready for collection."
+            banner = StaffBanner(message: message, tone: .info, undo: moveBanner?.undo)
+            lastFeedback = StaffFeedbackEvent(kind: .warning, announcement: message)
+            return
+        }
+        guard date == booking.date else { return }
+
+        let bookings = StaffDaySelector.bookings(from: read).filter { $0.date == booking.date }
+        let readyBooking: StaffBooking?
+        if releasedHold {
+            guard let ownerId = booking.ownerId, !ownerId.isEmpty else { return }
+            readyBooking = bookings.first {
+                $0.id != booking.id && $0.ownerId == ownerId && $0.status == StaffDayStack.ready
+            }
+        } else {
+            readyBooking = bookings.first { $0.id == booking.id && $0.status == StaffDayStack.ready }
+        }
+        guard let readyBooking else { return }
         let readiness = StaffCollectionNotice.readiness(
-            bookings: dayBookings,
-            ownerId: booking.ownerId,
-            currentBookingId: booking.id
+            bookings: bookings,
+            ownerId: readyBooking.ownerId,
+            currentBookingId: readyBooking.id
         )
+        let names = readiness.readyDogNames.isEmpty ? [StaffDaySelector.dogName(readyBooking)] : readiness.readyDogNames
         if !readiness.waitingDogNames.isEmpty {
-            let ready = readiness.readyDogNames.isEmpty ? [StaffDaySelector.dogName(booking)] : readiness.readyDogNames
-            let held = StaffCollectionNotice.heldMessage(readyDogNames: ready, waitingDogNames: readiness.waitingDogNames)
-            banner = StaffBanner(message: held, tone: .info, undo: banner?.undo)
-            lastFeedback = StaffFeedbackEvent(kind: .warning, announcement: held)
+            guard !releasedHold, banner?.id == moveBanner?.id else { return }
+            let message = StaffCollectionNotice.heldMessage(readyDogNames: names, waitingDogNames: readiness.waitingDogNames)
+            banner = StaffBanner(message: message, tone: .info, undo: moveBanner?.undo)
+            lastFeedback = StaffFeedbackEvent(kind: .warning, announcement: message)
             return
         }
-        let names = readiness.readyDogNames.isEmpty ? [StaffDaySelector.dogName(booking)] : readiness.readyDogNames
         collectionPrompt = StaffCollectionPrompt(
-            bookingId: booking.id,
-            date: booking.date,
-            ownerId: booking.ownerId,
+            bookingId: readyBooking.id,
+            date: readyBooking.date,
+            ownerId: readyBooking.ownerId,
             readyDogNames: names
         )
-    }
-
-    /// Mirrors `reopenHeldNotice` in `useBookings.ts`: if marking a sibling No-show
-    /// released the last blocker on another Ready dog of the same owner, open the
-    /// collection notice for those ready dogs so the notice is never stranded.
-    private func reopenHeldCollectionPromptIfReady(releasedBy booking: StaffBooking) {
-        guard let ownerId = booking.ownerId, !ownerId.isEmpty else { return }
-        let dayBookings = currentDayBookings()
-        guard let readySibling = dayBookings.first(where: {
-            $0.id != booking.id && $0.ownerId == ownerId && $0.status == StaffDayStack.ready
-        }) else {
-            return
-        }
-        let readiness = StaffCollectionNotice.readiness(
-            bookings: dayBookings,
-            ownerId: ownerId,
-            currentBookingId: readySibling.id
-        )
-        guard readiness.waitingDogNames.isEmpty else { return }
-        let names = readiness.readyDogNames.isEmpty ? [StaffDaySelector.dogName(readySibling)] : readiness.readyDogNames
-        collectionPrompt = StaffCollectionPrompt(
-            bookingId: readySibling.id,
-            date: readySibling.date,
-            ownerId: ownerId,
-            readyDogNames: names
-        )
-    }
-
-    private func currentDayBookings() -> [StaffBooking] {
-        guard let lastRead, lastRead.date == date else { return [] }
-        return StaffDaySelector.bookings(from: lastRead.read).filter { $0.date == date }
     }
 }

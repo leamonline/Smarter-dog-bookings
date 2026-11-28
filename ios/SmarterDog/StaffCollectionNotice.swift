@@ -92,8 +92,70 @@ struct StaffCollectionPrompt: Identifiable, Equatable, Sendable {
 
 /// The exact payload sent to `whatsapp-send` or `sms-send` in template mode.
 enum StaffCollectionSendRequest: Equatable, Sendable {
-    case whatsapp(to: String, templateName: String, language: String, params: [String], humanId: String)
-    case sms(to: String, text: String, templateName: String, humanId: String)
+    case whatsapp(to: String, templateName: String, language: String, params: [String], humanId: String, bookingId: String)
+    case sms(to: String, text: String, templateName: String, humanId: String, bookingId: String)
+}
+
+/// The delivery verdict mirrored onto notification_log by the database.
+struct StaffCollectionDeliveryRow: Decodable {
+    let booking_id: String?
+    let human_id: String
+    let trigger_type: String
+    let channel: String
+    let status: String
+    let error_message: String?
+    let provider_message_id: String?
+
+    static let select = "booking_id,human_id,trigger_type,channel,status,error_message,provider_message_id"
+}
+
+enum StaffCollectionSendOutcome: Equatable {
+    case accepted(recorded: Bool, replayed: Bool = false)
+    case notSent(String)
+    case unknown
+}
+
+struct StaffCollectionFunctionReply: Decodable {
+    let ok: Bool?
+    let recorded: Bool?
+    let replayed: Bool?
+    let outcome: String?
+    let error: String?
+    let detail: String?
+
+    func result(status: Int) -> StaffCollectionSendOutcome {
+        if (200..<300).contains(status), ok == true {
+            return .accepted(recorded: recorded == true, replayed: replayed == true)
+        }
+        if outcome == "not_sent" || (status == 409 && outcome == nil && error != nil) {
+            return .notSent(detail ?? error ?? "The message was not sent.")
+        }
+        return .unknown
+    }
+}
+
+/// Keeps accepted and ambiguous attempts locked across sheets on this Today
+/// screen. A server-side claim is required to enforce this across devices.
+@MainActor
+@Observable
+final class StaffCollectionAttempts {
+    enum State: Equatable { case sending, accepted, unknown }
+
+    private struct Key: Hashable {
+        let date: String
+        let owner: String
+        let recipient: String
+    }
+
+    private var attempts: [Key: State] = [:]
+
+    func state(for prompt: StaffCollectionPrompt, recipient: String) -> State? {
+        attempts[Key(date: prompt.date, owner: prompt.ownerId ?? prompt.bookingId, recipient: recipient)]
+    }
+
+    func set(_ state: State?, for prompt: StaffCollectionPrompt, recipient: String) {
+        attempts[Key(date: prompt.date, owner: prompt.ownerId ?? prompt.bookingId, recipient: recipient)] = state
+    }
 }
 
 enum StaffCollectionNotice {
@@ -181,6 +243,40 @@ enum StaffCollectionNotice {
     }
 
     /// Mirrors `collectionNoticeRoute` in `src/engine/collectionNotice.ts`.
+    /// Mirrors the website's latest live failure and three distinct undeliverable sends.
+    /// Call with notification_log rows in reverse chronological order.
+    static func unreachableRecipients(in rows: [StaffCollectionDeliveryRow]) -> Set<String> {
+        struct Notification: Hashable {
+            let booking: String
+            let trigger: String
+            let recipient: String
+        }
+
+        var seenNotifications: Set<Notification> = []
+        var liveFailures: Set<String> = []
+        for row in rows {
+            guard let booking = row.booking_id else { continue }
+            let key = Notification(booking: booking, trigger: row.trigger_type, recipient: row.human_id)
+            if seenNotifications.insert(key).inserted, row.status == "failed" {
+                liveFailures.insert(row.human_id)
+            }
+        }
+
+        return Set(liveFailures.filter { recipient in
+            var messageIDs: Set<String> = []
+            var distinct: [StaffCollectionDeliveryRow] = []
+            for row in rows where row.human_id == recipient && row.channel == "whatsapp" {
+                if let messageID = row.provider_message_id, !messageID.isEmpty,
+                   !messageIDs.insert(messageID).inserted { continue }
+                distinct.append(row)
+                if distinct.count == 3 { break }
+            }
+            return distinct.count == 3 && distinct.allSatisfy {
+                $0.status == "failed" && wholeMatch("\\b131026\\b", $0.error_message ?? "")
+            }
+        })
+    }
+
     static func route(
         for contact: StaffCollectionContact?,
         whatsappUnreachable: Bool = false
@@ -345,10 +441,16 @@ final class StaffCollectionNoticeModel {
     private(set) var sendFeedback: (message: String, isError: Bool)?
 
     private let client: StaffDayClient?
+    private let attempts: StaffCollectionAttempts
 
-    init(prompt: StaffCollectionPrompt, client: StaffDayClient?) {
+    init(prompt: StaffCollectionPrompt, client: StaffDayClient?, attempts: StaffCollectionAttempts = StaffCollectionAttempts()) {
         self.prompt = prompt
         self.client = client
+        self.attempts = attempts
+    }
+
+    func attempt(for recipient: String) -> StaffCollectionAttempts.State? {
+        attempts.state(for: prompt, recipient: recipient)
     }
 
     var dogNamesDisplay: String {
@@ -398,7 +500,7 @@ final class StaffCollectionNoticeModel {
     func loadContacts() async {
         sendFeedback = nil
         guard let client, client.supportsMessaging else {
-            contactsState = .unavailable("Collection messaging isn't available with sample data. Contact the customer directly.")
+            contactsState = .unavailable("Collection messaging is unavailable in this view.")
             return
         }
         guard let ownerId = prompt.ownerId, !ownerId.isEmpty else {
@@ -415,13 +517,37 @@ final class StaffCollectionNoticeModel {
     }
 
     func send(to recipient: StaffCollectionRecipient) async {
-        guard sendingRecipientID == nil, !sentRecipientIDs.contains(recipient.id) else { return }
+        guard sendingRecipientID == nil, attempt(for: recipient.id) == nil else { return }
         guard minutesValid else {
             sendFeedback = ("Let us know how many minutes until collection", true)
             return
         }
-        // Re-check route from the recipient record at send time so an opted-out
-        // contact can never be messaged.
+        guard let client, client.supportsMessaging, let ownerId = prompt.ownerId else {
+            sendFeedback = ("Collection messaging isn't available right now.", true)
+            return
+        }
+
+        sendingRecipientID = recipient.id
+        attempts.set(.sending, for: prompt, recipient: recipient.id)
+        sendFeedback = nil
+        var finalState: StaffCollectionAttempts.State?
+        defer {
+            attempts.set(finalState, for: prompt, recipient: recipient.id)
+            sendingRecipientID = nil
+        }
+
+        do {
+            let fresh = try await client.loadCollectionRecipients(ownerId: ownerId)
+            contactsState = .loaded(fresh)
+            guard fresh.first(where: { $0.id == recipient.id }) == recipient else {
+                sendFeedback = ("The contact details changed. Review them before sending.", true)
+                return
+            }
+        } catch {
+            sendFeedback = ("We couldn't check the contact details. No message was sent.", true)
+            return
+        }
+
         let route = recipient.route
         guard route.channel != nil else {
             if case .blocked(let reason) = route {
@@ -434,11 +560,6 @@ final class StaffCollectionNoticeModel {
             sendFeedback = ("No valid mobile number for this contact.", true)
             return
         }
-        guard let client, client.supportsMessaging else {
-            sendFeedback = ("Collection messaging isn't available right now.", true)
-            return
-        }
-
         let trimmedMinutes = minutes.trimmingCharacters(in: .whitespacesAndNewlines)
         let request: StaffCollectionSendRequest
         let viaSms: Bool
@@ -450,7 +571,8 @@ final class StaffCollectionNoticeModel {
                 templateName: StaffCollectionNotice.whatsappTemplateName,
                 language: StaffCollectionNotice.whatsappTemplateLanguage,
                 params: [dogNamesDisplay, trimmedMinutes],
-                humanId: recipient.id
+                humanId: recipient.id,
+                bookingId: prompt.bookingId
             )
         case .sms:
             viaSms = true
@@ -458,23 +580,26 @@ final class StaffCollectionNoticeModel {
                 to: e164,
                 text: StaffCollectionNotice.smsText(dogNames: prompt.readyDogNames, minutes: trimmedMinutes),
                 templateName: StaffCollectionNotice.smsTemplateName,
-                humanId: recipient.id
+                humanId: recipient.id,
+                bookingId: prompt.bookingId
             )
         case .blocked:
             return
         }
 
-        sendingRecipientID = recipient.id
-        sendFeedback = nil
-        defer { sendingRecipientID = nil }
-
-        do {
-            try await client.sendCollectionNotice(request)
+        switch await client.sendCollectionNotice(request) {
+        case .accepted(let recorded, let replayed):
+            finalState = .accepted
             sentRecipientIDs.insert(recipient.id)
-            sendFeedback = ("Collection notice sent to \(recipient.displayName)\(viaSms ? " by SMS" : "").", false)
-        } catch {
-            let fallback = viaSms ? "SMS send failed." : "WhatsApp send failed."
-            sendFeedback = (fallback, true)
+            let message = recorded
+                ? "Collection notice sent to \(recipient.displayName)\(viaSms && !replayed ? " by SMS" : "")."
+                : "The provider accepted the collection notice. It may be missing from the Inbox."
+            sendFeedback = (message, false)
+        case .notSent(let message):
+            sendFeedback = (message, true)
+        case .unknown:
+            finalState = .unknown
+            sendFeedback = ("We couldn't confirm whether the notice was sent. Check the Inbox and reconcile this attempt before sending another notice.", true)
         }
     }
 }

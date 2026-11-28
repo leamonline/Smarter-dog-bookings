@@ -65,12 +65,8 @@ struct StaffTodayView: View {
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: model.banner?.id)
-        .sheet(item: $presentedPrompt, onDismiss: {
-            if model.collectionPrompt?.id == presentedPrompt?.id {
-                model.collectionPrompt = nil
-            }
-        }) { prompt in
-            StaffCollectionNoticeSheet(prompt: prompt, client: model.client)
+        .sheet(item: $presentedPrompt, onDismiss: presentQueuedCollectionPromptIfReady) { prompt in
+            StaffCollectionNoticeSheet(prompt: prompt, client: model.client, attempts: model.collectionAttempts)
         }
         .task { await model.load() }
         // ST-10: a colleague's change on another till appears without manual refresh.
@@ -88,14 +84,8 @@ struct StaffTodayView: View {
         }
         // Present the collection prompt immediately when no detail sheet is up;
         // otherwise `onDismiss` of the detail sheet presents it without conflict.
-        .onChange(of: model.collectionPrompt) { _, next in
-            guard let next else {
-                presentedPrompt = nil
-                return
-            }
-            if selectedID == nil {
-                presentedPrompt = next
-            }
+        .onChange(of: model.collectionPrompt) { _, _ in
+            presentQueuedCollectionPromptIfReady()
         }
         // Announce outcomes to VoiceOver and trigger subtle native haptics.
         .onChange(of: model.lastFeedback) { _, event in
@@ -113,9 +103,8 @@ struct StaffTodayView: View {
     }
 
     private func presentQueuedCollectionPromptIfReady() {
-        if selectedID == nil, let queued = model.collectionPrompt, presentedPrompt?.id != queued.id {
-            presentedPrompt = queued
-        }
+        guard selectedID == nil, presentedPrompt == nil else { return }
+        presentedPrompt = model.takeCollectionPrompt()
     }
 
     // MARK: - Header

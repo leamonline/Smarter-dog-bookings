@@ -41,6 +41,8 @@ struct SmarterDogApp: App {
                     auth: AuthService(previewPhase: .staff(account)),
                     today: { StaffTodayView(client: SampleStaffDayClient(), clock: SampleStaffDayClient.clock) }
                 )
+            } else if CommandLine.arguments.contains("-liveStaffToday") {
+                LiveStaffTodayDebugView()
             } else if CommandLine.arguments.contains("-liveBooking") {
                 // Debug only: the real booking flow against the STAGING project, signed in as the
                 // throwaway test customer. It refuses to run against any other project.
