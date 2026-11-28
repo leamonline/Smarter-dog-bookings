@@ -1,12 +1,14 @@
 import Foundation
 import Supabase
 
-/// Reads for the staff Today screen: one London date's bookings with their reminder
-/// log, the dogs and owners on them, and that date's `day_settings`. The same tables
-/// the staff dashboard reads. Row Level Security returns them only to staff
-/// (`is_staff()`). Reads only: nothing here inserts or updates a booking.
+/// Reads, field-scoped status writes, collection-notice sends and Realtime updates
+/// for the staff Today screen. Uses the exact same tables, RLS (`is_staff()`) and
+/// Edge Functions (`whatsapp-send`, `sms-send`) as the staff website.
 final class SupabaseStaffDayClient: StaffDayClient, Sendable {
     private let supabase: SupabaseClient
+
+    let supportsWrites = true
+    let supportsMessaging = true
 
     init(supabase: SupabaseClient) {
         self.supabase = supabase
@@ -49,4 +51,208 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
             .value
         return StaffDayRead(bookings: bookings, dogs: dogs, humans: humans, setting: try await settingRows.first)
     }
+
+    /// Mirrors `useBookings.updateBooking`: sends ONLY the columns present in
+    /// `request.patch` and enforces server-side guards (`reminder_confirmed_source = 'staff'`,
+    /// `status = 'Reconfirmed'` with fallback to confirmation-only clear).
+    func updateBooking(_ request: StaffBookingWriteRequest) async throws -> StaffBookingWriteOutcome {
+        let guardCond = request.guardCondition
+        if let requiredStatus = guardCond.requireStatus {
+            let first = try await executePatch(
+                request.patch,
+                bookingId: request.bookingId,
+                requireStaffSource: guardCond.requireStaffConfirmationSource,
+                requireStatus: requiredStatus
+            )
+            if let row = first {
+                return .updated(row)
+            }
+            if let fallbackPatch = guardCond.fallbackPatchOnZeroRows {
+                let second = try await executePatch(
+                    fallbackPatch,
+                    bookingId: request.bookingId,
+                    requireStaffSource: guardCond.requireStaffConfirmationSource,
+                    requireStatus: nil
+                )
+                return second.map(StaffBookingWriteOutcome.updated) ?? .notMatched
+            }
+            return .notMatched
+        }
+
+        let updated = try await executePatch(
+            request.patch,
+            bookingId: request.bookingId,
+            requireStaffSource: guardCond.requireStaffConfirmationSource,
+            requireStatus: nil
+        )
+        return updated.map(StaffBookingWriteOutcome.updated) ?? .notMatched
+    }
+
+    private func executePatch(
+        _ patch: StaffBookingPatch,
+        bookingId: String,
+        requireStaffSource: Bool,
+        requireStatus: String?
+    ) async throws -> StaffBookingRow? {
+        var query = try supabase
+            .from("bookings")
+            .update(patch)
+            .eq("id", value: bookingId)
+        if requireStaffSource {
+            query = query.eq("reminder_confirmed_source", value: "staff")
+        }
+        if let requireStatus {
+            query = query.eq("status", value: requireStatus)
+        }
+        return try await query
+            .select(StaffBookingRow.select)
+            .maybeSingle()
+            .execute()
+            .value
+    }
+
+    /// Mirrors `CollectionNoticeModal.jsx` contact loading: owner card + linked
+    /// trusted contact cards, each routed through `StaffCollectionNotice.route`.
+    func loadCollectionRecipients(ownerId: String) async throws -> [StaffCollectionRecipient] {
+        async let ownerQuery: StaffCollectionContact? = supabase
+            .from("humans")
+            .select(StaffCollectionContact.select)
+            .eq("id", value: ownerId)
+            .maybeSingle()
+            .execute()
+            .value
+        async let linksQuery: [StaffTrustedContactLink] = supabase
+            .from("human_trusted_contacts")
+            .select(StaffTrustedContactLink.select)
+            .eq("human_id", value: ownerId)
+            .execute()
+            .value
+
+        let owner = try await ownerQuery
+        let links = try await linksQuery
+        let trustedIDs = Array(Set(links.compactMap(\.trusted_id))).sorted()
+        let relationshipByID = Dictionary(
+            links.compactMap { link -> (String, String)? in
+                guard let id = link.trusted_id, !id.isEmpty else { return nil }
+                let rel = (link.relationship ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                return (id, rel.isEmpty ? "Trusted contact" : rel)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        let trustedContacts: [StaffCollectionContact] = trustedIDs.isEmpty ? [] : try await supabase
+            .from("humans")
+            .select(StaffCollectionContact.select)
+            .in("id", values: trustedIDs)
+            .execute()
+            .value
+
+        var recipients: [StaffCollectionRecipient] = []
+        if let owner {
+            recipients.append(StaffCollectionRecipient(
+                id: owner.id,
+                displayName: owner.displayName,
+                relationship: "Owner",
+                isOwner: true,
+                contact: owner,
+                route: StaffCollectionNotice.route(for: owner)
+            ))
+        }
+        for contact in trustedContacts {
+            recipients.append(StaffCollectionRecipient(
+                id: contact.id,
+                displayName: contact.displayName,
+                relationship: relationshipByID[contact.id] ?? "Trusted contact",
+                isOwner: false,
+                contact: contact,
+                route: StaffCollectionNotice.route(for: contact)
+            ))
+        }
+        return recipients
+    }
+
+    /// Calls `whatsapp-send` or `sms-send` in template mode using the signed-in staff JWT.
+    func sendCollectionNotice(_ request: StaffCollectionSendRequest) async throws {
+        let reply: FunctionReply
+        switch request {
+        case .whatsapp(let to, let templateName, let language, let params, let humanId):
+            let body = WhatsAppTemplateBody(
+                mode: "template",
+                to: to,
+                template_name: templateName,
+                language: language,
+                params: params,
+                human_id: humanId
+            )
+            reply = try await supabase.functions.invoke(
+                "whatsapp-send",
+                options: FunctionInvokeOptions(body: body)
+            )
+        case .sms(let to, let text, let templateName, let humanId):
+            let body = SmsTemplateBody(
+                mode: "template",
+                to: to,
+                text: text,
+                template_name: templateName,
+                human_id: humanId
+            )
+            reply = try await supabase.functions.invoke(
+                "sms-send",
+                options: FunctionInvokeOptions(body: body)
+            )
+        }
+        if let error = reply.error, !error.isEmpty {
+            throw StaffDayClientError.server(reply.detail ?? error)
+        }
+    }
+
+    /// Subscribes to `public.bookings` changes via Supabase Realtime so a colleague's
+    /// move on another till refreshes Today automatically (ST-10).
+    func observeBookings() -> AsyncStream<Void> {
+        let supabase = supabase
+        return AsyncStream { continuation in
+            let channel = supabase.realtimeV2.channel("ios-staff-today-bookings-\(UUID().uuidString)")
+            let changes = channel.postgresChange(AnyAction.self, schema: "public", table: "bookings")
+            let task = Task {
+                do {
+                    try await channel.subscribeWithError()
+                } catch {
+                    continuation.finish()
+                    return
+                }
+                for await _ in changes {
+                    if Task.isCancelled { break }
+                    continuation.yield(())
+                }
+                await supabase.realtimeV2.removeChannel(channel)
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+                Task { await supabase.realtimeV2.removeChannel(channel) }
+            }
+        }
+    }
+}
+
+private struct WhatsAppTemplateBody: Encodable {
+    let mode: String
+    let to: String
+    let template_name: String
+    let language: String
+    let params: [String]
+    let human_id: String
+}
+
+private struct SmsTemplateBody: Encodable {
+    let mode: String
+    let to: String
+    let text: String
+    let template_name: String
+    let human_id: String
+}
+
+private struct FunctionReply: Decodable {
+    let error: String?
+    let detail: String?
 }

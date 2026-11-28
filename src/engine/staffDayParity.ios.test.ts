@@ -17,10 +17,14 @@ import { describe, expect, it } from "vitest";
 import { resolveDayStatus } from "../components/ui/BookingStatusBadge";
 import { BOOKING_STATUS } from "../constants/salon";
 import { STATUS_TONES, UNKNOWN_STATUS_TONE } from "../constants/statusPalette";
+import { WHATSAPP_TEMPLATES } from "../constants/whatsappTemplates";
+import { renderSmsCollectionNotice } from "../lib/reminders/templates";
 import type { Booking } from "../types/index";
+import { collectionNoticeReadiness, collectionNoticeRoute, releasesHeldNotice } from "./collectionNotice";
 import { buildDayStack, ownerSurname, READY_OVERDUE_MINUTES, stackConfirmation } from "./dayStack";
 import { applyReminderFailures } from "./reminderFailure";
 import { orderSafetyFacts } from "./safetyOrder";
+import { reverseStatusFor, tokenActions, zoneForStatus, type TokenActionId } from "./salonBoard";
 import { formatDuration } from "./today";
 
 const root = join(__dirname, "..", "..");
@@ -41,6 +45,10 @@ interface FixtureBooking {
   breed?: string;
   /** A live failed reminder, as useLiveFailuresByBooking reports it (folded by applyReminderFailures). */
   reminderFailed?: boolean;
+  /** Who recorded the confirmation ("staff" | "customer" | null). */
+  reminderConfirmedBy?: string | null;
+  /** Non-null when this booking belongs to a multi-dog grouped visit. */
+  groupId?: string | null;
 }
 
 interface Scenario {
@@ -197,9 +205,150 @@ function toBooking(b: FixtureBooking, date: string): Booking {
     readyAt: b.readyAt ?? null,
     completedAt: b.completedAt ?? null,
     reminderState: b.reminderState ?? "none",
+    reminderConfirmedBy: b.reminderConfirmedBy ?? null,
     confirmationChannel: b.confirmationChannel ?? null,
+    _groupId: b.groupId ?? null,
     _bookingDate: date,
   } as unknown as Booking;
+}
+
+const S2_ACTION_IDS = new Set<TokenActionId>([
+  "checkIn",
+  "reconfirm",
+  "ready",
+  "confirm",
+  "unconfirm",
+  "didntShow",
+  "undoNoShow",
+]);
+
+interface ActionFixtureCase {
+  id: string;
+  booking: FixtureBooking;
+}
+
+const ACTION_CASES: ActionFixtureCase[] = [
+  { id: "booked-plain", booking: { id: "a1", slot: "09:00", status: B.BOOKED, service: "full-groom" } },
+  { id: "booked-unconfirmed", booking: { id: "a2", slot: "09:00", status: B.BOOKED, service: "full-groom", reminderState: "sent", confirmationChannel: "whatsapp" } },
+  { id: "booked-reminder-failed", booking: { id: "a3", slot: "09:00", status: B.BOOKED, service: "full-groom", reminderFailed: true } },
+  { id: "booked-staff-confirmed", booking: { id: "a4", slot: "09:00", status: B.BOOKED, service: "full-groom", reminderState: "confirmed", reminderConfirmedBy: "staff" } },
+  { id: "reconfirmed-staff", booking: { id: "a5", slot: "09:00", status: B.RECONFIRMED, service: "full-groom", reminderState: "confirmed", reminderConfirmedBy: "staff" } },
+  { id: "reconfirmed-customer", booking: { id: "a6", slot: "09:00", status: B.RECONFIRMED, service: "full-groom", reminderState: "confirmed", reminderConfirmedBy: "customer" } },
+  { id: "arrived", booking: { id: "a7", slot: "09:00", status: B.ARRIVED, service: "full-groom" } },
+  { id: "ready", booking: { id: "a8", slot: "09:00", status: B.READY_FOR_COLLECTION, service: "full-groom" } },
+  { id: "no-show-single", booking: { id: "a9", slot: "09:00", status: B.NO_SHOW, service: "full-groom" } },
+  { id: "no-show-grouped", booking: { id: "a10", slot: "09:00", status: B.NO_SHOW, service: "full-groom", groupId: "grp-1" } },
+  { id: "legacy-no-show-single", booking: { id: "a11", slot: "09:00", status: B.CANCELLED, cancelReason: "No-show", service: "full-groom" } },
+  { id: "legacy-no-show-grouped", booking: { id: "a12", slot: "09:00", status: B.CANCELLED, cancelReason: "No-show", service: "full-groom", groupId: "grp-2" } },
+];
+
+function buildActionFixtures() {
+  const now = new Date(at("10:00"));
+  return ACTION_CASES.map((item) => {
+    const b = toBooking(item.booking, GMT_DAY);
+    const failedIds = new Set(item.booking.reminderFailed ? [item.booking.id] : []);
+    const [row] = buildDayStack({ bookings: [b], dateStr: GMT_DAY, now });
+    const [entry] = applyReminderFailures([row.entry], failedIds);
+    const zone = entry.stage === "noShow" ? null : zoneForStatus(b.status);
+    const actions = tokenActions({ entry, booking: b, zone })
+      .filter((a) => S2_ACTION_IDS.has(a.id))
+      .map((a) => ({ id: a.id, label: a.label, kind: a.kind }));
+    return { id: item.id, booking: item.booking, actions };
+  });
+}
+
+function buildReverseFixtures() {
+  const actions: TokenActionId[] = ["checkIn", "reconfirm", "ready", "confirm", "unconfirm", "didntShow", "undoNoShow"];
+  const statuses = [B.BOOKED, B.RECONFIRMED, B.ARRIVED, B.READY_FOR_COLLECTION, B.COMPLETED, B.NO_SHOW, B.CANCELLED];
+  return actions.flatMap((action) =>
+    statuses.map((previousStatus) => ({
+      action,
+      previousStatus,
+      expected: reverseStatusFor(action, previousStatus),
+    })),
+  );
+}
+
+function buildCollectionFixtures() {
+  const readyTemplate = WHATSAPP_TEMPLATES.find((t) => t.name === "ready_for_collection_v2")!;
+  const routeCases = [
+    { id: "wa-ok", contact: { phone: "07700 900123", whatsapp: true }, whatsappUnreachable: false },
+    { id: "wa-unreachable", contact: { phone: "07700 900123", whatsapp: true }, whatsappUnreachable: true },
+    { id: "wa-unreachable-sms-stop", contact: { phone: "07700 900123", whatsapp: true, sms_opted_out: true }, whatsappUnreachable: true },
+    { id: "wa-opted-out", contact: { phone: "07700 900123", whatsapp: true, whatsapp_opted_out: true }, whatsappUnreachable: false },
+    { id: "both-opted-out", contact: { phone: "07700 900123", whatsapp: true, whatsapp_opted_out: true, sms_opted_out: true }, whatsappUnreachable: false },
+    { id: "sms-preferred", contact: { phone: "+447700900123", whatsapp: false }, whatsappUnreachable: false },
+    { id: "sms-preferred-opted-out", contact: { phone: "07700 900123", whatsapp: false, sms_opted_out: true }, whatsappUnreachable: false },
+    { id: "no-phone", contact: { phone: null, whatsapp: true }, whatsappUnreachable: false },
+    { id: "landline", contact: { phone: "01632 960123", whatsapp: false }, whatsappUnreachable: false },
+  ].map((c) => {
+    const r = collectionNoticeRoute(c.contact, { whatsappUnreachable: c.whatsappUnreachable });
+    return {
+      ...c,
+      channel: r.channel,
+      because: r.channel === "sms" ? r.because : null,
+      reason: r.channel === null ? r.reason : null,
+    };
+  });
+
+  const readinessCases = [
+    {
+      id: "single-ready",
+      currentBookingId: "1",
+      rows: [{ id: "1", status: B.READY_FOR_COLLECTION, dogName: "Bella" }],
+    },
+    {
+      id: "sibling-still-arrived",
+      currentBookingId: "1",
+      rows: [
+        { id: "1", status: B.READY_FOR_COLLECTION, dogName: "Bella" },
+        { id: "2", status: B.ARRIVED, dogName: "Max" },
+      ],
+    },
+    {
+      id: "two-ready-one-cancelled-one-done",
+      currentBookingId: "2",
+      rows: [
+        { id: "1", status: B.READY_FOR_COLLECTION, dogName: "Bella" },
+        { id: "2", status: B.ARRIVED, dogName: "Max" },
+        { id: "3", status: B.COMPLETED, dogName: "Biscuit" },
+        { id: "4", status: B.NO_SHOW, dogName: "Rolo" },
+      ],
+    },
+  ].map((c) => {
+    const res = collectionNoticeReadiness(
+      c.rows.map((r) => ({ id: r.id, status: r.status, dog_name_snapshot: r.dogName })),
+      c.currentBookingId,
+    );
+    return { ...c, readyDogNames: res.readyDogNames, waitingDogNames: res.waitingDogNames };
+  });
+
+  const releaseCases = [
+    { before: B.BOOKED, after: B.NO_SHOW },
+    { before: B.ARRIVED, after: B.CANCELLED },
+    { before: B.ARRIVED, after: B.READY_FOR_COLLECTION },
+    { before: B.BOOKED, after: B.ARRIVED },
+    { before: B.READY_FOR_COLLECTION, after: B.COMPLETED },
+  ].map((c) => ({
+    ...c,
+    releases: releasesHeldNotice({ status: c.before, ownerId: "h1", date: GMT_DAY }, { status: c.after, ownerId: "h1", date: GMT_DAY }),
+  }));
+
+  const textCases = [
+    { dogNames: ["bella"], minutes: "15" },
+    { dogNames: ["bella", "max"], minutes: "20" },
+    { dogNames: ["bella", "max", "daisy"], minutes: "" },
+  ].map((c) => {
+    const titled = c.dogNames.map((n) => n.replace(/\b\w/g, (ch) => ch.toUpperCase()));
+    const joined = titled.length <= 1 ? (titled[0] ?? "") : `${titled.slice(0, -1).join(", ")} and ${titled[titled.length - 1]}`;
+    return {
+      ...c,
+      whatsappPreview: readyTemplate.preview({ dog_name: joined || "Your dog", minutes: c.minutes || "__" }),
+      smsText: renderSmsCollectionNotice({ dogNames: titled, minutes: c.minutes || "__" }),
+    };
+  });
+
+  return { routes: routeCases, readiness: readinessCases, releases: releaseCases, texts: textCases };
 }
 
 function rowsFor(scenario: Scenario) {
@@ -238,6 +387,9 @@ function build() {
     surnames: ["Sam Taylor", "  Anne  Marie  Jones ", "Cher", "", "O'Neill-Smith"].map((name) => ({ name, surname: ownerSurname(name) })),
     tones,
     unknownTone: { tint: UNKNOWN_STATUS_TONE.tint, ink: UNKNOWN_STATUS_TONE.ink, meta: UNKNOWN_STATUS_TONE.meta, edge: UNKNOWN_STATUS_TONE.edge },
+    actions: buildActionFixtures(),
+    reversals: buildReverseFixtures(),
+    collection: buildCollectionFixtures(),
   };
 }
 

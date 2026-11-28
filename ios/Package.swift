@@ -38,6 +38,7 @@ let package = Package(
                 "SupabaseStaffDayClient.swift",
                 "StaffRootView.swift",
                 "StaffTodayView.swift",
+                "StaffCollectionNoticeSheet.swift",
             ],
             sources: [
                 "PhoneNumber.swift",
@@ -59,6 +60,8 @@ let package = Package(
                 "StaffDayStack.swift",
                 "StaffStatusPalette.swift",
                 "StaffDayModels.swift",
+                "StaffDayActions.swift",
+                "StaffCollectionNotice.swift",
                 "StaffTodayModel.swift",
             ]
         ),

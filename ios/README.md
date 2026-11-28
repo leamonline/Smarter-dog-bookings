@@ -169,7 +169,7 @@ One archive is enough to prove the pipeline. Apple includes a number of Xcode Cl
 
 ## Staff: Today and More
 
-Staff sign in as before and land on **Today**: the day's dogs in appointment order, the same list as Today on the staff website. It only reads. To check a dog in, mark it ready or take payment, use the website for now. **More** opens the staff website's calendar, messages, customers, dogs, reports and settings in the browser, and has Sign out.
+Staff sign in as before and land on **Today**: the day's dogs in appointment order, the same list as Today on the staff website. Tapping a dog (or long-pressing a row) shows its legal next steps: **Check in**, **Reconfirmed**, **Mark ready**, **Confirm booking** / **Unconfirm booking**, **Didn't show** and **They turned up** (for non-grouped no-shows), each with one-tap **Undo** where reversible. Marking a dog ready never messages the owner by itself; it opens an opt-in prompt (or holds the notice automatically while another dog for the same owner is still being groomed). Changes from another till refresh automatically via Realtime. Check-out and taking payment stay on the website until Phase S3. **More** opens the staff website's calendar, messages, customers, dogs, reports and settings in the browser, and has Sign out.
 
 Each row shows the time, the dog, its status in words (Expected, Unconfirmed, Confirmed, Reconfirmed, Arrived, Ready, No-show) in the website's status colours, the most important safety warning with "+N" for the rest, breed · service · owner's surname, and how long the dog has been where it is ("in 30 min", "1 hr late", "No arrival", "waiting 50 min"). Collected dogs and cancellations leave the list; the header counts them.
 

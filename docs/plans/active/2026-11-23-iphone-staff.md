@@ -1,7 +1,7 @@
 # iPhone staff app
 
-Status: Active (approved by the owner and merged in #1287; S0 and S1 in review)
-Issue: Not yet assigned; raise a dedicated issue when the owner approves this plan
+Status: Active (approved by the owner and merged in #1287; S0 and S1 merged; S2 implemented under #1327)
+Issue: #1327 (Phase S2)
 Base: `main` at `526e83e` (after #1277)
 Last verified: 2026-11-24
 Owners: `ios/**` staff files (new `Staff*.swift` and their tests), the staff placeholder in `ios/SmarterDog/RootView.swift`; later phases also `supabase/functions/notify-staff/**`
@@ -382,6 +382,26 @@ Verification: `swift test --package-path ios` in the `swift:6.0.3-noble` image
 (186 tests, 0 failures, 28 of them new); the parity and iPhone project tests in
 Vitest. The SwiftUI views cannot be compiled on Linux: the Xcode Cloud build and
 the TestFlight checklist in `ios/README.md` are the evidence still to come.
+
+**S2 (28 November 2026, issue #1327).** Legal status moves, column-minimal writes,
+one-tap Undo, opt-in Ready-for-collection messaging and Supabase Realtime updates
+are implemented on staff Today (`StaffDayActions.swift`, `StaffCollectionNotice.swift`,
+`StaffCollectionNoticeSheet.swift`, `StaffTodayModel.swift`, `SupabaseStaffDayClient.swift`,
+`StaffTodayView.swift`). Delivers ST-6, ST-7, ST-8 and ST-10 while upholding ST-9
+(check-out and payment stay on the website until S3).
+
+- **Parity guard:** extended `src/engine/staffDayParity.ios.test.ts` and
+  `ios/AuthCoreTests/staff-day-parity.json` with governed checks for `tokenActions`
+  (legal S2 moves and labels), `reverseStatusFor`, `collectionNoticeRoute`,
+  `collectionNoticeReadiness`, `releasesHeldNotice`, `ready_for_collection_v2`
+  preview text and `collectionSmsText`.
+- **Concurrent-write protection:** `StaffBookingPatch` encodes only the changed
+  columns (with explicit JSON `null` for cleared fields), never touching payment,
+  slot, date or price columns; `Unconfirm` and Confirm Undo enforce
+  `reminder_confirmed_source = 'staff'` and fall back to confirmation-only clear
+  if another device already checked the dog in.
+- **Sample mode:** `-sampleStaffToday` runs status moves and Undo in memory with
+  zero network calls, and keeps collection messaging disabled with truthful copy.
 
 ## Open questions
 
