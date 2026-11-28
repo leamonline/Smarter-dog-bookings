@@ -81,7 +81,46 @@ From Codex Desktop [comment `7232496959`](https://github.com/leamonline/Smarter-
 - **Host failure modes & trust behaviour in Codex:** Exit `2` and valid denial JSON blocked execution; missing shared JS and malformed launcher stdin returned explicit denial; however, **exit `1`, process death, missing hook command, malformed hook stdout, and timeout allowed the shell mock to run** (Codex fails open on unhandled hook crashes/timeouts). Folder trust alone did not enable hooks; a separate MCP allow rule let a mock production read bypass `ask`.
 - **Cloud environment:** Hosted task (`danger-full-access`, `approval_policy = "never"`, no CLI on PATH, no hook review) had an empty diff and left Cloud hook dispatch unverified.
 - **Workflow evals:** Both skills discovered; 4/5 cases met all criteria (both booking-capacity runs preserved PostgreSQL authority and persisted-row tests; each missed one secondary detail: Edge parity on run 1, dormant visit policy on repeat).
-- **Local repository hook adoption still pending owner decision:** Recommended `.codex/hooks.json` (`Bash|mcp__.*` → `scripts/guard-supabase-hook.sh codex`, 10s timeout) remains uncommitted pending Stage 1 credential isolation and owner decision.
+- **Local repository hook adoption still pending owner decision:** Recommended `.codex/hooks.json` (`Bash|mcp__.*` → `scripts/guard-supabase-hook.sh codex`, 10s timeout) approved in principle as defence in depth; Codex is preparing its reviewed implementation on its own branch/worktree.
+
+### Cross-agent no-hooks resilience & GitHub release-authority audit (28 November 2026)
+
+#### 1. Why the Stage 1 architecture stays safe even if every local hook is disabled
+
+Verified runtime evidence confirms client hooks **cannot** be treated as a primary production boundary:
+- **Codex Stage 2:** Unhandled hook faults (`exit 1`, process death, missing command/launcher, malformed stdout, timeout) let execution continue; a separate MCP approval rule overrides the guard's `ask` response; Codex Cloud interception remains unverified (`danger-full-access`, `approval_policy = "never"`).
+- **Antigravity Stage 4 & docs:** Official `hooks.md` has no `onFailure: "block"` and fails open on unhandled crash/timeout/missing exec/malformed output (`Workspace: "branch"` also inherits parent hooks).
+- **Claude Code:** `.claude/settings.json` has `onFailure: "block"`, yet `claude --bare` intentionally skips hooks.
+
+Under the Stage 1 credential-isolation target, **disabling every local hook across all agents** still leaves production protected by server-side controls:
+
+| Attack / failure path (all local hooks disabled) | Enforced safeguard without hooks | Outcome |
+| --- | --- | --- |
+| Agent calls `apply_migration`, DDL, `INSERT`/`UPDATE`/`DELETE`, or `deploy_edge_function` via `supabase-prod-readonly` (or overrides MCP `ask` approval) | Prod inspection PAT (`sbp_fc...`) enables **Database (`Read`)**, **Project Settings (`Read`)**, **Logs (`Read`)** only **and** MCP URL passes `?project_ref=nlzhllhkigmsvrzduefz&read_only=true&features=docs%2Cdatabase%2Cdebugging` | Blocked server-side (HTTP `403` / Postgres read-only refusal) |
+| Agent calls `supabase-staging` MCP or `api.supabase.com/v1` targeting production (`nlzhllhkigmsvrzduefz`) | Staging PAT (`sbp_fc...`) scopes **only** `btjnxvgkpdbfrrqxvkfj` (`nlzhllhkigmsvrzduefz` excluded) | Blocked server-side (HTTP `403`) |
+| Agent attempts to read `service_role` keys or DB passwords via MCP/Management API | **API Key Secrets / Secrets** disabled on agent PATs; no prod `--db-url` / `.env.local` / `supabase/.temp/` on disk | Blocked server-side (HTTP `403`) + absent locally |
+| Agent runs in Codex Cloud (`danger-full-access`, hooks unverified) or `claude --bare` | Codex `~/.codex/config.toml` has no Supabase MCP; Claude `.mcp.json` enforces `read_only=true` + `project_ref=nlzhllhkigmsvrzduefz`; never provision Owner OAuth or prod write tokens into agent sessions | No prod write credential reachable |
+
+#### 2. GitHub permissions audit — prepare changes vs release authority
+
+Read-only inspection of live GitHub settings (`gh auth status`, repository metadata, Ruleset `#22452064` `"Protect main"`, Environments, `gh secret list`, `.github/workflows/`):
+
+| Capability / path | Current GitHub technical state | Ability to **prepare** vs **release** |
+| --- | --- | --- |
+| **Local `gh` CLI token (`gho_****`)** | Active macOS keyring auth for owner `leamonline` (`repo`, `workflow`, `read:org`, `gist`; `admin: true`, `push: true`). | Holds **full owner release & admin authority**, not just prepare rights. |
+| **Ruleset `22452064` (`Protect main`)** | Enforces PRs, non-FF/deletion blocks, `bypass_actors: []`, `current_user_can_bypass: "never"`, and 5 required status checks (`build`, `coverage`, `agent-tests`, `pr-production-smoke`, `migrations-applied`) — **but** `required_approving_review_count: 0`, `require_code_owner_review: false` (no `CODEOWNERS`), `dismiss_stale_reviews_on_push: false`. | Any green PR can be merged (`gh pr merge`) using local `gh` auth without a second human PR approval. |
+| **Frontend & Edge releases on merge to `main`** | Merging to `main` deploys Vercel frontend (`main`) and triggers `deploy-edge-functions.yml` on changed `supabase/functions/**` using environment `supabase-automation` (`main`-only branch policy, **no** `required_reviewers`). | Merging a PR into `main` **immediately releases** frontend and changed Edge Functions to production. |
+| **Workflow modifications (`.github/workflows/*`)** | PR branches cannot access `Production`, `staging`, `supabase-automation`, or `production-scheduled-backup` secrets (`main`-only policies; `check-migrations-applied.yml` checks out `main` only). **However**, an unblocked PR changing `.github/workflows/*` with no migration SQL passes `migrations-applied` and, if merged via local `gh` (`workflow` scope, `0` required reviewers), alters future `main` workflows. | Safe while unmerged on PR branches; becomes release-critical upon merge to `main`. |
+| **Workflow dispatch & Environments (`Production`, `staging`, `production-scheduled-backup`)** | Repo `visibility` is **`public`** (`admin: true`). `Production` and `staging` enforce `main`-only branch policies **and** `required_reviewers: [leamonline]` (`prevent_self_review: false`); `supabase-automation` and `production-scheduled-backup` enforce `main`-only branch policies with no reviewers. Note legacy `BLUEHOST_FTP_*` secrets remain at repo scope (unused after publisher retirement `#999`). | A local `gh` token (`repo` + `workflow`) can dispatch `production-apply-migrations.yml` and call pending-deployment approval endpoints as `leamonline` unless `gh` is stripped/scoped or a separate reviewer/2FA boundary is used. |
+
+**Architectural recommendation to separate prepare vs release authority (for owner review — no GitHub config changed):**
+- Agents in local/cloud sandboxes should hold **prepare-only** capability (non-`main` branch push + PR open/draft, read-only status inspection) rather than an owner `gho_...` keyring token with `repo` + `workflow` + `admin` scopes that can merge PRs, modify `.github/workflows/`, dispatch `production-apply-migrations.yml`, or edit Ruleset `#22452064` / Environment rules via API.
+- Clean options when ready: (a) keep local `gh` CLI logged out or use a fine-grained/non-admin branch-only collaborator token without `Administration`/`Actions write`/`Workflows`, leaving merges, workflow dispatches, and environment approvals to interactive browser sessions (`leamonline`), and/or (b) raise `Protect main` `required_approving_review_count` to `1` + `CODEOWNERS` on `.github/workflows/` with a separate human reviewer account if desired, plus clean up unused `BLUEHOST_FTP_*` repo secrets.
+
+#### 3. Branch ownership & shared skill coordination with Codex
+
+- **Branch / worktree ownership:** Keep `docs/plans/active/2026-11-28-issue-1324-cross-agent-verification.md` + Stage 1 credential-isolation verification + Stage 3 Claude retry + Draft PR `#1326` on Antigravity; Codex owns `.codex/hooks.json` implementation and its Stage 2 evidence (`docs/migrations.md`, `prompts/evals/codex-workflows.md`, `docs/research/2026-11-28-codex-runtime-hook-verification.md`) on its own dedicated branch/worktree (without Antigravity modifying or sweeping Codex's dirty working-tree files into `#1326`).
+- **Shared skill improvement discovered by Codex Stage 2:** Both booking-capacity runs in Codex's Stage 2 eval scored `Partial` because one missed explicit Edge preflight parity and the other missed dormant visit policy (`previous_day_1500_v1` / `V1_ONLY_COMMANDS`) preservation. Recommend updating `.agents/skills/smarter-dog-booking-change/SKILL.md` (once Codex's current implementation lands or in a single agreed follow-up PR) to promote **both** Edge/PostgreSQL/browser parity **and** dormant visit-policy isolation into explicit required verification items.
 
 ---
 
