@@ -1,6 +1,6 @@
 # Cloud-first development pilot
 
-- Status: Active
+- Status: Completed. Inbox release acceptance remains tracked under #1193.
 - Issue: [#1317](https://github.com/leamonline/Smarter-dog-bookings/issues/1317)
 - Base: `main@d9c39e1187a52d16ca46ad37704fa58e74810c3e`
 - Last verified: 27 November 2026
@@ -19,7 +19,8 @@ The Mac can remain the command centre while browser, database and native build c
 
 ## Current behaviour
 
-The initialisation PR is merged. The named Codex Cloud environment is available.
+At the start of the pilot, the initialisation PR was merged and the named
+Codex Cloud environment was available.
 Actions has disposable database and web lanes. Vercel Preview inherits client
 bindings scoped to All Environments. Xcode Cloud reports a successful native
 build check in PR #1315.
@@ -147,3 +148,35 @@ acceptance remains due on [#1193](https://github.com/leamonline/Smarter-dog-book
 
 The owner merged Preview isolation PR #1318 at `72d60f0`. The documentation
 and pilot PRs target main. No Preview app was opened during this pilot.
+
+### Owner acceptance and follow-up
+
+The owner accepted the Cloud pilot and approved the runbook merge at
+`ec770482618011c5ac2b0071c661f28d4b593974`. [PR #1319](https://github.com/leamonline/Smarter-dog-bookings/pull/1319)
+merged into `0348fa31e61af5eaba9c8cddce5c5f8de1b1dae3`. GitHub recorded
+successful Production and Supabase automation deployment statuses for that
+revision. The [runbook](../../runbooks/cloud-development.md) records the
+adaptive Mac, Cloud and Actions workflow.
+
+The final Inbox candidate `132610a2b20bced4cf4b199bd1ad3053c776bf2d`
+passed 240 focused tests and the [PR verification workflow](https://github.com/leamonline/Smarter-dog-bookings/actions/runs/46075252553).
+In synthetic Safari, ticking the bulk checkbox left the thread closed,
+opening the row preserved the checkbox selection, and the failed-send action
+opened the other thread at the failed message. The owner directed the
+VoiceOver pass to be skipped. The screen-reader criterion and merge approval
+are recorded separately on [#1193](https://github.com/leamonline/Smarter-dog-bookings/issues/1193).
+
+The two current Vercel PR deployments served marketing, staff and customer
+client artefacts without the production Supabase binding (GitHub deployment
+IDs `8120270198` and `8120291783`). The customer
+client in both deployed builds was compiled to `null`. A pre-guard #1315
+deployment (`8118178494`) still served a production binding in its marketing and app
+artefacts. Treat other pre-guard builds as potentially connected pending
+review. Keep legacy URLs out of testing and replace shared references with
+verified guarded revisions. The review used static files only.
+
+The exact Inbox head has a successful Xcode Cloud `Default / Build - iOS`
+check. The [iOS instructions](../../../ios/README.md) prescribe a separate
+TestFlight archive and internal testing post-action. App Store Connect
+required owner sign-in to verify the current workflow configuration and
+start conditions. No additional infrastructure was needed for the pilot.
