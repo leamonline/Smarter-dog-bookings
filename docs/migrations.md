@@ -1401,19 +1401,15 @@ succeeded; correct it and dispatch again with the same inputs, and every
 recorded file is skipped) or the migration was (fix forward with a new,
 later migration).
 
-## The Supabase MCP tool and the Claude permission
+## The Supabase MCP tool and agent migration guards
 
-The PreToolUse hook `.claude/hooks/guard-supabase-apply-migration.sh`
-(wired in `.claude/settings.json`) reads each `mcp__Supabase__apply_migration`
-call's project ref and allows the call without a prompt for **staging** only;
-anything else (the production ref, an unknown ref, unreadable input) goes back
-to the permission prompt, so production is still confirmed by a person, per
-call, and the MCP server's own destructive-statement confirmation is
-unchanged. There is deliberately no `permissions.allow` entry for the tool: a
-hook that fails to run is non-blocking in Claude Code, and an allow rule would
-then have stood for every project, production included, whereas with the hook
-as the only grant a failure falls back to the prompt. Production migrations go
-through the workflow above, not through the MCP tool.
+The shared Node guard [`scripts/guard-supabase-migration.mjs`](../scripts/guard-supabase-migration.mjs) enforces the repository's hosted project boundary (`btjnxvgkpdbfrrqxvkfj` staging vs `nlzhllhkigmsvrzduefz` production) across agent hook configurations without duplicating target-classification logic:
+
+- **Claude Code:** `.claude/hooks/guard-supabase-apply-migration.sh` (wired in `.claude/settings.json` for `mcp__Supabase__apply_migration`) delegates to the shared guard with `--agent claude`. It allows **staging** without a prompt and sends anything else (production, missing or unknown project refs, malformed input or a failed guard launch) back to the interactive permission prompt (`ask`). There is deliberately no `permissions.allow` entry for the tool in `.claude/settings.json`, because a hook launch failure in Claude Code is non-blocking and falls through to permission rules.
+- **Antigravity:** `.agents/hooks.json` wires `PreToolUse` on `call_mcp_tool|.*apply_migration.*` to the shared guard with `--agent antigravity`. It permits `apply_migration` on **staging** only (`allow`) and hard-blocks (`deny`) production, missing `project_id`, unknown destinations and malformed payloads. Non-migration `supabase_mcp` calls targeting non-staging or missing project refs require per-call confirmation ignoring Always-Allow cache (`force_ask`), while unrelated MCP tools defer normally (`ask`).
+- **Codex:** Does not configure hosted Supabase MCP in the repository; CLI target safety relies on [`AGENTS.md`](../AGENTS.md), [`scripts/check-hosted-supabase-targets.mjs`](../scripts/check-hosted-supabase-targets.mjs) (`npm run lint`) and [`scripts/apply-hosted-migrations.sh`](../scripts/apply-hosted-migrations.sh).
+
+Production migrations go through the manual workflow above, not through the MCP tool.
 
 ## Automation credential isolation
 

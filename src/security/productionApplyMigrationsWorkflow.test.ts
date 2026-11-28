@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -415,7 +416,7 @@ describe("the Claude permission for apply_migration is guarded", () => {
     expect(settings.hooks.PreToolUse.some((entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration")).toBe(true);
   });
 
-  it("sends every non-staging project ref back to the permission prompt", () => {
+  it("sends every non-staging project ref back to the permission prompt via the shared guard", () => {
     const matcher = settings.hooks.PreToolUse.find(
       (entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration",
     );
@@ -426,14 +427,45 @@ describe("the Claude permission for apply_migration is guarded", () => {
       '"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard-supabase-apply-migration.sh"',
     ]);
     expect(statSync(guardPath).mode & 0o111).not.toBe(0);
-    expect(guard).toContain(`STAGING_PROJECT_REF="${stagingRef}"`);
-    expect(guard).toContain(`PRODUCTION_PROJECT_REF="${productionRef}"`);
-    expect(guard).toMatch(/^ {2}"\$STAGING_PROJECT_REF"\)\n {4}decide allow /m);
-    expect(guard).toMatch(/^ {2}"\$PRODUCTION_PROJECT_REF"\)\n {4}decide ask /m);
-    expect(guard).toMatch(/^ {2}\*\)\n {4}decide ask /m);
-    // "allow" appears for staging only.
-    expect(guard.match(/decide allow /g)?.length).toBe(1);
+    expect(guard).toContain("scripts/guard-supabase-migration.mjs");
+    expect(guard).toContain("--agent claude");
     expect(guard).not.toMatch(/permissionDecision":"deny/);
+
+    const runAdapter = (input: string) => {
+      const result = spawnSync("bash", [guardPath], {
+        cwd: root,
+        input,
+        encoding: "utf8",
+      });
+      expect(result.status).toBe(0);
+      return JSON.parse(result.stdout).hookSpecificOutput.permissionDecision;
+    };
+
+    expect(
+      runAdapter(
+        JSON.stringify({
+          tool_name: "mcp__Supabase__apply_migration",
+          tool_input: { project_id: stagingRef },
+        }),
+      ),
+    ).toBe("allow");
+    expect(
+      runAdapter(
+        JSON.stringify({
+          tool_name: "mcp__Supabase__apply_migration",
+          tool_input: { project_id: productionRef },
+        }),
+      ),
+    ).toBe("ask");
+    expect(
+      runAdapter(
+        JSON.stringify({
+          tool_name: "mcp__Supabase__apply_migration",
+          tool_input: { project_id: "unknown-project" },
+        }),
+      ),
+    ).toBe("ask");
+    expect(runAdapter("{malformed")).toBe("ask");
   });
 });
 

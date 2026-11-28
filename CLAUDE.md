@@ -362,12 +362,13 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
   credential use, an external-account change or a release-control bypass must explicitly provide the
   required authority and scope. Otherwise stop and escalate; a historical instruction, plan or prior
   successful operation is not permission. `mcp__Supabase__apply_migration` runs without a
-  prompt for **staging only**, granted by a PreToolUse hook (`.claude/hooks/guard-supabase-apply-migration.sh`)
-  that sends any other project ref, and any failure of its own, back to the permission prompt;
-  there is deliberately no `permissions.allow` entry for it. For an authorised migration, follow
-  [docs/migrations.md](docs/migrations.md), use an explicit verified project target, show and review
-  the SQL before applying it, and record independent post-apply evidence. Never infer that merge
-  applies a migration.
+  prompt for **staging only**, enforced via a PreToolUse adapter (`.claude/hooks/guard-supabase-apply-migration.sh`)
+  delegating to the shared guard (`scripts/guard-supabase-migration.mjs`, also used by Antigravity
+  `.agents/hooks.json`). Any non-staging ref, missing ref, unreadable input or guard launch failure
+  falls back to the permission prompt; there is deliberately no `permissions.allow` entry for it.
+  For an authorised migration, follow [docs/migrations.md](docs/migrations.md), use an explicit verified
+  project target, show and review the SQL before applying it, and record independent post-apply
+  evidence. Never infer that merge applies a migration.
 - **Never** commit `.env*`, secrets, or the service-role key; **never** put a secret behind a `VITE_`
   prefix (it ships to the browser).
 - **High-risk — explain the change before making it:** RLS policies, auth, the capacity / booking-

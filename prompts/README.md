@@ -41,11 +41,11 @@ Increment `version` when instructions, constraints or output contracts change ma
 
 ## Repository skills
 
-- [Booking change](../.agents/skills/smarter-dog-booking-change/SKILL.md) routes authorised booking changes through the policy, write authority and verification sources.
-- [Release review](../.agents/skills/smarter-dog-release-review/SKILL.md) gathers read-only evidence for an exact candidate and target.
+- [Booking change](../.agents/skills/smarter-dog-booking-change/SKILL.md) routes authorised booking changes through the policy, write authority and verification sources (excludes generic intake, release reviews and unrelated UI/docs).
+- [Release review](../.agents/skills/smarter-dog-release-review/SKILL.md) gathers read-only evidence for an exact candidate and target (excludes merges, migrations, deploys and implementation).
 
-Both skills start at version 1. Record material revisions here with their
-evaluation evidence. Use the [Codex workflow evaluation](evals/codex-workflows.md)
+Both skills are at version 2 (refined trigger boundaries and optional-tool fallbacks, 28 November 2026). Record material revisions here with their
+evaluation evidence. Use the [cross-agent workflow evaluation](evals/codex-workflows.md)
 when changing either skill.
 
 ## Runtime prompts
