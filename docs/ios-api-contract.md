@@ -91,11 +91,10 @@ Wrapping those writes in RPCs is a later change. The app should call the same
 tables and RPCs the website uses, not a private shortcut.
 
 **Built in the app so far** ([iPhone staff plan](plans/active/2026-11-23-iphone-staff.md)):
-Today, read only (phase S1). It reads `bookings` for one London date with an
+Today, read plus Phase S2 status moves (issue #1327). It reads `bookings` for one London date with an
 embedded `notification_log(trigger_type,status,sent_at,created_at,human_id)` (the last two decide a live failed reminder, as on the website), the `dogs` and `humans`
 on them (`humans`: `id,name,surname,phone`; the phone is only for the detail
-sheet's Call button, which opens the iPhone's dialler), and that date's `day_settings`. Every other row below is reached from
-the More tab, which opens the staff website.
+sheet's Call button, which opens the iPhone's dialler), and that date's `day_settings`. Status moves (`Reconfirmed`, `Check in`, `Mark ready`, `Confirm booking`, `Unconfirm booking`, `Didn't show`, `They turned up`, plus one-tap Undo) update only the changed columns on `bookings` under staff RLS (`is_staff()`), and subscribe to `bookings` Realtime updates. After `Mark ready`, staff can opt in to send `ready_for_collection_v2` via `whatsapp-send` or `ready_for_collection_sms` via `sms-send` after loading owner and `human_trusted_contacts` cards. Check-out with payment (phase S3) and every other row below stay on the website for now, reached from the More tab.
 
 | Screen | Call | Notes |
 |---|---|---|

@@ -14,6 +14,9 @@
 		5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000005 /* SupabaseStaffDayClient.swift */; };
 		5DA100000000000000000016 /* StaffRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000006 /* StaffRootView.swift */; };
 		5DA100000000000000000017 /* StaffTodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000007 /* StaffTodayView.swift */; };
+		5DA100000000000000000018 /* StaffDayActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000008 /* StaffDayActions.swift */; };
+		5DA100000000000000000019 /* StaffCollectionNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA100000000000000000009 /* StaffCollectionNotice.swift */; };
+		5DA10000000000000000001A /* StaffCollectionNoticeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA10000000000000000000A /* StaffCollectionNoticeSheet.swift */; };
 		A10000000000000000000001 /* SmarterDogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* SmarterDogApp.swift */; };
 		A10000000000000000000002 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* SignInView.swift */; };
 		A10000000000000000000004 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* SupabaseConfig.swift */; };
@@ -68,6 +71,9 @@
 		5DA100000000000000000005 /* SupabaseStaffDayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseStaffDayClient.swift; sourceTree = "<group>"; };
 		5DA100000000000000000006 /* StaffRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffRootView.swift; sourceTree = "<group>"; };
 		5DA100000000000000000007 /* StaffTodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffTodayView.swift; sourceTree = "<group>"; };
+		5DA100000000000000000008 /* StaffDayActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffDayActions.swift; sourceTree = "<group>"; };
+		5DA100000000000000000009 /* StaffCollectionNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffCollectionNotice.swift; sourceTree = "<group>"; };
+		5DA10000000000000000000A /* StaffCollectionNoticeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffCollectionNoticeSheet.swift; sourceTree = "<group>"; };
 		A10000000000000000000011 /* SmarterDogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmarterDogApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
@@ -192,6 +198,9 @@
 				5DA100000000000000000005 /* SupabaseStaffDayClient.swift */,
 				5DA100000000000000000006 /* StaffRootView.swift */,
 				5DA100000000000000000007 /* StaffTodayView.swift */,
+				5DA100000000000000000008 /* StaffDayActions.swift */,
+				5DA100000000000000000009 /* StaffCollectionNotice.swift */,
+				5DA10000000000000000000A /* StaffCollectionNoticeSheet.swift */,
 				A100000000000000000000A2 /* DogsView.swift */,
 				A100000000000000000000A1 /* SupabaseDogsClient.swift */,
 				A10000000000000000000067 /* Info.plist */,
@@ -338,6 +347,9 @@
 				5DA100000000000000000015 /* SupabaseStaffDayClient.swift in Sources */,
 				5DA100000000000000000016 /* StaffRootView.swift in Sources */,
 				5DA100000000000000000017 /* StaffTodayView.swift in Sources */,
+				5DA100000000000000000018 /* StaffDayActions.swift in Sources */,
+				5DA100000000000000000019 /* StaffCollectionNotice.swift in Sources */,
+				5DA10000000000000000001A /* StaffCollectionNoticeSheet.swift in Sources */,
 				A100000000000000000000B2 /* DogsView.swift in Sources */,
 				A100000000000000000000B1 /* SupabaseDogsClient.swift in Sources */,
 				A10000000000000000000004 /* SupabaseConfig.swift in Sources */,

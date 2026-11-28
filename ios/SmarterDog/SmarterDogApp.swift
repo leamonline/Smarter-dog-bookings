@@ -110,10 +110,18 @@ struct SampleBookingClient: SalonBookingDataClient {
     }
 }
 
-/// A made-up salon morning for staff Today screenshots. The clock is pinned to 10:05
-/// London time on the real date, so lateness and waiting times read the same whenever
-/// it is opened. Other dates come back empty. Compiled into Debug builds only.
-struct SampleStaffDayClient: StaffDayClient {
+/// A made-up salon morning for staff Today screenshots and interactive simulator
+/// checks. The clock is pinned to 10:05 London time on the real date, so lateness
+/// and waiting times read the same whenever it is opened. Status moves and Undo
+/// run in memory with zero network calls; collection messaging stays disabled so
+/// sample mode never pretends to send a customer message. Compiled into Debug builds only.
+final class SampleStaffDayClient: StaffDayClient, @unchecked Sendable {
+    let supportsWrites = true
+    let supportsMessaging = false
+
+    private let lock = NSLock()
+    private var bookingsByDate: [String: [StaffBookingRow]] = [:]
+
     /// 10:05 today, London time.
     static let clock: @Sendable () -> Date = {
         var calendar = Calendar(identifier: .gregorian)
@@ -124,11 +132,98 @@ struct SampleStaffDayClient: StaffDayClient {
         return calendar.date(from: parts) ?? Date()
     }
 
+    private static let sampleDogs: [StaffDogRow] = [
+        StaffDogRow(id: "d1", name: "Biscuit", breed: "Cockapoo", human_id: "h1", alerts: nil, is_pregnant: false),
+        StaffDogRow(id: "d2", name: "Moose", breed: "Newfoundland", human_id: "h2", alerts: ["Sensitive paws"], is_pregnant: false),
+        StaffDogRow(id: "d3", name: "Luna", breed: "Husky", human_id: "h3", alerts: nil, is_pregnant: false),
+        StaffDogRow(id: "d4", name: "Pip", breed: "Shih Tzu", human_id: "h4", alerts: nil, is_pregnant: false),
+        StaffDogRow(id: "d5", name: "Bella", breed: "Poodle", human_id: "h5", alerts: nil, is_pregnant: true),
+        StaffDogRow(id: "d6", name: "Ziggy", breed: "Cavapoo", human_id: "h1", alerts: ["Kennel aggressive"], is_pregnant: false),
+        StaffDogRow(id: "d7", name: "Rolo", breed: "Dachshund", human_id: "h6", alerts: nil, is_pregnant: false),
+        StaffDogRow(id: "d8", name: "Bramble", breed: "Springer Spaniel", human_id: "h7", alerts: nil, is_pregnant: false),
+        StaffDogRow(id: "d9", name: "Teddy", breed: "Bichon Frise", human_id: "h8", alerts: nil, is_pregnant: false),
+        StaffDogRow(id: "d10", name: "Archie", breed: "Border Terrier", human_id: "h4", alerts: nil, is_pregnant: false),
+    ]
+
+    private static let sampleHumans: [StaffHumanRow] = [
+        StaffHumanRow(id: "h1", name: "Sam", surname: "Taylor", phone: "07700 900101"),
+        StaffHumanRow(id: "h2", name: "Priya", surname: "Shah", phone: "07700 900102"),
+        StaffHumanRow(id: "h3", name: "Tom", surname: "Hughes", phone: "07700 900103"),
+        StaffHumanRow(id: "h4", name: "Ellie", surname: "Brooks", phone: "07700 900104"),
+        StaffHumanRow(id: "h5", name: "Jo", surname: "Patel", phone: "07700 900105"),
+        StaffHumanRow(id: "h6", name: "Mark", surname: "Evans", phone: "07700 900106"),
+        StaffHumanRow(id: "h7", name: "Ruth", surname: "Green", phone: "07700 900107"),
+        StaffHumanRow(id: "h8", name: "Dan", surname: "Morris", phone: "07700 900108"),
+    ]
+
     func loadDay(_ date: String) async throws -> StaffDayRead {
         let now = Self.clock()
         guard date == StaffDayStack.londonDate(now) else {
             return StaffDayRead(bookings: [], dogs: [], humans: [], setting: nil)
         }
+        let bookings = lock.withLock { () -> [StaffBookingRow] in
+            if let existing = bookingsByDate[date] { return existing }
+            let seeded = Self.seedBookings(date: date, now: now)
+            bookingsByDate[date] = seeded
+            return seeded
+        }
+        return StaffDayRead(
+            bookings: bookings, dogs: Self.sampleDogs, humans: Self.sampleHumans,
+            setting: StaffDaySettingRow(setting_date: date, is_open: true)
+        )
+    }
+
+    func updateBooking(_ request: StaffBookingWriteRequest) async throws -> StaffBookingWriteOutcome {
+        let nowISO = StaffDayActions.isoTimestamp(Self.clock())
+        return lock.withLock {
+            for (date, var list) in bookingsByDate {
+                guard let idx = list.firstIndex(where: { $0.id == request.bookingId }) else { continue }
+                var row = list[idx]
+                if request.guardCondition.requireStaffConfirmationSource && row.reminder_confirmed_source != "staff" {
+                    return .notMatched
+                }
+                var patchToApply = request.patch
+                if let requiredStatus = request.guardCondition.requireStatus, row.status != requiredStatus {
+                    guard let fallback = request.guardCondition.fallbackPatchOnZeroRows else {
+                        return .notMatched
+                    }
+                    patchToApply = fallback
+                }
+                if case .value(let status) = patchToApply.status {
+                    row.status = status
+                    if status == StaffDayStack.arrived && row.checked_in_at == nil { row.checked_in_at = nowISO }
+                    if status == StaffDayStack.ready && row.ready_at == nil { row.ready_at = nowISO }
+                    if status == StaffDayStack.booked || status == StaffDayStack.reconfirmed {
+                        row.checked_in_at = nil
+                        row.ready_at = nil
+                    } else if status == StaffDayStack.arrived {
+                        row.ready_at = nil
+                    }
+                }
+                switch patchToApply.cancelReason {
+                case .unchanged: break
+                case .null: row.cancel_reason = nil
+                case .value(let reason): row.cancel_reason = reason
+                }
+                switch patchToApply.reminderConfirmedAt {
+                case .unchanged: break
+                case .null: row.reminder_confirmed_at = nil
+                case .value(let at): row.reminder_confirmed_at = at
+                }
+                switch patchToApply.reminderConfirmedSource {
+                case .unchanged: break
+                case .null: row.reminder_confirmed_source = nil
+                case .value(let source): row.reminder_confirmed_source = source
+                }
+                list[idx] = row
+                bookingsByDate[date] = list
+                return .updated(row)
+            }
+            return .notMatched
+        }
+    }
+
+    private static func seedBookings(date: String, now: Date) -> [StaffBookingRow] {
         let iso = ISO8601DateFormatter()
         func ago(_ minutes: Double) -> String { iso.string(from: now.addingTimeInterval(-minutes * 60)) }
         func booking(
@@ -140,12 +235,14 @@ struct SampleStaffDayClient: StaffDayClient {
                 id: id, booking_date: date, slot: slot, service: service, status: status,
                 cancel_reason: cancelReason, dog_id: dog,
                 checked_in_at: checkedIn.map(ago), ready_at: ready.map(ago), completed_at: completed.map(ago),
-                reminder_confirmed_at: confirmedVia == nil ? nil : ago(60 * 20), confirmation_channel: confirmedVia,
+                reminder_confirmed_at: confirmedVia == nil ? nil : ago(60 * 20),
+                reminder_confirmed_source: confirmedVia == nil ? nil : "customer",
+                confirmation_channel: confirmedVia,
                 notes: notes, dog_name_snapshot: nil, breed_snapshot: nil, owner_name_snapshot: nil, group_id: nil,
                 notification_log: reminder.map { [StaffNotificationRow(trigger_type: "reminder", status: $0, sent_at: ago(60 * 22))] }
             )
         }
-        let bookings = [
+        return [
             booking("s1", "08:30", "full-groom", "Completed", dog: "d1", checkedIn: 95, ready: 40, completed: 20),
             booking("s2", "08:30", "bath-and-brush", "Arrived", dog: "d2", checkedIn: 92, confirmedVia: "whatsapp"),
             booking("s3", "09:00", "bath-and-deshed", "Ready for collection", dog: "d3", checkedIn: 63, ready: 55),
@@ -158,32 +255,6 @@ struct SampleStaffDayClient: StaffDayClient {
             booking("s9", "12:30", "bath-and-brush", "Cancelled", dog: "d9", cancelReason: "Customer cancelled"),
             booking("s10", "09:30", "bath-and-brush", "No-show", dog: "d10"),
         ]
-        let dogs = [
-            StaffDogRow(id: "d1", name: "Biscuit", breed: "Cockapoo", human_id: "h1", alerts: nil, is_pregnant: false),
-            StaffDogRow(id: "d2", name: "Moose", breed: "Newfoundland", human_id: "h2", alerts: ["Sensitive paws"], is_pregnant: false),
-            StaffDogRow(id: "d3", name: "Luna", breed: "Husky", human_id: "h3", alerts: nil, is_pregnant: false),
-            StaffDogRow(id: "d4", name: "Pip", breed: "Shih Tzu", human_id: "h4", alerts: nil, is_pregnant: false),
-            StaffDogRow(id: "d5", name: "Bella", breed: "Poodle", human_id: "h5", alerts: nil, is_pregnant: true),
-            StaffDogRow(id: "d6", name: "Ziggy", breed: "Cavapoo", human_id: "h1", alerts: ["Kennel aggressive"], is_pregnant: false),
-            StaffDogRow(id: "d7", name: "Rolo", breed: "Dachshund", human_id: "h6", alerts: nil, is_pregnant: false),
-            StaffDogRow(id: "d8", name: "Bramble", breed: "Springer Spaniel", human_id: "h7", alerts: nil, is_pregnant: false),
-            StaffDogRow(id: "d9", name: "Teddy", breed: "Bichon Frise", human_id: "h8", alerts: nil, is_pregnant: false),
-            StaffDogRow(id: "d10", name: "Archie", breed: "Border Terrier", human_id: "h4", alerts: nil, is_pregnant: false),
-        ]
-        let humans = [
-            StaffHumanRow(id: "h1", name: "Sam", surname: "Taylor", phone: "07700 900101"),
-            StaffHumanRow(id: "h2", name: "Priya", surname: "Shah", phone: "07700 900102"),
-            StaffHumanRow(id: "h3", name: "Tom", surname: "Hughes", phone: "07700 900103"),
-            StaffHumanRow(id: "h4", name: "Ellie", surname: "Brooks", phone: "07700 900104"),
-            StaffHumanRow(id: "h5", name: "Jo", surname: "Patel", phone: "07700 900105"),
-            StaffHumanRow(id: "h6", name: "Mark", surname: "Evans", phone: "07700 900106"),
-            StaffHumanRow(id: "h7", name: "Ruth", surname: "Green", phone: "07700 900107"),
-            StaffHumanRow(id: "h8", name: "Dan", surname: "Morris", phone: "07700 900108"),
-        ]
-        return StaffDayRead(
-            bookings: bookings, dogs: dogs, humans: humans,
-            setting: StaffDaySettingRow(setting_date: date, is_open: true)
-        )
     }
 }
 #endif
