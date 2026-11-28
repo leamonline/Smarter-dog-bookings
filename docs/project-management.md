@@ -156,7 +156,7 @@ Serialise migration writers and the generated types/RPC/client integration spine
    when they apply. Use the Project where accessible. The backlog helps
    identify work, and the user's task establishes authority to act.
 2. **Check ownership.** Compare assignees, recent comments, draft and open PRs,
-   active plans, local branches/worktrees and relevant Codex chats if available.
+   active plans, local branches/worktrees and prior session records if available.
    Reuse the established branch or worktree on a clear hand-off. If another
    writer owns the task or overlap cannot be resolved, record the dependency
    or choose an authorised, independent slice. Give parallel writers disjoint
@@ -164,9 +164,11 @@ Serialise migration writers and the generated types/RPC/client integration spine
 3. **Recover context.** Read the [checkpoint](../.agent/PLANS.md#checkpoint-and-recovery)
    and inspect current Git status, branch and candidate SHA. Load only the
    governing policy, ADR and runbook from the [documentation map](README.md).
-   When Graphify is available, name this repository and compare its index SHA
-   with the checkout. Verify changed or unindexed paths locally. Use targeted
-   local searches if graph evidence is stale or unavailable.
+   Graphify, MCP servers and cloud workspaces are optional helpers: when
+   Graphify is available, name this repository and compare its index SHA with
+   the checkout before relying on it, and verify changed or unindexed paths
+   locally. Use targeted local searches and GitHub CLI checks when any optional
+   connector or index is unavailable or stale.
 4. **Select and implement.** Use the [skill registry](../prompts/README.md#repository-skills)
    for booking and release review. For other work choose the relevant tools
    and follow the repository's validation rules. Make routine choices within
