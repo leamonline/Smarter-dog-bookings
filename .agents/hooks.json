@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ../scripts/guard-supabase-migration.mjs --agent antigravity",
+            "command": "../scripts/guard-supabase-hook.sh antigravity",
             "timeout": 10
           }
         ]

@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,8 +12,11 @@ import {
 
 const root = process.cwd();
 const sharedGuardPath = join(root, "scripts/guard-supabase-migration.mjs");
+const sharedLauncherPath = join(root, "scripts/guard-supabase-hook.sh");
 const antigravityHooksPath = join(root, ".agents/hooks.json");
 const claudeGuardPath = join(root, ".claude/hooks/guard-supabase-apply-migration.sh");
+const claudeSettingsPath = join(root, ".claude/settings.json");
+const mcpConfigPath = join(root, ".mcp.json");
 
 const tempDirs: string[] = [];
 
@@ -31,14 +34,6 @@ function runSharedGuard(agent: string, stdin: string, cwd = root) {
   });
 }
 
-function evalAntigravity(stdin: string): { decision: string; reason: string } {
-  const result = evaluateMigrationGuard(stdin, "antigravity");
-  if (!("decision" in result)) {
-    throw new Error("Expected Antigravity decision shape");
-  }
-  return result;
-}
-
 function runClaudeAdapter(stdin: string, envOverride?: NodeJS.ProcessEnv) {
   return spawnSync("bash", [claudeGuardPath], {
     cwd: root,
@@ -46,6 +41,26 @@ function runClaudeAdapter(stdin: string, envOverride?: NodeJS.ProcessEnv) {
     encoding: "utf8",
     env: envOverride ?? process.env,
   });
+}
+
+function evalAntigravity(stdin: string): { decision: string; reason: string } {
+  const result = evaluateMigrationGuard(stdin, "antigravity");
+  if (
+    !("decision" in result) ||
+    typeof result.decision !== "string" ||
+    !("reason" in result) ||
+    typeof result.reason !== "string"
+  ) {
+    throw new Error("Expected Antigravity decision shape");
+  }
+  return { decision: result.decision, reason: result.reason };
+}
+
+function evalClaude(stdin: string, agent: "claude" | "codex" = "claude"): string {
+  const result = evaluateMigrationGuard(stdin, agent) as {
+    hookSpecificOutput?: { permissionDecision?: string };
+  };
+  return result.hookSpecificOutput?.permissionDecision ?? "none";
 }
 
 function antigravityCallMcpPayload(
@@ -69,7 +84,7 @@ function antigravityCallMcpPayload(
 }
 
 describe("cross-agent Supabase migration guard", () => {
-  it("tracks .agents/hooks.json in Git and resolves its command from .agents/", () => {
+  it("tracks .agents/hooks.json, enforces fail-closed Claude settings and keeps .mcp.json read-only", () => {
     const tracked = execFileSync("git", ["ls-files", ".agents/hooks.json"], {
       cwd: root,
       encoding: "utf8",
@@ -87,16 +102,27 @@ describe("cross-agent Supabase migration guard", () => {
     expect(entry.hooks).toEqual([
       {
         type: "command",
-        command: "node ../scripts/guard-supabase-migration.mjs --agent antigravity",
+        command: "../scripts/guard-supabase-hook.sh antigravity",
         timeout: 10,
       },
     ]);
 
     const commandParts = entry.hooks[0].command.split(" ");
-    const resolvedTarget = resolve(dirname(antigravityHooksPath), commandParts[1]);
-    expect(resolvedTarget).toBe(sharedGuardPath);
+    const resolvedTarget = resolve(dirname(antigravityHooksPath), commandParts[0]);
+    expect(resolvedTarget).toBe(sharedLauncherPath);
+    expect(statSync(sharedLauncherPath).mode & 0o111).not.toBe(0);
     expect(statSync(sharedGuardPath).mode & 0o111).not.toBe(0);
     expect(statSync(claudeGuardPath).mode & 0o111).not.toBe(0);
+
+    const claudeSettings = JSON.parse(readFileSync(claudeSettingsPath, "utf8"));
+    expect(claudeSettings.permissions).toBeUndefined();
+    const claudePre = claudeSettings.hooks.PreToolUse[0];
+    expect(claudePre.matcher).toBe("mcp__Supabase__.*|Bash");
+    expect(claudePre.hooks[0].onFailure).toBe("block");
+
+    const mcpConfig = JSON.parse(readFileSync(mcpConfigPath, "utf8"));
+    const supabaseUrl = new URL(mcpConfig.mcpServers.supabase.url);
+    expect(supabaseUrl.searchParams.get("read_only")).toBe("true");
   });
 
   it("classifies project refs strictly without trimming, case folding or substring matching", () => {
@@ -125,7 +151,7 @@ describe("cross-agent Supabase migration guard", () => {
     }
   });
 
-  it("permits Antigravity apply_migration only for staging and denies production, missing, unknown and malformed inputs", () => {
+  it("permits Antigravity apply_migration only for staging and denies production, missing, unknown, mutating and malformed inputs", () => {
     const stagingCall = antigravityCallMcpPayload("supabase_mcp", "apply_migration", {
       project_id: STAGING_PROJECT_REF,
       name: "test_migration",
@@ -183,9 +209,36 @@ describe("cross-agent Supabase migration guard", () => {
         }),
       ],
       [
-        "missing project_id",
+        "production execute_sql",
+        antigravityCallMcpPayload("supabase_mcp", "execute_sql", {
+          project_id: PRODUCTION_PROJECT_REF,
+          query: "drop table bookings;",
+        }),
+      ],
+      [
+        "production deploy_edge_function",
+        antigravityCallMcpPayload("supabase_mcp", "deploy_edge_function", {
+          project_id: PRODUCTION_PROJECT_REF,
+          name: "fn",
+        }),
+      ],
+      [
+        "unknown deploy_edge_function",
+        antigravityCallMcpPayload("supabase_mcp", "deploy_edge_function", {
+          project_id: "unknown-ref",
+          name: "fn",
+        }),
+      ],
+      [
+        "missing project_id on apply_migration",
         antigravityCallMcpPayload("supabase_mcp", "apply_migration", {
           name: "missing_ref",
+          query: "select 1;",
+        }),
+      ],
+      [
+        "missing project_id on execute_sql",
+        antigravityCallMcpPayload("supabase_mcp", "execute_sql", {
           query: "select 1;",
         }),
       ],
@@ -243,21 +296,11 @@ describe("cross-agent Supabase migration guard", () => {
     }
   });
 
-  it("forces per-call confirmation for non-migration supabase_mcp calls on production or unknown targets without breaking other MCP tools", () => {
-    const prodSql = antigravityCallMcpPayload("supabase_mcp", "execute_sql", {
+  it("forces per-call confirmation for read-only supabase_mcp calls on production or unknown targets without breaking other MCP tools", () => {
+    const prodTables = antigravityCallMcpPayload("supabase_mcp", "list_tables", {
       project_id: PRODUCTION_PROJECT_REF,
-      query: "select count(*) from bookings;",
     });
-    expect(evalAntigravity(prodSql).decision).toBe("force_ask");
-
-    const unknownEdgeDeploy = antigravityCallMcpPayload(
-      "supabase_mcp",
-      "deploy_edge_function",
-      { project_id: "unknown-ref", name: "fn" },
-    );
-    expect(evalAntigravity(unknownEdgeDeploy).decision).toBe(
-      "force_ask",
-    );
+    expect(evalAntigravity(prodTables).decision).toBe("force_ask");
 
     const stagingSql = antigravityCallMcpPayload("supabase_mcp", "execute_sql", {
       project_id: STAGING_PROJECT_REF,
@@ -275,7 +318,7 @@ describe("cross-agent Supabase migration guard", () => {
     expect(evalAntigravity(unrelatedMcp).decision).toBe("ask");
   });
 
-  it("preserves Claude Code's staging-only allow and fail-closed ask behaviour across adapter and fallback paths", () => {
+  it("enforces fail-closed deny on Claude/Codex adapters for prohibited MCP and shell mutations and fallback failures", () => {
     const staging = JSON.stringify({
       tool_name: "mcp__Supabase__apply_migration",
       tool_input: { project_id: STAGING_PROJECT_REF, name: "m", query: "select 1;" },
@@ -285,11 +328,20 @@ describe("cross-agent Supabase migration guard", () => {
     expect(JSON.parse(stagingOut.stdout).hookSpecificOutput.permissionDecision).toBe(
       "allow",
     );
+    expect(evalClaude(staging, "codex")).toBe("allow");
 
-    const askPayloads = [
+    const deniedPayloads = [
       JSON.stringify({
         tool_name: "mcp__Supabase__apply_migration",
         tool_input: { project_id: PRODUCTION_PROJECT_REF, name: "m", query: "select 1;" },
+      }),
+      JSON.stringify({
+        tool_name: "mcp__Supabase__execute_sql",
+        tool_input: { project_id: PRODUCTION_PROJECT_REF, query: "drop table bookings;" },
+      }),
+      JSON.stringify({
+        tool_name: "mcp__Supabase__deploy_edge_function",
+        tool_input: { project_id: PRODUCTION_PROJECT_REF, name: "fn" },
       }),
       JSON.stringify({
         tool_name: "mcp__Supabase__apply_migration",
@@ -299,22 +351,93 @@ describe("cross-agent Supabase migration guard", () => {
         tool_name: "mcp__Supabase__apply_migration",
         tool_input: { project_id: "unknown-ref" },
       }),
+      JSON.stringify({
+        tool_name: "Bash",
+        tool_input: { command: "supabase db push --linked" },
+      }),
+      JSON.stringify({
+        tool_name: "Bash",
+        tool_input: {
+          command: `supabase functions deploy whatsapp-agent --project-ref ${PRODUCTION_PROJECT_REF}`,
+        },
+      }),
+      JSON.stringify({
+        tool_name: "Bash",
+        tool_input: {
+          command: `curl -X POST https://api.supabase.com/v1/projects/${PRODUCTION_PROJECT_REF}/database/query`,
+        },
+      }),
       "{malformed-json",
       "",
     ];
 
-    for (const payload of askPayloads) {
+    for (const payload of deniedPayloads) {
       const out = runClaudeAdapter(payload);
-      expect(out.status).toBe(0);
-      expect(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision).toBe("ask");
+      expect(out.status, payload).toBe(0);
+      expect(
+        JSON.parse(out.stdout).hookSpecificOutput.permissionDecision,
+        payload,
+      ).toBe("deny");
     }
 
-    // Simulate an environment without `node` on PATH: the shell adapter must still fail closed (`ask`).
-    const emptyBin = mkdtempSync(join(tmpdir(), "guard-no-node-"));
-    tempDirs.push(emptyBin);
-    const noNode = runClaudeAdapter(staging, { PATH: `${emptyBin}:/bin:/usr/bin` });
-    expect(noNode.status).toBe(0);
-    expect(JSON.parse(noNode.stdout).hookSpecificOutput.permissionDecision).toBe("ask");
+    // Normal shell commands and search commands must pass through cleanly without override.
+    expect(
+      evaluateMigrationGuard(
+        JSON.stringify({ tool_name: "Bash", tool_input: { command: "npm run test" } }),
+        "claude",
+      ),
+    ).toEqual({});
+    expect(
+      evaluateMigrationGuard(
+        JSON.stringify({
+          tool_name: "Bash",
+          tool_input: { command: "git grep api.supabase.com/v1/projects/" },
+        }),
+        "claude",
+      ),
+    ).toEqual({});
+
+    // Simulate a failing `node` binary on PATH and a missing shared script: both must fail closed (`deny`).
+    const isolatedDir = mkdtempSync(join(tmpdir(), "guard-fail-closed-"));
+    tempDirs.push(isolatedDir);
+    const fakeNode = join(isolatedDir, "node");
+    writeFileSync(fakeNode, "#!/usr/bin/env bash\nexit 1\n", { mode: 0o755 });
+
+    const failingNodeClaude = runClaudeAdapter(staging, {
+      PATH: `${isolatedDir}:/bin:/usr/bin`,
+      HOME: isolatedDir,
+    });
+    expect(failingNodeClaude.status).toBe(0);
+    expect(
+      JSON.parse(failingNodeClaude.stdout).hookSpecificOutput.permissionDecision,
+    ).toBe("deny");
+
+    const failingNodeAntigravity = spawnSync(
+      "bash",
+      [sharedLauncherPath, "antigravity"],
+      {
+        cwd: dirname(antigravityHooksPath),
+        input: antigravityCallMcpPayload("supabase_mcp", "apply_migration", {
+          project_id: STAGING_PROJECT_REF,
+        }),
+        encoding: "utf8",
+        env: { PATH: `${isolatedDir}:/bin:/usr/bin`, HOME: isolatedDir },
+      },
+    );
+    expect(failingNodeAntigravity.status).toBe(0);
+    expect(JSON.parse(failingNodeAntigravity.stdout).decision).toBe("deny");
+
+    const isolatedLauncher = join(isolatedDir, "guard-supabase-hook.sh");
+    copyFileSync(sharedLauncherPath, isolatedLauncher);
+    const missingGuardOut = spawnSync("bash", [isolatedLauncher, "antigravity"], {
+      cwd: isolatedDir,
+      input: antigravityCallMcpPayload("supabase_mcp", "apply_migration", {
+        project_id: STAGING_PROJECT_REF,
+      }),
+      encoding: "utf8",
+    });
+    expect(missingGuardOut.status).toBe(0);
+    expect(JSON.parse(missingGuardOut.stdout).decision).toBe("deny");
 
     const unsupportedAgent = runSharedGuard("unknown-agent", staging);
     expect(unsupportedAgent.status).toBe(0);
