@@ -8,14 +8,15 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
     private let supabase: SupabaseClient
 
     let supportsWrites = true
-    let supportsMessaging = true
+    let supportsMessaging: Bool
 
-    init(supabase: SupabaseClient) {
+    init(supabase: SupabaseClient, supportsMessaging: Bool = true) {
         self.supabase = supabase
+        self.supportsMessaging = supportsMessaging
     }
 
     static func make() -> SupabaseStaffDayClient? {
-        SalonClient.make().map(SupabaseStaffDayClient.init)
+        SalonClient.make().map { SupabaseStaffDayClient(supabase: $0) }
     }
 
     func loadDay(_ date: String) async throws -> StaffDayRead {

@@ -100,6 +100,16 @@ The booking screens normally show made-up data (`-sampleBooking`). To run the re
 
 To look at the booked screen without any network or sign-in, launch a Debug build with `-sampleBooked`. It shows the "You're booked." moment with made-up details, including a deposit line. Turn on Reduce Motion in Settings, Accessibility to check it appears without movement.
 
+### Trying staff Today on staging (Debug only)
+
+Run with `-liveStaffToday` and the staging project configuration above. Create
+the synthetic Auth user `ios-staging-staff@example.com` on staging and link
+the least-privileged staff profile. Set `STAGING_STAFF_PASSWORD` only in your
+local Xcode scheme. This mode checks the project and staff role before showing
+Today. Use synthetic bookings for status writes and read-back. Collection
+provider calls are disabled in this mode. Local mocked-provider and database
+tests cover collection sends separately.
+
 ## 6. First TestFlight build with Xcode Cloud
 
 TestFlight is Apple’s app for installing a build that is not on the public App Store yet. Internal testing means only people on your developer team. Keep this build on internal testing. It signs people in and shows a read-only home. It does not book appointments yet, so it is not ready for outside testers.

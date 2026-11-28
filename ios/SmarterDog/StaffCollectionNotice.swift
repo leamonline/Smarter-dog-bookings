@@ -499,7 +499,7 @@ final class StaffCollectionNoticeModel {
     func loadContacts() async {
         sendFeedback = nil
         guard let client, client.supportsMessaging else {
-            contactsState = .unavailable("Collection messaging isn't available with sample data. Contact the customer directly.")
+            contactsState = .unavailable("Collection messaging is unavailable in this view.")
             return
         }
         guard let ownerId = prompt.ownerId, !ownerId.isEmpty else {
