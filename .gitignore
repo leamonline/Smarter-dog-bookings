@@ -19,6 +19,7 @@ test-results/
 
 # AI assistant working directories — local session artifacts, not shipping code
 /.agents/*
+!/.agents/hooks.json
 !/.agents/skills/
 /.agents/skills/*
 !/.agents/skills/smarter-dog-booking-change/

@@ -361,13 +361,18 @@ dive: [docs/capacity-engine.md](docs/capacity-engine.md).
 - **No standing production authority.** A task that needs a production write, customer-data access,
   credential use, an external-account change or a release-control bypass must explicitly provide the
   required authority and scope. Otherwise stop and escalate; a historical instruction, plan or prior
-  successful operation is not permission. `mcp__Supabase__apply_migration` runs without a
-  prompt for **staging only**, granted by a PreToolUse hook (`.claude/hooks/guard-supabase-apply-migration.sh`)
-  that sends any other project ref, and any failure of its own, back to the permission prompt;
-  there is deliberately no `permissions.allow` entry for it. For an authorised migration, follow
-  [docs/migrations.md](docs/migrations.md), use an explicit verified project target, show and review
-  the SQL before applying it, and record independent post-apply evidence. Never infer that merge
-  applies a migration.
+  successful operation is not permission. `.mcp.json` pins the project Supabase MCP URL to
+  `read_only=true` for production (`docs,database,debugging`). In addition, `.claude/settings.json`
+  wires `PreToolUse` on `mcp__Supabase__.*|Bash` with `"onFailure": "block"` through
+  `.claude/hooks/guard-supabase-apply-migration.sh` → `scripts/guard-supabase-hook.sh` →
+  `scripts/guard-supabase-migration.mjs` (shared with Antigravity `.agents/hooks.json`).
+  `apply_migration` is allowed without a prompt for **staging only**; production, missing/unknown
+  targets, mutating Supabase MCP calls (`execute_sql`, `deploy_edge_function`, etc.) on non-staging
+  refs, direct production CLI/API mutations, unreadable payloads and guard failures are explicitly
+  denied (`deny`), and there is deliberately no `permissions.allow` entry. For an authorised
+  migration, follow [docs/migrations.md](docs/migrations.md), use an explicit verified project
+  target, show and review the SQL before applying it, and record independent post-apply evidence.
+  Never infer that merge applies a migration.
 - **Never** commit `.env*`, secrets, or the service-role key; **never** put a secret behind a `VITE_`
   prefix (it ships to the browser).
 - **High-risk — explain the change before making it:** RLS policies, auth, the capacity / booking-

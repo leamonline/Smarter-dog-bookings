@@ -1,0 +1,16 @@
+{
+  "supabase-migration-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "call_mcp_tool|.*apply_migration.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "../scripts/guard-supabase-hook.sh antigravity",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

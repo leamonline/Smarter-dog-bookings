@@ -1401,19 +1401,16 @@ succeeded; correct it and dispatch again with the same inputs, and every
 recorded file is skipped) or the migration was (fix forward with a new,
 later migration).
 
-## The Supabase MCP tool and the Claude permission
+## The Supabase MCP tool and agent migration guards
 
-The PreToolUse hook `.claude/hooks/guard-supabase-apply-migration.sh`
-(wired in `.claude/settings.json`) reads each `mcp__Supabase__apply_migration`
-call's project ref and allows the call without a prompt for **staging** only;
-anything else (the production ref, an unknown ref, unreadable input) goes back
-to the permission prompt, so production is still confirmed by a person, per
-call, and the MCP server's own destructive-statement confirmation is
-unchanged. There is deliberately no `permissions.allow` entry for the tool: a
-hook that fails to run is non-blocking in Claude Code, and an allow rule would
-then have stood for every project, production included, whereas with the hook
-as the only grant a failure falls back to the prompt. Production migrations go
-through the workflow above, not through the MCP tool.
+The shared launcher [`scripts/guard-supabase-hook.sh`](../scripts/guard-supabase-hook.sh) and Node guard [`scripts/guard-supabase-migration.mjs`](../scripts/guard-supabase-migration.mjs) enforce the repository's hosted project boundary (`btjnxvgkpdbfrrqxvkfj` staging vs `nlzhllhkigmsvrzduefz` production) across agent hook configurations without duplicating target-classification logic:
+
+- **MCP gateway restriction (`.mcp.json`):** The repository `.mcp.json` connects Claude Code's `supabase` server to `nlzhllhkigmsvrzduefz` with `read_only=true` and `features=docs,database,debugging`, preventing production writes at the Supabase MCP gateway even if hooks are skipped (for example under `claude --bare`). Antigravity's `supabase_mcp` plugin is user-global outside `.mcp.json`, so its server URL is not repo-controlled and relies on user OAuth scope plus `.agents/hooks.json`.
+- **Claude Code:** `.claude/settings.json` wires `PreToolUse` on `mcp__Supabase__.*|Bash` with `"onFailure": "block"` through `.claude/hooks/guard-supabase-apply-migration.sh` → `scripts/guard-supabase-hook.sh claude`. It permits `apply_migration` on **staging** only (`allow`), hard-blocks (`deny`) production, missing/unknown refs, mutating non-staging Supabase MCP tools (`execute_sql`, `deploy_edge_function`, branch/project mutations), direct hosted CLI/Management API mutations (`supabase db push`, `migration up/repair`, production `functions deploy`/`secrets set`), malformed payloads and Node/guard failures. Read-only Supabase tools prompt (`ask`), and `permissions.allow` intentionally omits Supabase tools.
+- **Antigravity:** `.agents/hooks.json` wires `PreToolUse` on `call_mcp_tool|.*apply_migration.*` to `../scripts/guard-supabase-hook.sh antigravity`. It permits `apply_migration` on **staging** only (`allow`), hard-blocks (`deny`) production, missing/unknown refs, mutating non-staging `supabase_mcp` tools (`execute_sql`, `deploy_edge_function`, etc.), malformed payloads and missing-Node/script failures inside the launcher, requires per-call confirmation ignoring Always-Allow cache (`force_ask`) for read-only non-staging `supabase_mcp` calls, and defers unrelated MCP calls (`ask`). Note: Antigravity's `hooks.md` does not expose a Claude-style `onFailure: "block"` setting if the launcher itself fails to spawn or times out, and `run_command` is not intercepted in `.agents/hooks.json` because Antigravity requires an explicit `decision` on every matched call; CLI target safety relies on [`scripts/check-hosted-supabase-targets.mjs`](../scripts/check-hosted-supabase-targets.mjs) and credential isolation.
+- **Codex:** OpenAI Codex documents `.codex/hooks.json` (`PreToolUse` on `Bash|mcp__.*` requiring `[features] hooks = true` and directory trust), and `scripts/guard-supabase-migration.mjs --agent codex` supports its Claude-compatible JSON contract. This repository does not enable hosted Supabase MCP for Codex, and Codex CLI was unavailable for runtime verification in this environment; Codex enforcement therefore currently rests on [`AGENTS.md`](../AGENTS.md), sandbox/approval gates, [`scripts/check-hosted-supabase-targets.mjs`](../scripts/check-hosted-supabase-targets.mjs) and [`scripts/apply-hosted-migrations.sh`](../scripts/apply-hosted-migrations.sh).
+
+Production migrations go through the manual workflow above, not through an MCP tool or agent shell.
 
 ## Automation credential isolation
 

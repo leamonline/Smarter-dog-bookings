@@ -11,14 +11,14 @@ across all environments.
 
 | Activity | Where to run it |
 |---|---|
-| Small edits, focused tests, typecheck and manual Safari or VoiceOver checks | Mac when the checkout and dependencies are ready and the check can run safely with synthetic data. |
-| Longer implementation, parallel work, cold dependency setup or sustained builds | Existing **Smarter-dog-bookings** Codex Cloud environment. Use one isolated workspace and one writer per path. |
+| Small edits, focused tests, typecheck and manual Safari or VoiceOver checks | Local Mac checkout when dependencies are ready and the check can run safely with synthetic data. |
+| Longer implementation, parallel work, cold dependency setup or sustained builds | Existing **Smarter-dog-bookings** Codex Cloud environment (fallback: local Mac checkout + [GitHub Actions CI](../../.github/workflows/ci.yml)). Use one isolated workspace and one writer per path. |
 | Required web, browser and Edge gates | [GitHub Actions CI](../../.github/workflows/ci.yml). PR browser smoke covers Chromium and WebKit. |
 | Migration replay, pgTAP, race checks and generated types | [Disposable database workflow](../../.github/workflows/db-tests.yml). Use its existing local stack and loopback guards. |
 | Synthetic customer sign-in and booking journeys | [Customer journeys on a disposable stack](../customer-journey-tests.md). |
 | Native iOS build and platform checks | Xcode Cloud **Default / Build – iOS**. Use [iPhone auth](../../.github/workflows/ios-auth.yml) for the Swift package. Use the [iPhone Debug sample modes](../../ios/README.md#trying-live-booking-on-staging-debug-only) for manual simulator checks. Treat archive and TestFlight distribution as separate owner-authorised work. |
 | Combined staff and marketing presentation | Exact-commit Vercel Preview after checking the Preview boundary below. |
-| Review, issue coordination and release decisions | Codex on the Mac, using GitHub, Graphify and the [release review skill](../../.agents/skills/smarter-dog-release-review/SKILL.md). |
+| Review, issue coordination and release decisions | Local coordinator (Codex, Claude Code or Antigravity) on the Mac, using GitHub, the [release review skill](../../.agents/skills/smarter-dog-release-review/SKILL.md) and Graphify when available. |
 
 ## Prepare a Cloud task
 
@@ -63,10 +63,12 @@ SHA checked out by the workflow. Use the existing
 exact-head release review. A stacked PR targeting a topic branch must be
 retargeted and reverified before release.
 
-Name the repository when querying Graphify and compare its index SHA with the
-checkout. Verify branch changes locally. Graphify and other personal MCP
-connections may be available only on the Mac. Use GitHub links and focused
-repository searches if the connector or index is unavailable.
+Graphify, hosted MCP servers (such as Supabase MCP) and cloud workspaces are
+optional capabilities. Name the repository when querying Graphify and compare
+its index SHA with the checkout, verifying branch changes locally. When
+Graphify, an MCP connector or the cloud runner is unavailable, fall back to
+targeted local searches (`git grep`), GitHub CLI links and GitHub Actions
+workflows (`ci.yml`, `db-tests.yml`, `customer-journeys.yml`).
 
 ## Preview and deployment isolation
 

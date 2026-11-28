@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -407,33 +408,66 @@ describe("local release evidence in the migration merge gate", () => {
 });
 
 describe("the Claude permission for apply_migration is guarded", () => {
-  it("grants nothing through permissions.allow: the hook is the only grant, so a hook failure falls back to the prompt", () => {
-    // A hook that fails to launch is non-blocking in Claude Code and falls
-    // through to the permission rules; an allow entry there would then have
-    // stood for every project, production included.
+  it("grants nothing through permissions.allow and configures fail-closed blocking on hook failure", () => {
+    // A hook that fails to launch is non-blocking by default in Claude Code
+    // unless `onFailure: "block"` is set and `permissions.allow` is absent.
     expect(settings.permissions).toBeUndefined();
-    expect(settings.hooks.PreToolUse.some((entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration")).toBe(true);
+    const matcher = settings.hooks.PreToolUse.find((entry: { matcher?: string }) =>
+      entry.matcher?.includes("mcp__Supabase__"),
+    );
+    expect(matcher).toBeDefined();
+    expect(matcher.hooks[0].onFailure).toBe("block");
   });
 
-  it("sends every non-staging project ref back to the permission prompt", () => {
-    const matcher = settings.hooks.PreToolUse.find(
-      (entry: { matcher?: string }) => entry.matcher === "mcp__Supabase__apply_migration",
+  it("permits staging only and explicitly denies non-staging, unknown, malformed and failed guard calls", () => {
+    const matcher = settings.hooks.PreToolUse.find((entry: { matcher?: string }) =>
+      entry.matcher?.includes("mcp__Supabase__"),
     );
     expect(matcher).toBeDefined();
     // Quoted, with a working-directory fallback: an unquoted path with a space
-    // would stop the hook launching, and a launch failure is non-blocking.
+    // would stop the hook launching.
     expect(matcher.hooks.map((h: { command: string }) => h.command)).toEqual([
       '"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard-supabase-apply-migration.sh"',
     ]);
     expect(statSync(guardPath).mode & 0o111).not.toBe(0);
-    expect(guard).toContain(`STAGING_PROJECT_REF="${stagingRef}"`);
-    expect(guard).toContain(`PRODUCTION_PROJECT_REF="${productionRef}"`);
-    expect(guard).toMatch(/^ {2}"\$STAGING_PROJECT_REF"\)\n {4}decide allow /m);
-    expect(guard).toMatch(/^ {2}"\$PRODUCTION_PROJECT_REF"\)\n {4}decide ask /m);
-    expect(guard).toMatch(/^ {2}\*\)\n {4}decide ask /m);
-    // "allow" appears for staging only.
-    expect(guard.match(/decide allow /g)?.length).toBe(1);
-    expect(guard).not.toMatch(/permissionDecision":"deny/);
+    expect(guard).toContain("scripts/guard-supabase-hook.sh");
+    expect(guard).not.toContain('"permissionDecision":"ask"');
+
+    const runAdapter = (input: string) => {
+      const result = spawnSync("bash", [guardPath], {
+        cwd: root,
+        input,
+        encoding: "utf8",
+      });
+      expect(result.status).toBe(0);
+      return JSON.parse(result.stdout).hookSpecificOutput.permissionDecision;
+    };
+
+    expect(
+      runAdapter(
+        JSON.stringify({
+          tool_name: "mcp__Supabase__apply_migration",
+          tool_input: { project_id: stagingRef },
+        }),
+      ),
+    ).toBe("allow");
+    expect(
+      runAdapter(
+        JSON.stringify({
+          tool_name: "mcp__Supabase__apply_migration",
+          tool_input: { project_id: productionRef },
+        }),
+      ),
+    ).toBe("deny");
+    expect(
+      runAdapter(
+        JSON.stringify({
+          tool_name: "mcp__Supabase__apply_migration",
+          tool_input: { project_id: "unknown-project" },
+        }),
+      ),
+    ).toBe("deny");
+    expect(runAdapter("{malformed")).toBe("deny");
   });
 });
 
