@@ -190,9 +190,10 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
         do {
             let reply: StaffCollectionFunctionReply
             switch request {
-            case .whatsapp(let to, let templateName, let language, let params, let humanId):
+            case .whatsapp(let to, let templateName, let language, let params, let humanId, let bookingId):
                 let body = WhatsAppTemplateBody(
-                    mode: "template",
+                    mode: "collection",
+                    booking_id: bookingId,
                     to: to,
                     template_name: templateName,
                     language: language,
@@ -203,9 +204,10 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
                     "whatsapp-send",
                     options: FunctionInvokeOptions(body: body)
                 )
-            case .sms(let to, let text, let templateName, let humanId):
+            case .sms(let to, let text, let templateName, let humanId, let bookingId):
                 let body = SmsTemplateBody(
-                    mode: "template",
+                    mode: "collection",
+                    booking_id: bookingId,
                     to: to,
                     text: text,
                     template_name: templateName,
@@ -258,6 +260,7 @@ final class SupabaseStaffDayClient: StaffDayClient, Sendable {
 
 private struct WhatsAppTemplateBody: Encodable {
     let mode: String
+    let booking_id: String
     let to: String
     let template_name: String
     let language: String
@@ -267,6 +270,7 @@ private struct WhatsAppTemplateBody: Encodable {
 
 private struct SmsTemplateBody: Encodable {
     let mode: String
+    let booking_id: String
     let to: String
     let text: String
     let template_name: String

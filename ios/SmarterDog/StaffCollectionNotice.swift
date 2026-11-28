@@ -92,8 +92,8 @@ struct StaffCollectionPrompt: Identifiable, Equatable, Sendable {
 
 /// The exact payload sent to `whatsapp-send` or `sms-send` in template mode.
 enum StaffCollectionSendRequest: Equatable, Sendable {
-    case whatsapp(to: String, templateName: String, language: String, params: [String], humanId: String)
-    case sms(to: String, text: String, templateName: String, humanId: String)
+    case whatsapp(to: String, templateName: String, language: String, params: [String], humanId: String, bookingId: String)
+    case sms(to: String, text: String, templateName: String, humanId: String, bookingId: String)
 }
 
 /// The delivery verdict mirrored onto notification_log by the database.
@@ -570,7 +570,8 @@ final class StaffCollectionNoticeModel {
                 templateName: StaffCollectionNotice.whatsappTemplateName,
                 language: StaffCollectionNotice.whatsappTemplateLanguage,
                 params: [dogNamesDisplay, trimmedMinutes],
-                humanId: recipient.id
+                humanId: recipient.id,
+                bookingId: prompt.bookingId
             )
         case .sms:
             viaSms = true
@@ -578,7 +579,8 @@ final class StaffCollectionNoticeModel {
                 to: e164,
                 text: StaffCollectionNotice.smsText(dogNames: prompt.readyDogNames, minutes: trimmedMinutes),
                 templateName: StaffCollectionNotice.smsTemplateName,
-                humanId: recipient.id
+                humanId: recipient.id,
+                bookingId: prompt.bookingId
             )
         case .blocked:
             return

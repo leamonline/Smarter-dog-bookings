@@ -492,8 +492,8 @@ final class StaffTodayActionsModelTests: XCTestCase {
         await sheetModel.send(to: recipients[2]) // blocked — must not send
 
         XCTAssertEqual(client.sentRequests, [
-            .whatsapp(to: "+447700900123", templateName: "ready_for_collection_v2", language: "en_GB", params: ["Bella and Max", "15"], humanId: "h1"),
-            .sms(to: "+447700900124", text: "Hi! We've finished pampering Bella and Max and they're ready to head home in 15 mins. See you soon! X - Smarter Dog Grooming", templateName: "ready_for_collection_sms", humanId: "h2"),
+            .whatsapp(to: "+447700900123", templateName: "ready_for_collection_v2", language: "en_GB", params: ["Bella and Max", "15"], humanId: "h1", bookingId: "b1"),
+            .sms(to: "+447700900124", text: "Hi! We've finished pampering Bella and Max and they're ready to head home in 15 mins. See you soon! X - Smarter Dog Grooming", templateName: "ready_for_collection_sms", humanId: "h2", bookingId: "b1"),
         ])
         XCTAssertEqual(sheetModel.sentRecipientIDs, ["h1", "h2"])
         XCTAssertEqual(sheetModel.closeButtonLabel, "Done")

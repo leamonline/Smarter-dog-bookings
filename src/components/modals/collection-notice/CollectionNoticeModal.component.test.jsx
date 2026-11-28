@@ -146,7 +146,8 @@ describe("CollectionNoticeModal", () => {
         "sms-send",
         expect.objectContaining({
           body: expect.objectContaining({
-            mode: "template",
+            mode: "collection",
+            booking_id: "booking-1",
             to: "+447123456789",
             human_id: "human-1",
             template_name: "ready_for_collection_sms",
@@ -175,7 +176,7 @@ describe("CollectionNoticeModal", () => {
     });
 
     it("keeps Ready and shows the reason when the SMS fails", async () => {
-      invoke.mockResolvedValue({ data: { error: "send failed" }, error: null });
+      invoke.mockResolvedValue({ data: { outcome: "not_sent", error: "send failed" }, error: null });
       unreachableIds = new Set(["human-1"]);
       await openCompose();
 
@@ -272,7 +273,7 @@ describe("CollectionNoticeModal", () => {
   });
 
   it("sends the existing collection template to the chosen recipient", async () => {
-    invoke.mockResolvedValue({ data: { success: true }, error: null });
+    invoke.mockResolvedValue({ data: { ok: true }, error: null });
     renderModal();
     fireEvent.click(await screen.findByRole("button", { name: "Send message" }));
 
@@ -295,7 +296,7 @@ describe("CollectionNoticeModal", () => {
 
   it("keeps Ready when sending fails", async () => {
     invoke.mockResolvedValue({
-      data: { error: "WhatsApp send failed", detail: "Message undeliverable" },
+      data: { outcome: "not_sent", error: "WhatsApp send failed", detail: "Message undeliverable" },
       error: null,
     });
 
@@ -381,7 +382,7 @@ describe("CollectionNoticeModal", () => {
     });
 
     it("sends both dogs' names in one parameter, and the wording reads correctly for two", async () => {
-      invoke.mockResolvedValue({ data: { success: true }, error: null });
+      invoke.mockResolvedValue({ data: { ok: true }, error: null });
       ownerDayRows = [
         dayRow("booking-1", "Arrived", "Bella"),
         dayRow("booking-2", "Ready for collection", "Max"),
