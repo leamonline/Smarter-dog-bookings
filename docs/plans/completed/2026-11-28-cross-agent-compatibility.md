@@ -1,6 +1,6 @@
 # Cross-agent compatibility and fail-closed migration protection
 
-- Status: Active
+- Status: Completed (incremental scope merged in [PR #1323](https://github.com/leamonline/Smarter-dog-bookings/pull/1323); remaining runtime/parity items tracked in [#1324](https://github.com/leamonline/Smarter-dog-bookings/issues/1324))
 - Issue: [#1322](https://github.com/leamonline/Smarter-dog-bookings/issues/1322)
 - Base: `origin/main@0348fa31e61af5eaba9c8cddce5c5f8de1b1dae3`
 - Last verified: 28 November 2026
@@ -75,3 +75,9 @@ PR #1315 and PR #1319 established `AGENTS.md`, repository skills under `.agents/
 - **Revision and ownership** — Issue [#1322](https://github.com/leamonline/Smarter-dog-bookings/issues/1322), PR [#1323](https://github.com/leamonline/Smarter-dog-bookings/pull/1323), branch `feat/cross-agent-compatibility` from `origin/main@0348fa31`. Single writer.
 - **Evidence** — Hardened `.mcp.json` (`read_only=true`), `.claude/settings.json` (`mcp__Supabase__.*|Bash`, `onFailure: "block"`), shared launcher `scripts/guard-supabase-hook.sh`, explicit `deny` across prohibited MCP/CLI/fallback paths, updated regression tests, verified `claude doctor`, ran full repository validation and documented runtime limits for Claude `429 usage_limit_reached` and missing local `codex`.
 - **Next** — Push update to PR #1323, verify GitHub Actions pass on the new head SHA, and await owner merge approval. PRs #1320 and #1321 remain untouched.
+
+## Acceptance evidence
+
+GitHub records [PR #1323](https://github.com/leamonline/Smarter-dog-bookings/pull/1323) merged at exact authorised head `8e51dad4087c55787fbc98e8f9571b4d90202b44` into `main@43d2f9d7f467fd762f6562f2289832c3c364354b` on 28 November 2026 as an incremental cross-agent security and compatibility improvement. All five required pre-merge checks (`build`, `coverage`, `agent-tests`, `pr-production-smoke`, `migrations-applied`), `release-tool-tests`, `playwright-version`, `auth-core`, `SmarterDog | Default | Build - iOS` and `Vercel` passed on `8e51dad4`.
+
+The remaining acceptance items (Codex desktop/CLI/cloud enforcement compatibility, Claude Code live mock-MCP hook verification, Antigravity live hook dispatch and host failure behaviour, agent-independent production credential isolation, and a cross-agent handover and independent review exercise) are preserved in follow-up issue [#1324](https://github.com/leamonline/Smarter-dog-bookings/issues/1324). The earlier checkpoint above records the pre-merge state.
