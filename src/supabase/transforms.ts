@@ -85,6 +85,7 @@ export function dogPhotoPathOf(row: object | null | undefined): string | null {
 
 export interface DbBookingRow {
   id: string;
+  staff_revision?: number;
   slot: string;
   size: string;
   service: string;
@@ -416,6 +417,7 @@ export function dbBookingsToArray(
 
     return {
       id: row.id,
+      staffRevision: row.staff_revision,
       slot: row.slot,
       dogName: dog.name || dogNameSnapshot || "",
       breed,

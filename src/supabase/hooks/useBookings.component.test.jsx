@@ -710,6 +710,35 @@ describe("useBookings", () => {
       expect(sent).not.toHaveProperty("booking_date");
     });
 
+    it("rejects an older payment edit and reloads the row saved by the other device", async () => {
+      const store = [{ ...unpaidRow, staff_revision: 3 }];
+      const stub = makeSupabaseStub({ store });
+      setSupabase(stub);
+      const onError = vi.fn();
+      const { result } = renderHook(() => useBookings(weekStart, dogsById, humansById, { onError }));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      const oldBooking = result.current.bookingsByDate["2026-05-18"][0];
+      expect(oldBooking.staffRevision).toBe(3);
+      store[0] = { ...PAID_ELSEWHERE, staff_revision: 4 };
+
+      let saved;
+      await act(async () => {
+        saved = await result.current.updateBooking(
+          { ...oldBooking, payment: "Paid in Full", paymentMethod: "cash", paidAmount: 7,
+            _changedFields: ["payment", "paymentMethod", "paidAmount"] },
+          "2026-05-18",
+          "2026-05-18",
+        );
+      });
+
+      expect(saved).toBeNull();
+      expect(store[0]).toMatchObject({ payment_method: "card", paid_amount: 42, staff_revision: 4 });
+      expect(result.current.bookingsByDate["2026-05-18"][0]).toMatchObject({
+        paymentMethod: "card", paidAmount: 42, staffRevision: 4,
+      });
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining("booking changed"));
+    });
+
     it("an Undo holding an old snapshot writes only the fields it names", async () => {
       const stub = makeSupabaseStub({
         selectResult: { data: [unpaidRow], error: null },

@@ -105,6 +105,7 @@ export interface Dog {
 
 export interface Booking {
   id: string;
+  staffRevision?: number;
   dogName: string;
   breed: string;
   size: DogSize;
@@ -202,6 +203,7 @@ export interface Booking {
    * own confirmation that raced in is never wiped.
    */
   _unconfirmArrival?: boolean;
+  _staffConfirmationStamp?: string | null;
   /**
    * Transient, in-memory only: the derived reminderState before a staff
    * confirmation, so an Undo can revert it truthfully while offline.

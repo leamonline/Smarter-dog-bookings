@@ -2159,6 +2159,7 @@ export type Database = {
           staff_capacity_override: boolean
           staff_capacity_override_at: string | null
           staff_capacity_override_by: string | null
+          staff_revision: number
           status: string
           updated_at: string | null
           visit_id: string | null
@@ -2209,6 +2210,7 @@ export type Database = {
           staff_capacity_override?: boolean
           staff_capacity_override_at?: string | null
           staff_capacity_override_by?: string | null
+          staff_revision?: number
           status?: string
           updated_at?: string | null
           visit_id?: string | null
@@ -2259,6 +2261,7 @@ export type Database = {
           staff_capacity_override?: boolean
           staff_capacity_override_at?: string | null
           staff_capacity_override_by?: string | null
+          staff_revision?: number
           status?: string
           updated_at?: string | null
           visit_id?: string | null
