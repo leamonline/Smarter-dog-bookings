@@ -739,7 +739,7 @@ describe("useBookings", () => {
       expect(result.current.bookingsByDate["2026-05-18"][0]).toMatchObject({
         paymentMethod: "card", paidAmount: 42, staffRevision: 4,
       });
-      expect(onError).toHaveBeenCalledWith(expect.stringContaining("booking changed"));
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining("Changes include payment."));
     });
 
     it("an Undo holding an old snapshot writes only the fields it names", async () => {

@@ -812,13 +812,20 @@ export function useBookings(
         }
         if (isVersioned && !err) {
           const latest = await client.from("bookings").select("*").eq("id", updatedBooking.id).maybeSingle();
-          if (latest.data) {
-            const saved = latest.data;
+          const saved = latest.data;
+          if (saved) {
             setRows((prev) => (prev || []).map((r) =>
               r.id === saved.id && (r.staff_revision ?? -1) <= saved.staff_revision ? { ...r, ...saved } : r,
             ));
           }
-          onErrorRef.current?.("This booking changed before your update could be saved. Review the latest booking before trying again.");
+          const changed = saved && currentRow ? [
+            saved.status !== currentRow.status ? "status" : null,
+            saved.payment !== currentRow.payment || saved.payment_method !== currentRow.payment_method ||
+              saved.paid_amount !== currentRow.paid_amount ? "payment" : null,
+            saved.booking_date !== currentRow.booking_date || saved.slot !== currentRow.slot ? "appointment time" : null,
+          ].filter(Boolean) : [];
+          const detail = changed.length ? ` Changes include ${changed.join(", ")}.` : "";
+          onErrorRef.current?.(`This booking changed before your update could be saved.${detail} Review the latest booking before trying again.`);
         } else {
           logBookingFailure("Failed to update booking", err, "updateBooking");
           onErrorRef.current?.(err?.message ?? "Couldn't save the booking — please try again.");
