@@ -406,7 +406,9 @@ export async function handleSendRequest(req: Request): Promise<Response> {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
-    if (parsed.mode === "template" && parsed.template_name === "ready_for_collection_sms") {
+    // The signed delivery webhook already claims a positively undeliverable
+    // WhatsApp message before invoking this internal-only fallback.
+    if (parsed.mode === "template" && parsed.template_name === "ready_for_collection_sms" && !auth.internal) {
       return json(req, { ok: false, outcome: "not_sent", error: "Open the Ready booking in Today to send a collection notice." }, 409);
     }
     if (parsed.mode === "collection") {
